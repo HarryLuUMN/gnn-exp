@@ -17,3 +17,9 @@ class GNNVisualizer(anywidget.AnyWidget):
     _css = DIST / "gnn_visualizer" / "index.css"
 
     value = traitlets.Int(0).tag(sync=True)
+
+    def add_data(self, graphFile, weightFile):
+        self.graphData = load_json(self=self,file_path=graphFile, root=ROOT)
+        self.intmData = load_json(self=self,file_path=weightFile, root=ROOT)
+        print(f"graphData: {self.graphData.keys()}, intmData: {self.intmData.keys()} loaded.")
+

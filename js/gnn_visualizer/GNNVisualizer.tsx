@@ -21,11 +21,15 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
 
     }
 
+    // useEffect(() => {
+    //        visualizationPipeline(setIsLoading, graphPath, intmData, graphData);
+    //        onLoadComplete();
+    // }, []);
+
     useEffect(() => {
            visualizationPipeline(setIsLoading, graphPath, intmData, graphData);
            onLoadComplete();
-
-    }, [graphPath, intmData]);
+    }, [graphData, intmData]);
     
 
     return (
@@ -38,7 +42,7 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
                 flexDirection: "column",
                 alignItems: "start",
                 height: "auto",
-                overflow: "auto", // this enables scrollbars if content overflows
+                overflow: "auto", 
                 overflowX: "auto",
             }}
         ></div>
