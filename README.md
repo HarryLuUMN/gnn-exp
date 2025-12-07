@@ -1,4 +1,4 @@
-# gnn_vis_widgets
+# Graph Neural Network Visualizer in Your Computational Notebooks
 
 ## Installation
 
