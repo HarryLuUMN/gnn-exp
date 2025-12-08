@@ -1,6 +1,6 @@
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import * as d3 from "d3";
-import { extractSortedGNNLayerFeatures, transformDataToMatrixVisFormat } from "./pipeUtils";
+import { extractSortedGNNLayerFeatures, featureColor, transformDataToMatrixVisFormat } from "./pipeUtils";
 
 export function visualizationPipeline(
     setIsLoading:any, 
@@ -19,6 +19,7 @@ export function visualizationPipeline(
     // visualization pipes
     visualizeMatrixPipe(adjacancyMatrix);
     visualizeIntermediateFeaturePipe(intmData, modelInfo, adjacancyMatrix);
+    visualizeLinksBetweenLayers(adjacancyMatrix, 100);
     
     return null;
 }
@@ -79,9 +80,9 @@ export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
 export function visualizeIntermediateFeaturePipe(intmData: any, modelInfo: any, adjacencyMatrix: number[][]){
     console.log("inside visualizeIntermediateFeaturePipe", intmData, adjacencyMatrix);
 
-    const cellWidth = 2;
+    const cellWidth = 6;
     const cellHeight = 12;
-    const gapBetweenLayers = 25;
+    const gapXBetweenLayers = 100;
 
     const svg = d3.select('#matrix-svg');
     const startX = 50 + adjacencyMatrix.length * 20 + 20;
@@ -91,18 +92,42 @@ export function visualizeIntermediateFeaturePipe(intmData: any, modelInfo: any, 
     const sortedGNNFeatures = extractSortedGNNLayerFeatures(modelInfo);
     console.log("Sorted GNN Layer Features:", sortedGNNFeatures);
 
+    for(let i=0; i < sortedGNNFeatures.length; i++){
+        const layerX = startX + i * (cellWidth + gapXBetweenLayers);
+        const layerFeatures = sortedGNNFeatures[i];
+        for(let j=0; j < layerFeatures.length; j++){
+            const layerY = startY + j * (20);
+            const feature = layerFeatures[j];
+            const g = svg.append("g").attr("class", "feature-layer").attr("id", `feature-layer-${i}-node-${j}`);
+            
+            g.append("rect")
+                .attr("x", layerX)
+                .attr("y", layerY + (cellHeight/2))
+                .attr("width", feature.length * cellWidth)
+                .attr("height", cellHeight)
+                .attr("fill", "none")
+                .attr("class", "feature-layer-frame")
+                .attr("id", `feature-layer-frame-${i}-node-${j}`)
+                .style("stroke-width", 2)
+                .style("stroke", "black")
+                .style("opacity", 0.5);
 
-
-}
-
-export function visualizeFeature(
-    feature: number[], 
-    cellWidth: number, 
-    cellHeight: number, 
-    startX: number, 
-    startY: number, 
-    layerIndex: number
-){
+            for(let k=0; k < feature.length; k++){
+                g.append("rect")
+                    .attr("x", layerX + k * cellWidth)
+                    .attr("y", layerY + (cellHeight/2))
+                    .attr("width", cellWidth)
+                    .attr("height", cellHeight)
+                    .attr("fill", featureColor(feature[k]))
+                    .attr("class", "feature-cell")
+                    .attr("id", `feature-layer-${i}-node-${j}-dim-${k}`)
+                    .style("stroke-width", 1)
+                    .style("stroke", "gray")
+                    .style("stroke", "none")
+                    .style("opacity", 0.9);
+            }
+        }
+    }
 
 }
 
@@ -110,11 +135,8 @@ export function visualizeLinksBetweenLayers(
     adjacencyMatrix: number[][],
     gapSize: number,
 ){
-
-}
-
-export function visualizeLinksForAggregation(){
-
+    // visualize links between GNN layers
+    
 }
 
 
