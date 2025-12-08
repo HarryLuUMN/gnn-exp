@@ -23,7 +23,19 @@ export function transformDataToMatrixVisFormat(nodes: any, links: any) {
     return adjacancyMatrix;
 }
 
-export function transformHighPreciseDataToMatrixVisFormat(intmData: any) {
-    
+
+type LayerData = number[][];
+type ModelInfoRaw = Record<string, number[][]>;
+
+export function extractSortedGNNLayerFeatures(modelInfo: ModelInfoRaw): LayerData[] {
+    return Object.keys(modelInfo)
+        .filter(key => key.startsWith("gnn_layer_"))
+        .sort((a, b) => {
+            const aIdx = parseInt(a.split("_")[2], 10);
+            const bIdx = parseInt(b.split("_")[2], 10);
+            return aIdx - bIdx;
+        })
+        .map(key => modelInfo[key].map(row => [...row] as number[]))
+
 }
 

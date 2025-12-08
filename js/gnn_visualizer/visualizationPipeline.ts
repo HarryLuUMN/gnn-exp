@@ -1,6 +1,6 @@
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import * as d3 from "d3";
-import { transformDataToMatrixVisFormat } from "./pipeUtils";
+import { extractSortedGNNLayerFeatures, transformDataToMatrixVisFormat } from "./pipeUtils";
 
 export function visualizationPipeline(
     setIsLoading:any, 
@@ -9,11 +9,17 @@ export function visualizationPipeline(
     graphData:any
 ){
     console.log("Starting visualization pipeline...", modelInfo, intmData, graphData, setIsLoading);
+    
+    // data processing pipes
     const { nodeList, linkList} = preMatrixVisualizationDataProcessingPipe("node prediction", undefined, undefined, graphData);
     const adjacancyMatrix = transformDataToMatrixVisFormat(nodeList, linkList);
+    
     console.log("Processed nodes and links:", nodeList, linkList);
+    
+    // visualization pipes
     visualizeMatrixPipe(adjacancyMatrix);
-    visualizeIntermediateFeaturePipe(intmData, adjacancyMatrix);
+    visualizeIntermediateFeaturePipe(intmData, modelInfo, adjacancyMatrix);
+    
     return null;
 }
 
@@ -70,7 +76,7 @@ export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
     
 }
 
-export function visualizeIntermediateFeaturePipe(intmData: any, adjacencyMatrix: number[][]){
+export function visualizeIntermediateFeaturePipe(intmData: any, modelInfo: any, adjacencyMatrix: number[][]){
     console.log("inside visualizeIntermediateFeaturePipe", intmData, adjacencyMatrix);
 
     const cellWidth = 2;
@@ -80,6 +86,10 @@ export function visualizeIntermediateFeaturePipe(intmData: any, adjacencyMatrix:
     const svg = d3.select('#matrix-svg');
     const startX = 50 + adjacencyMatrix.length * 20 + 20;
     const startY = 50;
+
+    console.log("modelInfo", modelInfo); 
+    const sortedGNNFeatures = extractSortedGNNLayerFeatures(modelInfo);
+    console.log("Sorted GNN Layer Features:", sortedGNNFeatures);
 
 
 
