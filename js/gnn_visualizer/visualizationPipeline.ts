@@ -10,35 +10,37 @@ export function visualizationPipeline(
 ){
     console.log("Starting visualization pipeline...", graph_path, intmData, graphData, setIsLoading);
     const { nodeList, linkList} = preMatrixVisualizationDataProcessingPipe("node prediction", undefined, undefined, graphData);
+    const adjacancyMatrix = transformDataToMatrixVisFormat(nodeList, linkList);
     console.log("Processed nodes and links:", nodeList, linkList);
-    visualizeMatrixPipe(nodeList, linkList);
+    visualizeMatrixPipe(adjacancyMatrix);
+    visualizeIntermediateFeaturePipe(intmData, adjacancyMatrix);
     return null;
 }
 
-export function visualizeMatrixPipe(nodes: any, links: any) {
-
-    console.log("inside visualizeMatrixPipe", nodes, links);
-
-    const graphSize = nodes.length;
-    const adjacancyMatrix = transformDataToMatrixVisFormat(nodes, links);
-    console.log("Adjacency Matrix in the Vis Pipe:", adjacancyMatrix);
+export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
+    
+    console.log("Adjacency Matrix in the Vis Pipe:", adjacencyMatrix);
 
     const g = d3.select("#matvis");
     g.selectAll("*").remove();
 
-    const width = 800;
+    const width = 2400;
     const height = 800;
 
-    const svg = g.append("svg").attr("width", width).attr("height", height);
+    const svg = g
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("id", "matrix-svg");
 
     // visualize the matrix
     const startX = 50;
     const startY = 50;
     const cellSize = 20;
 
-    for(let i = 0; i < adjacancyMatrix.length; i++) {
-        for(let j = 0; j < adjacancyMatrix[i].length; j++) {
-            if(adjacancyMatrix[i][j] === 1) {
+    for(let i = 0; i < adjacencyMatrix.length; i++) {
+        for(let j = 0; j < adjacencyMatrix[i].length; j++) {
+            if(adjacencyMatrix[i][j] === 1) {
                 svg.append("rect")
                     .attr("x", startX + j * cellSize)
                     .attr("y", startY + i * cellSize)
@@ -65,7 +67,44 @@ export function visualizeMatrixPipe(nodes: any, links: any) {
             }
         }
     }
-    // fill: rgb(105, 179, 162);fill: rgb(238, 238, 238);
-
     
 }
+
+export function visualizeIntermediateFeaturePipe(intmData: any, adjacencyMatrix: number[][]){
+    console.log("inside visualizeIntermediateFeaturePipe", intmData, adjacencyMatrix);
+
+    const cellWidth = 2;
+    const cellHeight = 12;
+    const gapBetweenLayers = 25;
+
+    const svg = d3.select('#matrix-svg');
+    const startX = 50 + adjacencyMatrix.length * 20 + 20;
+    const startY = 50;
+
+
+
+}
+
+export function visualizeFeature(
+    feature: number[], 
+    cellWidth: number, 
+    cellHeight: number, 
+    startX: number, 
+    startY: number, 
+    layerIndex: number
+){
+
+}
+
+export function visualizeLinksBetweenLayers(
+    adjacencyMatrix: number[][],
+    gapSize: number,
+){
+
+}
+
+export function visualizeLinksForAggregation(){
+    
+}
+
+

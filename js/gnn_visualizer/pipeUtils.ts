@@ -12,6 +12,12 @@ export function transformDataToMatrixVisFormat(nodes: any, links: any) {
         adjacancyMatrix[linkSource][linkTarget] = 1
     }
 
+    for(let i = 0; i < matrixSize; i++) {
+        for(let j = 0; j < matrixSize; j++) {
+            if(i==j)adjacancyMatrix[i][j] = 1;
+        }
+    }
+
     console.log("adjacancyMatrix:", adjacancyMatrix);
 
     return adjacancyMatrix;
