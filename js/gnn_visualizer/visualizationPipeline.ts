@@ -1,6 +1,6 @@
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import * as d3 from "d3";
-import { extractSortedGNNLayerFeatures, featureColor, transformDataToMatrixVisFormat } from "./pipeUtils";
+import { curve, extractSortedGNNLayerFeatures, featureColor, removeRepeatLinks, transformDataToMatrixVisFormat } from "./pipeUtils";
 
 export function visualizationPipeline(
     setIsLoading:any, 
@@ -19,7 +19,7 @@ export function visualizationPipeline(
     // visualization pipes
     visualizeMatrixPipe(adjacancyMatrix);
     visualizeIntermediateFeaturePipe(intmData, modelInfo, adjacancyMatrix);
-    visualizeLinksBetweenLayers(adjacancyMatrix, 100);
+    visualizeLinksBetweenLayers(linkList, 100, modelInfo);
     
     return null;
 }
@@ -85,15 +85,17 @@ export function visualizeIntermediateFeaturePipe(intmData: any, modelInfo: any, 
     const gapXBetweenLayers = 100;
 
     const svg = d3.select('#matrix-svg');
-    const startX = 50 + adjacencyMatrix.length * 20 + 20;
+    const startX = adjacencyMatrix.length * 20 + 20 + 50;
     const startY = 50;
 
     console.log("modelInfo", modelInfo); 
     const sortedGNNFeatures = extractSortedGNNLayerFeatures(modelInfo);
     console.log("Sorted GNN Layer Features:", sortedGNNFeatures);
 
+    let layerX = startX;
     for(let i=0; i < sortedGNNFeatures.length; i++){
-        const layerX = startX + i * (cellWidth + gapXBetweenLayers);
+        
+        if (i > 0)layerX += cellWidth * sortedGNNFeatures[i-1][0].length;
         const layerFeatures = sortedGNNFeatures[i];
         for(let j=0; j < layerFeatures.length; j++){
             const layerY = startY + j * (20);
@@ -127,16 +129,62 @@ export function visualizeIntermediateFeaturePipe(intmData: any, modelInfo: any, 
                     .style("opacity", 0.9);
             }
         }
+        layerX +=  (gapXBetweenLayers);
     }
 
 }
 
 export function visualizeLinksBetweenLayers(
-    adjacencyMatrix: number[][],
+    links: any,
     gapSize: number,
+    modelInfo: any
 ){
+    console.log("start visualizeLinksBetweenLayers");
     // visualize links between GNN layers
-    
+    const svg = d3.select('#matrix-svg');
+
+    console.log("modelInfo inside visualizeLinksBetweenLayers:", modelInfo);
+    console.log("sortedGNNFeatures:", extractSortedGNNLayerFeatures(modelInfo));
+
+
+    const sortedGNNFeatures = extractSortedGNNLayerFeatures(modelInfo);
+    // const undirectLinks = removeRepeatLinks(links);
+
+    const startX = 50 + sortedGNNFeatures[0].length * 20 + 20;
+    const startY = 50;
+
+    let layerX = startX + sortedGNNFeatures[0][0].length * 6;
+
+    // looping through layers
+    for(let i=0; i < sortedGNNFeatures.length - 1; i++){
+        // compute locations
+        const prevLayerX = layerX;
+        layerX += sortedGNNFeatures[i+1][0].length * 6 + gapSize;
+        const midLayerX = (prevLayerX + layerX) / 2;
+        // looping through nodes in layer i
+        for (let j = 0; j < links.length; j++) {
+            const link = links[j];
+            const sourceIdx = link.source;
+            const targetIdx = link.target;
+
+            const sourceY = startY + sourceIdx * 20 + 12;
+            const targetY = startY + targetIdx * 20 + 12;
+
+            const pathStart: [number, number] = [prevLayerX, sourceY];
+            const pathEnd: [number, number] = [layerX, targetY];
+
+            const mid1: [number, number] = [midLayerX, sourceY];
+            const mid2: [number, number] = [midLayerX, targetY];
+            svg.append("path")
+                .attr("d", curve([pathStart, mid1, mid2, pathEnd]))
+                .attr("stroke", "black")
+                .attr("opacity", 0.1)
+                .attr("fill", "none")
+                .lower();
+        }
+    }
+
+
 }
 
 
