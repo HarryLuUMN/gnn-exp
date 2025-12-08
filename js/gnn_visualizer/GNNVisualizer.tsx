@@ -2,15 +2,15 @@ import React, { useEffect, useRef, useState } from "react";
 import { visualizationPipeline } from "./visualizationPipeline";
 
 interface GNNVisualizerProps {
-    graphPath: string;
     intmData: any;
+    modelInfo: any;
     onLoadComplete: () => void;
     graphData: any;
 }
 
 const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
-    graphPath,
     intmData,
+    modelInfo, 
     onLoadComplete,
     graphData,
 }) => {
@@ -27,7 +27,7 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     // }, []);
 
     useEffect(() => {
-           visualizationPipeline(setIsLoading, graphPath, intmData, graphData);
+           visualizationPipeline(setIsLoading, modelInfo, intmData, graphData);
            onLoadComplete();
     }, [graphData, intmData]);
     

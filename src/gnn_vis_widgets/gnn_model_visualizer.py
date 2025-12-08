@@ -11,6 +11,7 @@ DIST = ROOT / "dist"
 class GNNVisualizer(anywidget.AnyWidget):
     graphData = traitlets.Dict().tag(sync=True)  
     graphPath = traitlets.Unicode("").tag(sync=True)
+    modelInfo = traitlets.Dict().tag(sync=True)
     intmData = traitlets.Dict().tag(sync=True)
 
     _esm = DIST / "gnn_visualizer" / "index.js"
@@ -18,8 +19,9 @@ class GNNVisualizer(anywidget.AnyWidget):
 
     value = traitlets.Int(0).tag(sync=True)
 
-    def add_data(self, graphFile, weightFile):
+    def add_data(self, graphFile, weightFile, modelInfo):
         self.graphData = load_json(self=self,file_path=graphFile, root=ROOT)
         self.intmData = load_json(self=self,file_path=weightFile, root=ROOT)
+        self.modelInfo = modelInfo
         print(f"graphData: {self.graphData.keys()}, intmData: {self.intmData.keys()} loaded.")
 

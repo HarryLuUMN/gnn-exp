@@ -4,11 +4,11 @@ import { transformDataToMatrixVisFormat } from "./pipeUtils";
 
 export function visualizationPipeline(
     setIsLoading:any, 
-    graph_path:string, 
+    modelInfo:any, 
     intmData:any, 
     graphData:any
 ){
-    console.log("Starting visualization pipeline...", graph_path, intmData, graphData, setIsLoading);
+    console.log("Starting visualization pipeline...", modelInfo, intmData, graphData, setIsLoading);
     const { nodeList, linkList} = preMatrixVisualizationDataProcessingPipe("node prediction", undefined, undefined, graphData);
     const adjacancyMatrix = transformDataToMatrixVisFormat(nodeList, linkList);
     console.log("Processed nodes and links:", nodeList, linkList);
@@ -104,7 +104,7 @@ export function visualizeLinksBetweenLayers(
 }
 
 export function visualizeLinksForAggregation(){
-    
+
 }
 
 

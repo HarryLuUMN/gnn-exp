@@ -22,3 +22,8 @@ export function transformDataToMatrixVisFormat(nodes: any, links: any) {
 
     return adjacancyMatrix;
 }
+
+export function transformHighPreciseDataToMatrixVisFormat(intmData: any) {
+    
+}
+
