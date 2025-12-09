@@ -123,10 +123,10 @@ export function visualizeIntermediateFeaturePipe(intmData: any, modelInfo: any, 
                     .attr("fill", featureColor(feature[k]))
                     .attr("class", "feature-cell")
                     .attr("id", `feature-layer-${i}-node-${j}-dim-${k}`)
-                    .style("stroke-width", 1)
+                    .style("stroke-width", 0.5)
                     .style("stroke", "gray")
-                    .style("stroke", "none")
-                    .style("opacity", 0.9);
+                    .style("stroke-opacity", 0.5)
+                    .style("opacity", 1);
             }
         }
         layerX +=  (gapXBetweenLayers);
