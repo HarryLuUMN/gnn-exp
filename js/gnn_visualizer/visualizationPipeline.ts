@@ -19,7 +19,7 @@ export function visualizationPipeline(
     // visualization pipes
     visualizeMatrixPipe(adjacancyMatrix);
     visualizeIntermediateFeaturePipe(intmData, modelInfo, adjacancyMatrix);
-    visualizeLinksBetweenLayers(linkList, 100, modelInfo);
+    visualizeLinksBetweenLayersPipe(linkList, 100, modelInfo);
     
     return null;
 }
@@ -131,10 +131,10 @@ export function visualizeIntermediateFeaturePipe(intmData: any, modelInfo: any, 
         }
         layerX +=  (gapXBetweenLayers);
     }
-
+    visualizeFCFeaturesPipe(layerX, modelInfo);
 }
 
-export function visualizeLinksBetweenLayers(
+export function visualizeLinksBetweenLayersPipe(
     links: any,
     gapSize: number,
     modelInfo: any
@@ -183,8 +183,57 @@ export function visualizeLinksBetweenLayers(
                 .lower();
         }
     }
-
-
 }
 
+export function visualizeFCFeaturesPipe(layerX: number, modelInfo: any){
+    console.log("inside visualizeFCFeaturesPipe", modelInfo);
+    // get the last layer number from modelInfo
+    const sortedLayers = extractSortedGNNLayerFeatures(modelInfo);
+    const lastLayerNum = sortedLayers[sortedLayers.length - 1].length;
+    const fcLayerFeatures: any[][] = modelInfo[`fc_layer_1`];
+    console.log("fc data", fcLayerFeatures, lastLayerNum);
+    const layerY = 50;
+    const svg = d3.select('#matrix-svg');
+    for(let i=0; i < fcLayerFeatures.length; i++){
+        const feature: any[] | undefined = fcLayerFeatures[i];
+        console.log("fc feature:", feature, i);
+        if (!Array.isArray(feature)) continue;
+        const g = svg.append("g");
+        for(let j=0; j < feature.length; j++){
+            g.append("rect")
+                .attr("x", layerX + j * 6)
+                .attr("y", layerY + i * 20 + 6)
+                .attr("width", 6)
+                .attr("height", 12)
+                .attr("fill", featureColor(feature[j]))
+                .attr("class", "fc-feature-cell")
+                .attr("id", `fc-feature-layer-node-${i}-dim-${j}`)
+                .style("stroke-width", 0.5)
+                .style("stroke", "gray")
+                .style("stroke-opacity", 0.5)
+                .style("opacity", 1);
+        }
 
+        g.append("rect")
+            .attr("x", layerX)
+            .attr("y", layerY + i * 20 + 6)
+            .attr("width", feature.length * 6)
+            .attr("height", 12)
+            .attr("fill", "none")
+            .attr("class", "fc-feature-layer-frame")
+            .attr("id", `fc-feature-layer-frame-node-${i}`)
+            .style("stroke-width", 2)
+            .style("stroke", "black")
+            .style("opacity", 0.5);
+
+        svg.append("line")
+            .attr("x1", layerX)
+            .attr("y1", layerY + i * 20 + 12)
+            .attr("x2", layerX - 100)
+            .attr("y2", layerY + i * 20 + 12)
+            .attr("stroke", "black")
+            .attr("opacity", 0.1)
+            .attr("fill", "none")
+            .lower();
+    }
+}
