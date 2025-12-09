@@ -182,6 +182,19 @@ export function visualizeLinksBetweenLayersPipe(
                 .attr("fill", "none")
                 .lower();
         }
+        // visualize self-looping
+        for(let n=0; n < sortedGNNFeatures[i].length; n++){
+            const layerY = startY + n * 20 + 12;
+            svg.append("line")
+                .attr("x1", layerX)
+                .attr("y1", layerY)
+                .attr("x2", layerX - 100)
+                .attr("y2", layerY)
+                .attr("stroke", "black")
+                .attr("opacity", 0.1)
+                .attr("fill", "none")
+                .lower();
+        }
     }
 }
 
