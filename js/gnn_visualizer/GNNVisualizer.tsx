@@ -20,12 +20,7 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     if (intmData != null) {
 
     }
-
-    // useEffect(() => {
-    //        visualizationPipeline(setIsLoading, graphPath, intmData, graphData);
-    //        onLoadComplete();
-    // }, []);
-
+    
     useEffect(() => {
            visualizationPipeline(setIsLoading, modelInfo, intmData, graphData);
            onLoadComplete();

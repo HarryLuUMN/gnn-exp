@@ -1,4 +1,4 @@
-# Graph Neural Network Visualizer in Your Computational Notebooks
+# Visual Exploration of Graph Neural Networks in Your Computational Notebook
 
 ## Installation
 
