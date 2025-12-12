@@ -25,7 +25,7 @@ export function visualizationPipeline(
 
     // interaction pipes
     interactNodesAndLinksPipe(adjacancyMatrix);
-    interactFCNodesAndLinksPipe(sortedGNNFeatures);
+    interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacancyMatrix);
 
     return null;
 }
