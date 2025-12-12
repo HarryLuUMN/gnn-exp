@@ -1,7 +1,7 @@
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import * as d3 from "d3";
 import { curve, extractSortedGNNLayerFeatures, featureColor, removeRepeatLinks, transformDataToMatrixVisFormat } from "./pipeUtils";
-import { interactNodesAndLinks } from "./interactionPipeline";
+import { interactFCNodesAndLinksPipe, interactNodesAndLinksPipe } from "./interactionPipeline";
 
 export function visualizationPipeline(
     setIsLoading:any, 
@@ -14,6 +14,7 @@ export function visualizationPipeline(
     // data processing pipes
     const { nodeList, linkList} = preMatrixVisualizationDataProcessingPipe("node prediction", undefined, undefined, graphData);
     const adjacancyMatrix = transformDataToMatrixVisFormat(nodeList, linkList);
+    const sortedGNNFeatures = extractSortedGNNLayerFeatures(modelInfo);
     
     console.log("Processed nodes and links:", nodeList, linkList);
     
@@ -21,8 +22,11 @@ export function visualizationPipeline(
     visualizeMatrixPipe(adjacancyMatrix);
     visualizeIntermediateFeaturePipe(intmData, modelInfo, adjacancyMatrix);
     visualizeLinksBetweenLayersPipe(linkList, 100, modelInfo);
-    interactNodesAndLinks(adjacancyMatrix);
-    
+
+    // interaction pipes
+    interactNodesAndLinksPipe(adjacancyMatrix);
+    interactFCNodesAndLinksPipe(sortedGNNFeatures);
+
     return null;
 }
 
@@ -192,7 +196,7 @@ export function visualizeLinksBetweenLayersPipe(
             svg.append("line")
                 .attr("x1", layerX)
                 .attr("y1", layerY)
-                .attr("x2", layerX - 100)
+                .attr("x2", layerX - 125)
                 .attr("y2", layerY)
                 .attr("stroke", "black")
                 .attr("opacity", 0.1)
@@ -217,7 +221,20 @@ export function visualizeFCFeaturesPipe(layerX: number, modelInfo: any){
         const feature: any[] | undefined = fcLayerFeatures[i];
         console.log("fc feature:", feature, i);
         if (!Array.isArray(feature)) continue;
-        const g = svg.append("g");
+        const g = svg.append("g").attr("class", "fc-feature-layer").attr("id", `fc-feature-layer-node-${i}`);
+
+        g.append("rect")
+            .attr("x", layerX)
+            .attr("y", layerY + i * 20 + 6)
+            .attr("width", feature.length * 6)
+            .attr("height", 12)
+            .attr("fill", "none")
+            .attr("class", "fc-feature-layer-frame")
+            .attr("id", `fc-feature-layer-frame-node-${i}`)
+            .style("stroke-width", 2)
+            .style("stroke", "black")
+            .style("opacity", 0.5);
+
         for(let j=0; j < feature.length; j++){
             g.append("rect")
                 .attr("x", layerX + j * 6)
@@ -233,17 +250,7 @@ export function visualizeFCFeaturesPipe(layerX: number, modelInfo: any){
                 .style("opacity", 1);
         }
 
-        g.append("rect")
-            .attr("x", layerX)
-            .attr("y", layerY + i * 20 + 6)
-            .attr("width", feature.length * 6)
-            .attr("height", 12)
-            .attr("fill", "none")
-            .attr("class", "fc-feature-layer-frame")
-            .attr("id", `fc-feature-layer-frame-node-${i}`)
-            .style("stroke-width", 2)
-            .style("stroke", "black")
-            .style("opacity", 0.5);
+        
 
         svg.append("line")
             .attr("x1", layerX)
@@ -253,6 +260,8 @@ export function visualizeFCFeaturesPipe(layerX: number, modelInfo: any){
             .attr("stroke", "black")
             .attr("opacity", 0.1)
             .attr("fill", "none")
+            .attr("class", "link-path-fc")
+            .attr("id", `link-path-fc-${i}`)
             .lower();
     }
 }

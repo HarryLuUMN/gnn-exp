@@ -1,6 +1,6 @@
 import * as d3 from 'd3';
 
-export function interactNodesAndLinks(adjacencyMatrix: number[][]) {
+export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
     const g = d3.select("#matvis");
     g.selectAll(".feature-layer")
         .on("mouseover", function(event: any, d: any) {
@@ -14,7 +14,7 @@ export function interactNodesAndLinks(adjacencyMatrix: number[][]) {
 
             const neighbors: number[] = adjacencyMatrix[jthNode];
 
-            console.log("mouseover node:", this, "layer:", ithLayer, "node:", jthNode);
+            console.log("mouseover node this:", this, "layer:", ithLayer, "node:", jthNode);
             d3.select(this).select(".feature-layer-frame")
                 .style("opacity", 1)
                 .style("stroke", "black");
@@ -24,6 +24,10 @@ export function interactNodesAndLinks(adjacencyMatrix: number[][]) {
                 g.select(`#link-path-${ithLayer-1}-${i}-to-${jthNode}`)
                     .style("stroke", "black")
                     .style("opacity", 1);
+
+                g.select(`#feature-layer-${ithLayer-1}-node-${i}`)
+                    .select(".feature-layer-frame")
+                    .style("opacity", 1);
             }
         })
         .on("mouseout", function(event: any, d: any) {
@@ -32,12 +36,35 @@ export function interactNodesAndLinks(adjacencyMatrix: number[][]) {
                 .style("stroke", "black")
                 .style("opacity", 0.1);
 
-            d3.select(this).select(".feature-layer-frame")
+            d3.selectAll(".feature-layer-frame")
                 .style("opacity", 0.5)
                 .style("stroke", "black");
         });
 }
 
-
+export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[]) {
+    const g = d3.select("#matrix-svg");
+    g.selectAll(".fc-feature-layer")
+        .on("mouseover", function(event: any, d: any) {
+            d3.select(this)
+                .select(".fc-feature-layer-frame")
+                .style("opacity", 1);
+            
+            const id = (this as HTMLElement).id;
+            const match = id.match(/^fc-feature-layer-node-(\d+)$/);
+            if (!match) return;
+            g.select(`#link-path-fc-${match[1]}`).style("opacity", 1);
+            g.select(`#feature-layer-${sortedGNNFeatures.length-1}-node-${match[1]}`).select(".feature-layer-frame").style("opacity", 1);
+        })
+        .on("mouseout", function(event: any, d: any) {
+            d3.select(this)
+                .select(".fc-feature-layer-frame")
+                .style("opacity", 0.5);
+            d3.selectAll(".link-path-fc")
+                .style("opacity", 0.1);
+            d3.selectAll(".feature-layer-frame")
+                .style("opacity", 0.5);
+        });
+}
 
 
