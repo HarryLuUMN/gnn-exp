@@ -1,6 +1,7 @@
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import * as d3 from "d3";
 import { curve, extractSortedGNNLayerFeatures, featureColor, removeRepeatLinks, transformDataToMatrixVisFormat } from "./pipeUtils";
+import { interactNodesAndLinks } from "./interactionPipeline";
 
 export function visualizationPipeline(
     setIsLoading:any, 
@@ -20,6 +21,7 @@ export function visualizationPipeline(
     visualizeMatrixPipe(adjacancyMatrix);
     visualizeIntermediateFeaturePipe(intmData, modelInfo, adjacancyMatrix);
     visualizeLinksBetweenLayersPipe(linkList, 100, modelInfo);
+    interactNodesAndLinks(adjacancyMatrix);
     
     return null;
 }
@@ -180,6 +182,8 @@ export function visualizeLinksBetweenLayersPipe(
                 .attr("stroke", "black")
                 .attr("opacity", 0.1)
                 .attr("fill", "none")
+                .attr("class", "link-path")
+                .attr("id", `link-path-${i}-${sourceIdx}-to-${targetIdx}`)
                 .lower();
         }
         // visualize self-looping
@@ -193,6 +197,8 @@ export function visualizeLinksBetweenLayersPipe(
                 .attr("stroke", "black")
                 .attr("opacity", 0.1)
                 .attr("fill", "none")
+                .attr("class", "link-path")
+                .attr("id", `link-path-${i}-${n}-to-${n}`)
                 .lower();
         }
     }
