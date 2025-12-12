@@ -79,7 +79,31 @@ export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
                     .style("opacity", 0.8);
             }
         }
+        svg.append("rect")
+            .attr("x", startX)
+            .attr("y", startY+ i * cellSize)
+            .attr("width", cellSize * adjacencyMatrix.length)
+            .attr("height", cellSize)
+            .attr("fill", "none")
+            .attr("class", "adj-matrix-row-border")
+            .attr("id", `adj-matrix-row-border-${i}`)
+            .style("stroke", "black")
+            .style("stroke-width", 1)
+            .style("opacity", 0);
+
+        svg.append("rect")
+            .attr("x", startX+ i * cellSize)
+            .attr("y", startY)
+            .attr("width", cellSize )
+            .attr("height", cellSize* adjacencyMatrix.length)
+            .attr("fill", "none")
+            .attr("class", "adj-matrix-col-border")
+            .attr("id", `adj-matrix-col-border-${i}`)
+            .style("stroke", "black")
+            .style("stroke-width", 1)
+            .style("opacity", 0);
     }
+    svg.selectAll(".adj-matrix-row-border, .adj-matrix-col-border").raise();
     
 }
 
