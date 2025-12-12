@@ -67,4 +67,6 @@ export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[]) {
         });
 }
 
-
+export function interactNodesAndMatrixSubpipe(){
+    
+}
