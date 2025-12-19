@@ -72,7 +72,34 @@ export function transitFeatureLayers(layerID: number, distanceX: number) {
             const id = Number(match[1]);
             return id >= layerID;
         }).transition().duration(500).ease(d3.easeCubicOut).attr("transform", `translate(${distanceX}, 0)`);
+    transitFCLayer(distanceX);
+}
+
+export function transitFCLayer(distanceX: number) {
     d3.selectAll(".fc-feature-layer").transition().duration(500).ease(d3.easeCubicOut).attr("transform", `translate(${distanceX}, 0)`);
+}
+
+export function getMaxLayerID(): number {
+  let maxLayerID = -Infinity;
+
+  d3.selectAll(".feature-layer").each(function () {
+    const idStr = (this as HTMLElement).id;
+    const match = idStr.match(/^feature-layer-(\d+)-node-\d+$/);
+    if (!match) return;
+
+    const layerID = Number(match[1]);
+    if (layerID > maxLayerID) {
+      maxLayerID = layerID;
+    }
+  });
+
+  return maxLayerID;
+}
+
+export function extractFCNodeIndex(id: string): number {
+  const match = id.match(/^fc-feature-layer-node-(\d+)$/);
+  if (!match) return -1;
+  return Number(match[1]);
 }
 
 export const featureColor = d3

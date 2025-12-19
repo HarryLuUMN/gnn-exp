@@ -1,8 +1,11 @@
 import * as d3 from 'd3';
-import { extractFeatureId, transitFeatureLayers } from './pipeUtils';
+import { extractFCNodeIndex, extractFeatureId, getMaxLayerID, transitFCLayer, transitFeatureLayers } from './pipeUtils';
 
 var isExpandLayer = false;
 var currentLayerID = -1;
+
+const maxLayerNum = getMaxLayerID();
+console.log("maxLayerNum:", maxLayerNum);
 
 export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
     const g = d3.select("#matvis");
@@ -133,10 +136,29 @@ export function interactLayerExpansionPipe(adjacencyMatrix: number[][]){
         d3.selectAll(".feature-layer, .fc-feature-layer")
             .style("opacity", 1)
             .attr("pointer-events", "auto");
-        if(currentLayerID !== -1)transitFeatureLayers(currentLayerID, 0);
+        if(currentLayerID !== -1 && currentLayerID != maxLayerNum+1)transitFeatureLayers(currentLayerID, 0);
+        if(currentLayerID === maxLayerNum+1)transitFCLayer(0);
         currentLayerID = -1;
     });
 }
 
+export function interactFCExpansionPipe(){
+    const g = d3.select("#matvis");
+    g.selectAll(".fc-feature-layer")
+        .on("click", function(event: any, d: any) {
+            event.stopPropagation();
+            isExpandLayer = true;
+            currentLayerID = maxLayerNum + 1;
+            const id = extractFCNodeIndex((this as HTMLElement).id);
+            d3.selectAll(".link-path, .link-path-fc").style("opacity", 0);
+            d3.selectAll(".feature-layer, .fc-feature-layer")
+                .style("opacity", 0.1)
+                .attr("pointer-events", "none");
+            d3.select(this).style("opacity", 1);
+            d3.select("#feature-layer-" + maxLayerNum + "-node-" + id).style("opacity", 1);
+            transitFeatureLayers(maxLayerNum + 1, 300);
+        });
+
+}
 
 

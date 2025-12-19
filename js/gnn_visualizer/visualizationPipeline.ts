@@ -1,7 +1,7 @@
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import * as d3 from "d3";
 import { curve, extractSortedGNNLayerFeatures, featureColor, removeRepeatLinks, transformDataToMatrixVisFormat } from "./pipeUtils";
-import { interactFCNodesAndLinksPipe, interactLayerExpansionPipe, interactNodesAndLinksPipe } from "./interactionPipeline";
+import { interactFCExpansionPipe, interactFCNodesAndLinksPipe, interactLayerExpansionPipe, interactNodesAndLinksPipe } from "./interactionPipeline";
 
 export function visualizationPipeline(
     setIsLoading:any, 
@@ -27,6 +27,7 @@ export function visualizationPipeline(
     interactNodesAndLinksPipe(adjacancyMatrix);
     interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacancyMatrix);
     interactLayerExpansionPipe(adjacancyMatrix);
+    interactFCExpansionPipe();
 
     return null;
 }
@@ -290,3 +291,9 @@ export function visualizeFCForEachSingleNodeSubpipe(layerX: number, modelInfo: a
             .lower();
     }
 }
+
+export function visualizeInnerGCNLayerSubpipe(){
+    const g = d3.select('#matrix-svg');
+
+}
+
