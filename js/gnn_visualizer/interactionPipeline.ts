@@ -1,11 +1,16 @@
 import * as d3 from 'd3';
+import { extractFeatureId, transitFeatureLayers } from './pipeUtils';
+
+var isExpandLayer = false;
+var currentLayerID = -1;
 
 export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
     const g = d3.select("#matvis");
     g.selectAll(".feature-layer")
         .on("mouseover", function(event: any, d: any) {
+            if (isExpandLayer) return;
             const id = (this as HTMLElement).id;
-            const match = id.match(/^feature-layer-(\d+)-node-(\d+)$/);
+            const match = extractFeatureId(id);
 
             if (!match) return;
 
@@ -34,6 +39,7 @@ export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
             else interactNodesAndActivateMatrixSubpipe(jthNode, adjacencyMatrix, "activate-single");
         })
         .on("mouseout", function(event: any, d: any) {
+            if (isExpandLayer) return;
             console.log("mouseout node:", this);
             g.selectAll(".link-path")
                 .style("stroke", "black")
@@ -51,6 +57,7 @@ export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyM
     const g = d3.select("#matrix-svg");
     g.selectAll(".fc-feature-layer")
         .on("mouseover", function(event: any, d: any) {
+            if (isExpandLayer) return;
             d3.select(this)
                 .select(".fc-feature-layer-frame")
                 .style("opacity", 1);
@@ -63,6 +70,7 @@ export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyM
             interactNodesAndActivateMatrixSubpipe(Number(match[1]), adjacencyMatrix, "activate-single");
         })
         .on("mouseout", function(event: any, d: any) {
+            if (isExpandLayer) return;
             d3.select(this)
                 .select(".fc-feature-layer-frame")
                 .style("opacity", 0.5);
@@ -91,3 +99,44 @@ export function interactNodesAndDeactivateMatrixSubpipe() {
     const g = d3.select("#matrix-svg");
     g.selectAll(".adj-matrix-row-border, .adj-matrix-col-border").style("opacity", 0);
 }
+
+export function interactLayerExpansionPipe(adjacencyMatrix: number[][]){
+    const g = d3.select("#matvis");
+
+    g.selectAll(".feature-layer")
+        .on("click", function(event: any, d: any) {
+            event.stopPropagation();
+            isExpandLayer = !isExpandLayer;
+            const id = (this as HTMLElement).id;
+            const matchedID = extractFeatureId(id);
+            const layerID = matchedID[1];
+            const nodeID = matchedID[2];
+            currentLayerID = Number(layerID);
+            console.log("isExpandLayer click:", isExpandLayer, matchedID);
+            d3.selectAll(".link-path, .link-path-fc").style("opacity", 0);
+            d3.selectAll(".feature-layer, .fc-feature-layer")
+                .style("opacity", 0.1)
+                .attr("pointer-events", "none");
+            d3.select(this).style("opacity", 1);
+            for(let i = 0; i < adjacencyMatrix[nodeID].length; i++) {
+                if (adjacencyMatrix[nodeID][i] === 1){
+                    d3.select(`#feature-layer-${layerID-1}-node-${i}`).style("opacity", 1);
+                }
+            }
+            transitFeatureLayers(layerID, 300);
+        });
+
+    g.on("click", function(event: any, d: any) {
+        if(isExpandLayer)isExpandLayer = false;
+        console.log("isExpandLayer updated:", isExpandLayer);
+        d3.selectAll(".link-path, .link-path-fc").style("opacity", 0.1);
+        d3.selectAll(".feature-layer, .fc-feature-layer")
+            .style("opacity", 1)
+            .attr("pointer-events", "auto");
+        if(currentLayerID !== -1)transitFeatureLayers(currentLayerID, 0);
+        currentLayerID = -1;
+    });
+}
+
+
+

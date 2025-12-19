@@ -1,7 +1,7 @@
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import * as d3 from "d3";
 import { curve, extractSortedGNNLayerFeatures, featureColor, removeRepeatLinks, transformDataToMatrixVisFormat } from "./pipeUtils";
-import { interactFCNodesAndLinksPipe, interactNodesAndLinksPipe } from "./interactionPipeline";
+import { interactFCNodesAndLinksPipe, interactLayerExpansionPipe, interactNodesAndLinksPipe } from "./interactionPipeline";
 
 export function visualizationPipeline(
     setIsLoading:any, 
@@ -26,6 +26,7 @@ export function visualizationPipeline(
     // interaction pipes
     interactNodesAndLinksPipe(adjacancyMatrix);
     interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacancyMatrix);
+    interactLayerExpansionPipe(adjacancyMatrix);
 
     return null;
 }
@@ -161,7 +162,7 @@ export function visualizeIntermediateFeaturePipe(intmData: any, modelInfo: any, 
         }
         layerX +=  (gapXBetweenLayers);
     }
-    visualizeFCFeaturesPipe(layerX, modelInfo);
+    visualizeFCForEachSingleNodeSubpipe(layerX, modelInfo);
 }
 
 export function visualizeLinksBetweenLayersPipe(
@@ -232,7 +233,7 @@ export function visualizeLinksBetweenLayersPipe(
     }
 }
 
-export function visualizeFCFeaturesPipe(layerX: number, modelInfo: any){
+export function visualizeFCForEachSingleNodeSubpipe(layerX: number, modelInfo: any){
     console.log("inside visualizeFCFeaturesPipe", modelInfo);
     // get the last layer number from modelInfo
     const sortedLayers = extractSortedGNNLayerFeatures(modelInfo);

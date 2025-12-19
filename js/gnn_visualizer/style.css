@@ -34,3 +34,6 @@
     transition: fill 0.2s;
 }
 
+.interaction_banned {
+    pointer-events: none;
+}
