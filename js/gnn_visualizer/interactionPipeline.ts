@@ -16,7 +16,7 @@ export function interactionPipeline(cellWidth: number, adjacencyMatrix: number[]
     // interaction pipes
     interactNodesAndLinksPipe(adjacencyMatrix);
     interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacencyMatrix);
-    interactLayerExpansionPipe(cellWidth, adjacencyMatrix, transitDistance, sortedGNNFeatures);
+    interactLayerExpansionPipe(cellWidth, adjacencyMatrix, sortedGNNFeatures);
     interactFCExpansionPipe(transitDistance);
 }
 
@@ -116,7 +116,7 @@ export function interactNodesAndDeactivateMatrixSubpipe() {
     g.selectAll(".adj-matrix-row-border, .adj-matrix-col-border").style("opacity", 0);
 }
 
-export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: number[][], transitDistance: number, sortedGNNFeatures: any[][]){
+export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][]){
     const g = d3.select("#matvis");
 
     g.selectAll(".feature-layer")
@@ -139,7 +139,8 @@ export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: n
                     d3.select(`#feature-layer-${layerID-1}-node-${i}`).style("opacity", 1);
                 }
             }
-            transitFeatureLayers(layerID, transitDistance);
+            const dist = 50 * 3 + sortedGNNFeatures[layerID-1][0].length * cellWidth + sortedGNNFeatures[layerID][0].length * cellWidth;
+            transitFeatureLayers(layerID, dist);
             visualizeInnerGNNLayerSubpipe(cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures);
         });
 

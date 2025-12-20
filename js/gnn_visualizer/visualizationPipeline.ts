@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { addVector, countOnes, curve, extractSortedGNNLayerFeatures, featureColor, scaleVector } from "./pipeUtils";
+import { addVector, countOnes, curve, extractSortedGNNLayerFeatures, featureColor, randomMatrix, randomVector, scaleVector, vecMatMul } from "./pipeUtils";
 import { computeFeatureLayerX, computeFeatureLayerY } from "./geometryUtils";
 
 export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], modelInfo: any, intmData: any, linkList: any[]) {
@@ -341,8 +341,128 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
     }
 
     // visualize weight matrix and it multiplication with aggregated feature
-
+    inner.append("line")
+        .attr("x1", currentNodeX + distanceBetweenFeatures + aggregatedFeature.length * cellWidth)
+        .attr("y1", currentNodeY)
+        .attr("x2", currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth)
+        .attr("y2", currentNodeY)
+        .attr("stroke", "black")
+        .attr("opacity", 1)
+        .attr("fill", "none")
+        .attr("class", "aggregated-feature-to-multiplied-feature-line layer-inner-works")
+    inner.append("path")
+        .attr("d", curve([
+            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth, currentNodeY], 
+            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth, currentNodeY + distanceBetweenFeatures],
+            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures, currentNodeY + distanceBetweenFeatures],
+            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures, currentNodeY + distanceBetweenFeatures*2]
+        ]))
+        .attr("stroke", "black")
+        .attr("opacity", 1)
+        .attr("fill", "none")
+        .attr("class", "weight-matrix-to-intersect-path layer-inner-works")
+        .lower();
+    const weightMatrix = randomMatrix(sortedGNNFeatures[layerID-1][0].length, sortedGNNFeatures[layerID][0].length);
+    const matrixStartX = currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures - cellWidth * weightMatrix[0].length / 2;
+    const matrixStartY = currentNodeY + distanceBetweenFeatures * 2;
+    inner.append("rect")
+        .attr("x", matrixStartX)
+        .attr("y", matrixStartY)
+        .attr("width", cellWidth * weightMatrix[0].length)
+        .attr("height", cellWidth * weightMatrix.length)
+        .attr("fill", "none")
+        .attr("class", "weight-matrix-frame layer-inner-works")
+        .attr("id", `weight-matrix-frame-${layerID}-${nodeID}`)
+        .style("stroke-width", 1)
+        .style("stroke", "black")
+        .style("opacity", 1)
+        .lower();
+    for(let m=0; m < weightMatrix.length; m++){
+        for(let n=0; n < weightMatrix[m].length; n++){
+            inner.append("rect")
+                .attr("x", matrixStartX + n * cellWidth)
+                .attr("y", matrixStartY + m * cellWidth)
+                .attr("width", cellWidth)
+                .attr("height", cellWidth)
+                .attr("fill", featureColor(weightMatrix[m][n]))
+                .attr("class", "weight-matrix-cell layer-inner-works")
+                .attr("id", `weight-matrix-cell-${layerID}-${nodeID}-dim-${m}-${n}`)
+                .style("opacity", 1)
+                .lower();
+        }
+    }
     // visualize bias and actiivation function
-
+    const multipliedFeature = vecMatMul(aggregatedFeature, weightMatrix);
+    const bias = randomVector(sortedGNNFeatures[layerID][0].length);
+    inner.append("rect")
+        .attr("x", currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth)
+        .attr("y", currentNodeY - 12/2)
+        .attr("width", multipliedFeature.length * cellWidth)
+        .attr("height", 12)
+        .attr("fill", "none")
+        .attr("class", "multiplied-feature-frame layer-inner-works")
+        .attr("id", `multiplied-feature-frame-${layerID}-${nodeID}`)
+        .style("stroke-width", 1)
+        .style("stroke", "black")
+        .style("opacity", 1)
+        .lower();
+    for (let m=0; m < multipliedFeature.length; m++){
+        inner.append("rect")
+            .attr("x", currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth + m * cellWidth)
+            .attr("y", currentNodeY - 12/2)
+            .attr("width", cellWidth)
+            .attr("height", 12)
+            .attr("fill", featureColor(multipliedFeature[m]))
+            .attr("class", "multiplied-feature-cell layer-inner-works")
+            .attr("id", `multiplied-feature-cell-${layerID}-${nodeID}-dim-${m}`)
+            .style("opacity", 1)
+            .lower();
+    }
+    inner.append("rect")
+        .attr("x", currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth)
+        .attr("y", currentNodeY - distanceBetweenFeatures)
+        .attr("width", bias.length * cellWidth)
+        .attr("height", 12)
+        .attr("fill", "none")
+        .attr("class", "bias-frame layer-inner-works")
+        .attr("id", `bias-frame-${layerID}-${nodeID}`)
+        .style("stroke-width", 1)
+        .style("stroke", "black")
+        .style("opacity", 1)
+        .lower();
+    for (let m=0; m < bias.length; m++){
+        inner.append("rect")
+            .attr("x", currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth + m * cellWidth)
+            .attr("y", currentNodeY - distanceBetweenFeatures)
+            .attr("width", cellWidth)
+            .attr("height", 12)
+            .attr("fill", featureColor(bias[m]))
+            .attr("class", "bias-cell layer-inner-works")
+            .attr("id", `bias-cell-${layerID}-${nodeID}-dim-${m}`)
+            .style("opacity", 1)
+            .lower();
+    }
+    inner.append("line")
+        .attr("x1", currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth + multipliedFeature.length * cellWidth)
+        .attr("y1", currentNodeY)
+        .attr("x2", currentNodeX + distanceBetweenFeatures*3 + aggregatedFeature.length * cellWidth + multipliedFeature.length * cellWidth)
+        .attr("y2", currentNodeY)
+        .attr("stroke", "black")
+        .attr("opacity", 1)
+        .attr("fill", "none")
+        .attr("class", "multiplied-feature-to-bias-line layer-inner-works")
+        .lower();
+    inner.append("path")
+        .attr("d", curve([
+            [currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth + bias.length * cellWidth, currentNodeY - distanceBetweenFeatures + 12/2], 
+            [currentNodeX + distanceBetweenFeatures*2.5 + aggregatedFeature.length * cellWidth + bias.length * cellWidth, currentNodeY - distanceBetweenFeatures + 12/2],
+            [currentNodeX + distanceBetweenFeatures*2.5 + aggregatedFeature.length * cellWidth + bias.length * cellWidth, currentNodeY],
+            [currentNodeX + distanceBetweenFeatures*3 + aggregatedFeature.length * cellWidth + bias.length * cellWidth, currentNodeY]
+        ]))
+        .attr("stroke", "black")
+        .attr("opacity", 1)
+        .attr("fill", "none")
+        .attr("class", "bias-to-output-path layer-inner-works")
+        .lower();
 }
 

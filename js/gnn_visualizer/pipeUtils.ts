@@ -6,16 +6,16 @@ export function transformDataToMatrixVisFormat(nodes: any, links: any) {
         Array(matrixSize).fill(0)
     );
 
-    for(let i = 0; i < links.length; i++) {
+    for (let i = 0; i < links.length; i++) {
         const link = links[i];
         const linkSource = link.source;
         const linkTarget = link.target;
         adjacancyMatrix[linkSource][linkTarget] = 1
     }
 
-    for(let i = 0; i < matrixSize; i++) {
-        for(let j = 0; j < matrixSize; j++) {
-            if(i==j)adjacancyMatrix[i][j] = 1;
+    for (let i = 0; i < matrixSize; i++) {
+        for (let j = 0; j < matrixSize; j++) {
+            if (i == j) adjacancyMatrix[i][j] = 1;
         }
     }
 
@@ -59,7 +59,7 @@ export function removeRepeatLinks(links: any[]) {
     return result;
 }
 
-export function extractFeatureId(id: any){
+export function extractFeatureId(id: any) {
     return id.match(/^feature-layer-(\d+)-node-(\d+)$/);
 }
 
@@ -80,31 +80,31 @@ export function transitFCLayer(distanceX: number) {
 }
 
 export function getMaxLayerID(): number {
-  let maxLayerID = -Infinity;
+    let maxLayerID = -Infinity;
 
-  d3.selectAll(".feature-layer").each(function () {
-    const idStr = (this as HTMLElement).id;
-    const match = idStr.match(/^feature-layer-(\d+)-node-\d+$/);
-    if (!match) return;
+    d3.selectAll(".feature-layer").each(function () {
+        const idStr = (this as HTMLElement).id;
+        const match = idStr.match(/^feature-layer-(\d+)-node-\d+$/);
+        if (!match) return;
 
-    const layerID = Number(match[1]);
-    if (layerID > maxLayerID) {
-      maxLayerID = layerID;
-    }
-  });
+        const layerID = Number(match[1]);
+        if (layerID > maxLayerID) {
+            maxLayerID = layerID;
+        }
+    });
 
-  return maxLayerID;
+    return maxLayerID;
 }
 
 export function extractFCNodeIndex(id: string): number {
-  const match = id.match(/^fc-feature-layer-node-(\d+)$/);
-  if (!match) return -1;
-  return Number(match[1]);
+    const match = id.match(/^fc-feature-layer-node-(\d+)$/);
+    if (!match) return -1;
+    return Number(match[1]);
 }
 
 export function addVector(a: number[], b: number[]): number[] {
     if (a.length !== b.length) {
-      throw new Error("Vector length mismatch");
+        throw new Error("Vector length mismatch");
     }
     return a.map((v, i) => v + b[i]);
 }
@@ -115,6 +115,36 @@ export function scaleVector(k: number, v: number[]): number[] {
 
 export const countOnes = (arr: number[]) =>
     arr.reduce((sum, x) => sum + (x === 1 ? 1 : 0), 0);
+
+export function vecMatMul(v: number[], W: number[][]): number[] {
+    const n = v.length;
+    const m = W[0].length;
+
+    if (W.length !== n) {
+        throw new Error("Dimension mismatch");
+    }
+
+    const result = Array(m).fill(0);
+
+    for (let j = 0; j < m; j++) {
+        for (let i = 0; i < n; i++) {
+            result[j] += v[i] * W[i][j];
+        }
+    }
+
+    return result;
+}
+
+export function randomMatrix(m: number, n: number): number[][] {
+    return Array.from({ length: m }, () =>
+        Array.from({ length: n }, () => Math.random())
+    );
+}
+
+export function randomVector(n: number): number[] {
+    return Array.from({ length: n }, () => Math.random());
+}
+
 
 export const featureColor = d3
     .scaleLinear<string>()
