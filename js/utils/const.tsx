@@ -297,3 +297,4 @@ export const dualViewVisualizerStyle = `
     }
   `;
 
+export const distanceToFeature = 50;

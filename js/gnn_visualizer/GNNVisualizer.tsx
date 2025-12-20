@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { visualizationPipeline } from "./visualizationPipeline";
+import { modelPipeline } from "./modelPipeline";
 
 interface GNNVisualizerProps {
     intmData: any;
@@ -22,7 +22,7 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     }
     
     useEffect(() => {
-           visualizationPipeline(setIsLoading, modelInfo, intmData, graphData);
+           modelPipeline(setIsLoading, modelInfo, intmData, graphData);
            onLoadComplete();
     }, [graphData, intmData]);
     

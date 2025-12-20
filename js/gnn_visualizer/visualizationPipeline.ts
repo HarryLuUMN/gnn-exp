@@ -1,9 +1,9 @@
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import * as d3 from "d3";
 import { curve, extractSortedGNNLayerFeatures, featureColor, removeRepeatLinks, transformDataToMatrixVisFormat } from "./pipeUtils";
-import { interactFCExpansionPipe, interactFCNodesAndLinksPipe, interactLayerExpansionPipe, interactNodesAndLinksPipe } from "./interactionPipeline";
+import { interactFCExpansionPipe, interactFCNodesAndLinksPipe, interactionPipeline, interactLayerExpansionPipe, interactNodesAndLinksPipe } from "./interactionPipeline";
 
-export function visualizationPipeline(
+export function modelPipeline(
     setIsLoading:any, 
     modelInfo:any, 
     intmData:any, 
@@ -19,17 +19,22 @@ export function visualizationPipeline(
     console.log("Processed nodes and links:", nodeList, linkList);
     
     // visualization pipes
-    visualizeMatrixPipe(adjacancyMatrix);
-    visualizeIntermediateFeaturePipe(intmData, modelInfo, adjacancyMatrix);
-    visualizeLinksBetweenLayersPipe(linkList, 100, modelInfo);
-
-    // interaction pipes
-    interactNodesAndLinksPipe(adjacancyMatrix);
-    interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacancyMatrix);
-    interactLayerExpansionPipe(adjacancyMatrix);
-    interactFCExpansionPipe();
-
+    visualizationPipeline(adjacancyMatrix, modelInfo, intmData, linkList);
+    interactionPipeline(adjacancyMatrix, sortedGNNFeatures);
+    
     return null;
+}
+
+export function visualizationPipeline(adjacencyMatrix: number[][], modelInfo: any, intmData: any, linkList: any[]) {
+    // define parameters
+    const gapSizeBetweenLayers = 100;
+    const cellWidth = 6;
+    const cellHeight = 12;
+    
+    // visualization pipes
+    visualizeMatrixPipe(adjacencyMatrix);
+    visualizeIntermediateFeaturePipe(cellWidth, cellHeight, gapSizeBetweenLayers, intmData, modelInfo, adjacencyMatrix);
+    visualizeLinksBetweenLayersPipe(linkList, gapSizeBetweenLayers, modelInfo);
 }
 
 export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
@@ -109,12 +114,8 @@ export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
     
 }
 
-export function visualizeIntermediateFeaturePipe(intmData: any, modelInfo: any, adjacencyMatrix: number[][]){
+export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, modelInfo: any, adjacencyMatrix: number[][]){
     console.log("inside visualizeIntermediateFeaturePipe", intmData, adjacencyMatrix);
-
-    const cellWidth = 6;
-    const cellHeight = 12;
-    const gapXBetweenLayers = 100;
 
     const svg = d3.select('#matrix-svg');
     const startX = adjacencyMatrix.length * 20 + 20 + 50;

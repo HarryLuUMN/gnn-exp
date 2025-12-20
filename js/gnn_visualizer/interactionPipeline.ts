@@ -7,6 +7,16 @@ var currentLayerID = -1;
 const maxLayerNum = getMaxLayerID();
 console.log("maxLayerNum:", maxLayerNum);
 
+
+export function interactionPipeline(adjacencyMatrix: number[][], sortedGNNFeatures: any[]) {
+    // interaction pipes
+    interactNodesAndLinksPipe(adjacencyMatrix);
+    interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacencyMatrix);
+    interactLayerExpansionPipe(adjacencyMatrix);
+    interactFCExpansionPipe();
+}
+
+
 export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
     const g = d3.select("#matvis");
     g.selectAll(".feature-layer")
@@ -156,7 +166,7 @@ export function interactFCExpansionPipe(){
                 .attr("pointer-events", "none");
             d3.select(this).style("opacity", 1);
             d3.select("#feature-layer-" + maxLayerNum + "-node-" + id).style("opacity", 1);
-            transitFeatureLayers(maxLayerNum + 1, 300);
+            transitFCLayer(300);
         });
 
 }
