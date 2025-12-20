@@ -102,6 +102,20 @@ export function extractFCNodeIndex(id: string): number {
   return Number(match[1]);
 }
 
+export function addVector(a: number[], b: number[]): number[] {
+    if (a.length !== b.length) {
+      throw new Error("Vector length mismatch");
+    }
+    return a.map((v, i) => v + b[i]);
+}
+
+export function scaleVector(k: number, v: number[]): number[] {
+    return v.map(x => k * x);
+}
+
+export const countOnes = (arr: number[]) =>
+    arr.reduce((sum, x) => sum + (x === 1 ? 1 : 0), 0);
+
 export const featureColor = d3
     .scaleLinear<string>()
     .domain([-3, -1, -0.1, 0, 0.1, 1, 3])

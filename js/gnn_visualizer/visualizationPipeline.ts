@@ -1,35 +1,10 @@
-import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import * as d3 from "d3";
-import { curve, extractSortedGNNLayerFeatures, featureColor, removeRepeatLinks, transformDataToMatrixVisFormat } from "./pipeUtils";
-import { interactFCExpansionPipe, interactFCNodesAndLinksPipe, interactionPipeline, interactLayerExpansionPipe, interactNodesAndLinksPipe } from "./interactionPipeline";
+import { addVector, countOnes, curve, extractSortedGNNLayerFeatures, featureColor, scaleVector } from "./pipeUtils";
+import { computeFeatureLayerX, computeFeatureLayerY } from "./geometryUtils";
 
-export function modelPipeline(
-    setIsLoading:any, 
-    modelInfo:any, 
-    intmData:any, 
-    graphData:any
-){
-    console.log("Starting visualization pipeline...", modelInfo, intmData, graphData, setIsLoading);
-    
-    // data processing pipes
-    const { nodeList, linkList} = preMatrixVisualizationDataProcessingPipe("node prediction", undefined, undefined, graphData);
-    const adjacancyMatrix = transformDataToMatrixVisFormat(nodeList, linkList);
-    const sortedGNNFeatures = extractSortedGNNLayerFeatures(modelInfo);
-    
-    console.log("Processed nodes and links:", nodeList, linkList);
-    
-    // visualization pipes
-    visualizationPipeline(adjacancyMatrix, modelInfo, intmData, linkList);
-    interactionPipeline(adjacancyMatrix, sortedGNNFeatures);
-    
-    return null;
-}
-
-export function visualizationPipeline(adjacencyMatrix: number[][], modelInfo: any, intmData: any, linkList: any[]) {
+export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], modelInfo: any, intmData: any, linkList: any[]) {
     // define parameters
     const gapSizeBetweenLayers = 100;
-    const cellWidth = 6;
-    const cellHeight = 12;
     
     // visualization pipes
     visualizeMatrixPipe(adjacencyMatrix);
@@ -277,8 +252,6 @@ export function visualizeFCForEachSingleNodeSubpipe(layerX: number, modelInfo: a
                 .style("opacity", 1);
         }
 
-        
-
         svg.append("line")
             .attr("x1", layerX)
             .attr("y1", layerY + i * 20 + 12)
@@ -293,8 +266,83 @@ export function visualizeFCForEachSingleNodeSubpipe(layerX: number, modelInfo: a
     }
 }
 
-export function visualizeInnerGCNLayerSubpipe(){
+export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][]){
+    const distanceBetweenFeatures = 50;
+    const startX = adjacencyMatrix.length * 20 + 20 + 50;
     const g = d3.select('#matrix-svg');
+    const inner = g.append("g").attr("class", "layer-inner-works-group").attr("id", `layer-inner-works-group-layer-${layerID}-node-${nodeID}`);
+
+    const currentNodeX = computeFeatureLayerX(startX, layerID, cellWidth, distanceBetweenFeatures, sortedGNNFeatures);
+    const currentNodeY = computeFeatureLayerY(nodeID, 50, 20);
+
+    let locations = [];
+
+    let aggregatedFeature: number[] = Array(sortedGNNFeatures[layerID-1][0].length).fill(0);
+    let degreeMultipliers: number[] = [];
+    for(let j = 0; j < adjacencyMatrix[nodeID].length; j++) {
+        if (adjacencyMatrix[nodeID][j] === 1){
+            const targetNodeX = computeFeatureLayerX(startX, layerID, cellWidth, distanceBetweenFeatures, sortedGNNFeatures);
+            const targetNodeY = computeFeatureLayerY(j, 50, 20);
+            locations.push([targetNodeX, targetNodeY]);
+            const degreeMultiplier = 1 / (Math.sqrt(countOnes(adjacencyMatrix[nodeID]) * countOnes(adjacencyMatrix[j])));
+            aggregatedFeature = addVector(aggregatedFeature, scaleVector(degreeMultiplier, sortedGNNFeatures[layerID-1][j]));
+            degreeMultipliers.push(degreeMultiplier);
+        }
+    }
+    console.log("aggregatedFeature", aggregatedFeature);
+    const firstIntersect: [number, number] = [currentNodeX + distanceBetweenFeatures, currentNodeY];
+    // visualize aggregated links
+    const ctrlPointForCurrentNode: [number, number] = [currentNodeX + (distanceBetweenFeatures / 2), currentNodeY];
+    for(let k = 0; k < locations.length; k++){
+        const ctrlPointForTargetNode: [number, number] = [currentNodeX + (distanceBetweenFeatures / 2), locations[k][1]];
+        const path = inner.append("path")
+            .attr("d", curve([[locations[k][0], locations[k][1]], ctrlPointForTargetNode, ctrlPointForCurrentNode, firstIntersect]))
+            .attr("stroke", "black")
+            .attr("opacity", 1)
+            .attr("fill", "none")
+            .attr("class", "link-path-aggregated layer-inner-works")
+            .attr("id", `link-path-aggregated-${layerID}-${nodeID}-to-${k}`)
+            .lower();
+        inner.append("text")
+            .attr("x", locations[k][0] + 3)
+            .attr("y", locations[k][1] - 6)
+            .text(degreeMultipliers[k].toFixed(2))
+            .attr("class", "degree-multiplier-text layer-inner-works")
+            .attr("id", `degree-multiplier-text-${layerID}-${nodeID}-to-${k}`)
+            .style("font-size", "6px")
+            .lower();
+    }
+    // visualize aggregated feature
+    const aggregatedFeatureGroup = inner.append("g").attr("class", "aggregated-feature-layer layer-inner-works").attr("id", `aggregated-feature-layer-layer-${layerID}-node-${nodeID}`);
+    aggregatedFeatureGroup.append("rect")
+        .attr("x", currentNodeX + distanceBetweenFeatures)
+        .attr("y", currentNodeY - 12/2)
+        .attr("width", aggregatedFeature.length * cellWidth)
+        .attr("height", 12)
+        .attr("fill", "none")
+        .attr("class", "aggregated-feature-frame layer-inner-works")
+        .attr("id", `aggregated-feature-frame-layer-${layerID}-node-${nodeID}`)
+        .style("stroke-width", 1)
+        .style("stroke", "black")
+        .style("opacity", 1);
+    for(let l=0; l < aggregatedFeature.length; l++){
+        aggregatedFeatureGroup.append("rect")
+            .attr("x", currentNodeX + distanceBetweenFeatures + l * cellWidth)
+            .attr("y", currentNodeY - 12/2)
+            .attr("width", cellWidth)
+            .attr("height", 12)
+            .attr("fill", featureColor(aggregatedFeature[l]))
+            .attr("class", "aggregated-feature-cell layer-inner-works")
+            .attr("id", `aggregated-feature-layer-node-${layerID}-node-${nodeID}-dim-${l}`)
+            .style("stroke-width", 0.5)
+            .style("stroke", "gray")
+            .style("stroke-opacity", 0.5)
+            .style("opacity", 1).lower();
+    }
+
+    // visualize weight matrix and it multiplication with aggregated feature
+
+    // visualize bias and actiivation function
 
 }
 

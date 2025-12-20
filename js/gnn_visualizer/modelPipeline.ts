@@ -10,7 +10,11 @@ export function modelPipeline(
     graphData:any
 ){
     console.log("Starting visualization pipeline...", modelInfo, intmData, graphData, setIsLoading);
-    
+
+    // define parameters
+    const cellWidth = 6;
+    const cellHeight = 12;
+
     // data processing pipes
     const { nodeList, linkList} = preMatrixVisualizationDataProcessingPipe("node prediction", undefined, undefined, graphData);
     const adjacancyMatrix = transformDataToMatrixVisFormat(nodeList, linkList);
@@ -19,8 +23,8 @@ export function modelPipeline(
     console.log("Processed nodes and links:", nodeList, linkList);
     
     // visualization pipes
-    visualizationPipeline(adjacancyMatrix, modelInfo, intmData, linkList);
-    interactionPipeline(adjacancyMatrix, sortedGNNFeatures);
+    visualizationPipeline(cellWidth, cellHeight, adjacancyMatrix, modelInfo, intmData, linkList);
+    interactionPipeline(cellWidth, adjacancyMatrix, sortedGNNFeatures);
     
     return null;
 }

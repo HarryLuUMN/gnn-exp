@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 import { extractFCNodeIndex, extractFeatureId, getMaxLayerID, transitFCLayer, transitFeatureLayers } from './pipeUtils';
+import { visualizeInnerGNNLayerSubpipe } from './visualizationPipeline';
 
 var isExpandLayer = false;
 var currentLayerID = -1;
@@ -8,14 +9,16 @@ const maxLayerNum = getMaxLayerID();
 console.log("maxLayerNum:", maxLayerNum);
 
 
-export function interactionPipeline(adjacencyMatrix: number[][], sortedGNNFeatures: any[]) {
+export function interactionPipeline(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[]) {
+    // define parameters
+    const transitDistance = 300;
+
     // interaction pipes
     interactNodesAndLinksPipe(adjacencyMatrix);
     interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacencyMatrix);
-    interactLayerExpansionPipe(adjacencyMatrix);
-    interactFCExpansionPipe();
+    interactLayerExpansionPipe(cellWidth, adjacencyMatrix, transitDistance, sortedGNNFeatures);
+    interactFCExpansionPipe(transitDistance);
 }
-
 
 export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
     const g = d3.select("#matvis");
@@ -113,7 +116,7 @@ export function interactNodesAndDeactivateMatrixSubpipe() {
     g.selectAll(".adj-matrix-row-border, .adj-matrix-col-border").style("opacity", 0);
 }
 
-export function interactLayerExpansionPipe(adjacencyMatrix: number[][]){
+export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: number[][], transitDistance: number, sortedGNNFeatures: any[][]){
     const g = d3.select("#matvis");
 
     g.selectAll(".feature-layer")
@@ -136,7 +139,8 @@ export function interactLayerExpansionPipe(adjacencyMatrix: number[][]){
                     d3.select(`#feature-layer-${layerID-1}-node-${i}`).style("opacity", 1);
                 }
             }
-            transitFeatureLayers(layerID, 300);
+            transitFeatureLayers(layerID, transitDistance);
+            visualizeInnerGNNLayerSubpipe(cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures);
         });
 
     g.on("click", function(event: any, d: any) {
@@ -146,13 +150,14 @@ export function interactLayerExpansionPipe(adjacencyMatrix: number[][]){
         d3.selectAll(".feature-layer, .fc-feature-layer")
             .style("opacity", 1)
             .attr("pointer-events", "auto");
+        d3.selectAll(".layer-inner-works-group").remove();
         if(currentLayerID !== -1 && currentLayerID != maxLayerNum+1)transitFeatureLayers(currentLayerID, 0);
         if(currentLayerID === maxLayerNum+1)transitFCLayer(0);
         currentLayerID = -1;
     });
 }
 
-export function interactFCExpansionPipe(){
+export function interactFCExpansionPipe(transitDistance: number){
     const g = d3.select("#matvis");
     g.selectAll(".fc-feature-layer")
         .on("click", function(event: any, d: any) {
@@ -166,7 +171,7 @@ export function interactFCExpansionPipe(){
                 .attr("pointer-events", "none");
             d3.select(this).style("opacity", 1);
             d3.select("#feature-layer-" + maxLayerNum + "-node-" + id).style("opacity", 1);
-            transitFCLayer(300);
+            transitFCLayer(transitDistance);
         });
 
 }
