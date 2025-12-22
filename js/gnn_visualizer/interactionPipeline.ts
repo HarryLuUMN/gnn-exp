@@ -141,7 +141,9 @@ export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: n
             }
             const dist = 50 * 3 + sortedGNNFeatures[layerID-1][0].length * cellWidth + sortedGNNFeatures[layerID][0].length * cellWidth - 100;
             transitFeatureLayers(layerID, dist);
-            visualizeInnerGNNLayerSubpipe(cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures);
+            let direction = "up";
+            if (nodeID < (adjacencyMatrix.length)/2) direction = "down";
+            visualizeInnerGNNLayerSubpipe(cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures, direction);
         });
 
     g.on("click", function(event: any, d: any) {

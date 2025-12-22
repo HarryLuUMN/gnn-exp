@@ -266,7 +266,7 @@ export function visualizeFCForEachSingleNodeSubpipe(layerX: number, modelInfo: a
     }
 }
 
-export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][]){
+export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], direction: string){
     const distanceBetweenFeatures = 50;
     const gapXBetweenLayers = 100;
     const startX = adjacencyMatrix.length * 20 + 20 + 50;
@@ -280,6 +280,10 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
 
     let aggregatedFeature: number[] = Array(sortedGNNFeatures[layerID-1][0].length).fill(0);
     let degreeMultipliers: number[] = [];
+
+    let dirCoefficient = 1;
+    if (direction === "up") dirCoefficient = -1;
+
     for(let j = 0; j < adjacencyMatrix[nodeID].length; j++) {
         if (adjacencyMatrix[nodeID][j] === 1){
             const targetNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
@@ -356,9 +360,9 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
     inner.append("path")
         .attr("d", curve([
             [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth, currentNodeY], 
-            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth, currentNodeY + distanceBetweenFeatures],
-            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures, currentNodeY + distanceBetweenFeatures],
-            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures, currentNodeY + distanceBetweenFeatures*2]
+            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth, currentNodeY + (dirCoefficient) * distanceBetweenFeatures],
+            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures, currentNodeY + (dirCoefficient) * distanceBetweenFeatures],
+            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures, currentNodeY + (dirCoefficient) * distanceBetweenFeatures*2]
         ]))
         .attr("stroke", "black")
         .attr("opacity", 1)
@@ -367,10 +371,12 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
         .lower();
     const weightMatrix = randomMatrix(sortedGNNFeatures[layerID-1][0].length, sortedGNNFeatures[layerID][0].length);
     const matrixStartX = currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures - cellWidth * weightMatrix[0].length / 2;
-    const matrixStartY = currentNodeY + distanceBetweenFeatures * 2;
+    const matrixStartY = currentNodeY + (dirCoefficient) * distanceBetweenFeatures * 2;
+    let matrixStartYOffset = 0;
+    if (direction === "up") matrixStartYOffset = -cellWidth * (weightMatrix.length - 1);
     inner.append("rect")
         .attr("x", matrixStartX)
-        .attr("y", matrixStartY)
+        .attr("y", matrixStartY + matrixStartYOffset)
         .attr("width", cellWidth * weightMatrix[0].length)
         .attr("height", cellWidth * weightMatrix.length)
         .attr("fill", "none")
@@ -384,14 +390,13 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
         for(let n=0; n < weightMatrix[m].length; n++){
             inner.append("rect")
                 .attr("x", matrixStartX + n * cellWidth)
-                .attr("y", matrixStartY + m * cellWidth)
+                .attr("y", matrixStartY + (dirCoefficient) * m * cellWidth)
                 .attr("width", cellWidth)
                 .attr("height", cellWidth)
                 .attr("fill", featureColor(weightMatrix[m][n]))
                 .attr("class", "weight-matrix-cell layer-inner-works")
                 .attr("id", `weight-matrix-cell-${layerID}-${nodeID}-dim-${m}-${n}`)
-                .style("opacity", 1)
-                .lower();
+                .style("opacity", 1);
         }
     }
     // visualize bias and actiivation function
