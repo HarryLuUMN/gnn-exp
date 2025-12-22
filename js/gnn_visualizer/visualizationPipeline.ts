@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { addVector, countOnes, curve, extractSortedGNNLayerFeatures, featureColor, randomMatrix, randomVector, scaleVector, vecMatMul } from "./pipeUtils";
+import { addVector, countOnes, curve, extractSortedGNNLayerFeatures, featureColor, injectSVG, randomMatrix, randomVector, scaleVector, vecMatMul } from "./pipeUtils";
 import { computeFeatureLayerX, computeFeatureLayerY } from "./geometryUtils";
 
 export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], modelInfo: any, intmData: any, linkList: any[]) {
@@ -268,11 +268,12 @@ export function visualizeFCForEachSingleNodeSubpipe(layerX: number, modelInfo: a
 
 export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][]){
     const distanceBetweenFeatures = 50;
+    const gapXBetweenLayers = 100;
     const startX = adjacencyMatrix.length * 20 + 20 + 50;
     const g = d3.select('#matrix-svg');
     const inner = g.append("g").attr("class", "layer-inner-works-group").attr("id", `layer-inner-works-group-layer-${layerID}-node-${nodeID}`);
 
-    const currentNodeX = computeFeatureLayerX(startX, layerID, cellWidth, distanceBetweenFeatures, sortedGNNFeatures);
+    const currentNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
     const currentNodeY = computeFeatureLayerY(nodeID, 50, 20);
 
     let locations = [];
@@ -281,7 +282,7 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
     let degreeMultipliers: number[] = [];
     for(let j = 0; j < adjacencyMatrix[nodeID].length; j++) {
         if (adjacencyMatrix[nodeID][j] === 1){
-            const targetNodeX = computeFeatureLayerX(startX, layerID, cellWidth, distanceBetweenFeatures, sortedGNNFeatures);
+            const targetNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
             const targetNodeY = computeFeatureLayerY(j, 50, 20);
             locations.push([targetNodeX, targetNodeY]);
             const degreeMultiplier = 1 / (Math.sqrt(countOnes(adjacencyMatrix[nodeID]) * countOnes(adjacencyMatrix[j])));
@@ -350,6 +351,8 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
         .attr("opacity", 1)
         .attr("fill", "none")
         .attr("class", "aggregated-feature-to-multiplied-feature-line layer-inner-works")
+    // add matmul icon
+    injectSVG(inner, currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth, currentNodeY, "./assets/matmul.svg", "matmul-icon layer-inner-works");
     inner.append("path")
         .attr("d", curve([
             [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth, currentNodeY], 
@@ -464,5 +467,7 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
         .attr("fill", "none")
         .attr("class", "bias-to-output-path layer-inner-works")
         .lower();
+    // add activation function icon
+
 }
 

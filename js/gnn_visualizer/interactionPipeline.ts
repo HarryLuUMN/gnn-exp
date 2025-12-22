@@ -139,7 +139,7 @@ export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: n
                     d3.select(`#feature-layer-${layerID-1}-node-${i}`).style("opacity", 1);
                 }
             }
-            const dist = 50 * 3 + sortedGNNFeatures[layerID-1][0].length * cellWidth + sortedGNNFeatures[layerID][0].length * cellWidth;
+            const dist = 50 * 3 + sortedGNNFeatures[layerID-1][0].length * cellWidth + sortedGNNFeatures[layerID][0].length * cellWidth - 100;
             transitFeatureLayers(layerID, dist);
             visualizeInnerGNNLayerSubpipe(cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures);
         });

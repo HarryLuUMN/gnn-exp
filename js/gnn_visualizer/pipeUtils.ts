@@ -1,5 +1,13 @@
 import * as d3 from "d3";
 
+export function injectSVG(g:any, x: number, y: number, SVGPath:string, svgClass: string){
+    d3.xml(SVGPath).then(function(data) {
+        const svg = g!.node()!.appendChild(data.documentElement)
+        d3.select(svg).attr("x", x).attr("y", y).attr("class", svgClass)
+        return svg;
+    });
+}
+
 export function transformDataToMatrixVisFormat(nodes: any, links: any) {
     const matrixSize = nodes.length;
     let adjacancyMatrix: number[][] = Array.from({ length: matrixSize }, () =>

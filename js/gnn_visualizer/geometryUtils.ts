@@ -12,7 +12,7 @@ export function computeFeatureLayerX(
         x += featureDim * cellWidth;
         if(i!=0){
             x += gapSize;
-            x += sortedGNNFeatures[i][0].length * cellWidth*2; 
+           //  x += sortedGNNFeatures[i][0].length * cellWidth; 
         }
     }
     return x+2;

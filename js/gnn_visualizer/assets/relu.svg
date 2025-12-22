@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="6.5mm"
+   height="6.5mm"
+   viewBox="0 0 6.5 6.5"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="ReLU.svg"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#111111"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="11.183734"
+     inkscape:cx="13.94883"
+     inkscape:cy="18.374901"
+     inkscape:window-width="1649"
+     inkscape:window-height="1266"
+     inkscape:window-x="3373"
+     inkscape:window-y="498"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer2" />
+  <defs
+     id="defs1" />
+  <g
+     id="layer2">
+    <ellipse
+       style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.107209;stroke-opacity:1"
+       id="relu-frame"
+       class="relu-frame"
+       cx="3.1825042"
+       cy="3.0557461"
+       rx="3.0592785"
+       ry="2.956984" />
+    <g
+       id="layer1">
+      <path
+         style="opacity:0.25;fill:#000000;stroke:#000000;stroke-width:0.0398599;stroke-dasharray:none"
+         d="M 0.24819023,3.6154902 6.1285284,3.6895958"
+         id="path2-2" />
+      <path
+         style="opacity:0.25;fill:#000000;stroke:#000000;stroke-width:0.0406213;stroke-dasharray:none"
+         d="M 0.10770262,2.7319364 6.2196222,2.8059846"
+         id="path2-2-9" />
+      <path
+         style="fill:#000000;stroke:#000000;stroke-width:0.04052;stroke-dasharray:none"
+         d="M 3.1415878,0.12751297 3.0650746,6.013019"
+         id="path2-9" />
+      <path
+         style="opacity:0.323077;fill:#000000;stroke:#000000;stroke-width:0.039301;stroke-dasharray:none"
+         d="M 4.2226651,0.31451032 4.1460575,5.8443741"
+         id="path2-9-6" />
+      <path
+         style="opacity:0.323077;fill:#000000;stroke:#000000;stroke-width:0.039301;stroke-dasharray:none"
+         d="M 2.1550453,0.29792846 2.0784377,5.8277923"
+         id="path2-9-6-4" />
+      <path
+         style="opacity:0.323077;fill:#000000;stroke:#000000;stroke-width:0.0361435;stroke-dasharray:none"
+         d="M 1.2870091,0.69493813 1.2101457,5.3563686"
+         id="path2-9-6-6" />
+      <path
+         style="opacity:0.323077;fill:#000000;stroke:#000000;stroke-width:0.024021;stroke-dasharray:none"
+         d="M 0.33679504,1.9752956 0.25882762,4.0050647"
+         id="path2-9-6-6-3" />
+      <path
+         style="opacity:0.323077;fill:#000000;stroke:#000000;stroke-width:0.024021;stroke-dasharray:none"
+         d="M 6.1037379,2.1054346 6.0257705,4.1352037"
+         id="path2-9-6-6-3-9" />
+      <path
+         style="opacity:0.323077;fill:#000000;stroke:#000000;stroke-width:0.0361435;stroke-dasharray:none"
+         d="M 5.1468207,0.76924321 5.0699573,5.4306737"
+         id="path2-9-6-6-6" />
+      <path
+         style="opacity:0.25;fill:#000000;stroke:#000000;stroke-width:0.0388858;stroke-dasharray:none"
+         d="m 0.33929159,1.8223653 5.59086401,0.07418"
+         id="path2-2-4" />
+      <path
+         style="opacity:0.25;fill:#000000;stroke:#000000;stroke-width:0.0349219;stroke-dasharray:none"
+         d="M 0.95128953,1.0284648 5.442181,1.102946"
+         id="path2-2-3" />
+      <path
+         style="opacity:0.25;fill:#000000;stroke:#000000;stroke-width:0.0298584;stroke-dasharray:none"
+         d="m 1.4506625,5.5773814 3.2627027,0.074944"
+         id="path2-2-3-7" />
+      <path
+         style="fill:#000000;stroke:#000000;stroke-width:0.0374224;stroke-dasharray:none"
+         d="M 0.53561257,4.5569381 5.7046319,4.6312461"
+         id="path2" />
+      <path
+         style="fill:#aa0000;fill-opacity:1;stroke:#c6501d;stroke-width:0.142781;stroke-dasharray:none;stroke-opacity:1"
+         d="M 0.54796214,4.4933275 3.0861416,4.5489464"
+         id="path3" />
+      <path
+         style="fill:#aa0000;fill-opacity:1;stroke:#c6501d;stroke-width:0.142488;stroke-dasharray:none;stroke-opacity:1"
+         d="M 3.0453819,4.6081563 6.0046787,2.0622889"
+         id="path3-3" />
+    </g>
+  </g>
+</svg>
