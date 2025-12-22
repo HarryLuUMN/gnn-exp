@@ -360,9 +360,9 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
     inner.append("path")
         .attr("d", curve([
             [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth, currentNodeY], 
-            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth, currentNodeY + (dirCoefficient) * distanceBetweenFeatures],
-            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures, currentNodeY + (dirCoefficient) * distanceBetweenFeatures],
-            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures, currentNodeY + (dirCoefficient) * distanceBetweenFeatures*2]
+            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth, currentNodeY + (dirCoefficient) * distanceBetweenFeatures * 0.5],
+            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures * 0.5, currentNodeY + (dirCoefficient) * distanceBetweenFeatures * 0.5],
+            [currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures * 0.5, currentNodeY + (dirCoefficient) * distanceBetweenFeatures]
         ]))
         .attr("stroke", "black")
         .attr("opacity", 1)
@@ -370,8 +370,8 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
         .attr("class", "weight-matrix-to-intersect-path layer-inner-works")
         .lower();
     const weightMatrix = randomMatrix(sortedGNNFeatures[layerID-1][0].length, sortedGNNFeatures[layerID][0].length);
-    const matrixStartX = currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures - cellWidth * weightMatrix[0].length / 2;
-    const matrixStartY = currentNodeY + (dirCoefficient) * distanceBetweenFeatures * 2;
+    const matrixStartX = currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures*0.5 - cellWidth * weightMatrix[0].length / 2;
+    const matrixStartY = currentNodeY + (dirCoefficient) * distanceBetweenFeatures * 1;
     let matrixStartYOffset = 0;
     if (direction === "up") matrixStartYOffset = -cellWidth * (weightMatrix.length - 1);
     inner.append("rect")
@@ -475,4 +475,9 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
     // add activation function icon
 
 }
+
+export function visualizeInnerFCLayerSubpipe(){
+
+}
+
 
