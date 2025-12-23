@@ -11,14 +11,11 @@ console.log("maxLayerNum:", maxLayerNum);
 
 
 export function interactionPipeline(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[]) {
-    // define parameters
-    const transitDistance = 300;
-
     // interaction pipes
     interactNodesAndLinksPipe(adjacencyMatrix);
     interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacencyMatrix);
     interactLayerExpansionPipe(cellWidth, adjacencyMatrix, sortedGNNFeatures);
-    interactFCExpansionPipe(cellWidth, sortedGNNFeatures, transitDistance);
+    interactFCExpansionPipe(cellWidth, sortedGNNFeatures);
 }
 
 export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {

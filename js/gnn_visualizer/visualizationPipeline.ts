@@ -539,8 +539,8 @@ export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, 
     }
     // visualize multiplied vector
     const multipliedFeature = vecMatMul(sortedGNNFeatures[sortedGNNFeatures.length -1][nodeID], weightMatrix);
-    inner.append("rect").attr("x", currentNodeX + distanceToFeature).attr("y", currentNodeY - 12/6).attr("width", multipliedFeature.length * cellWidth).attr("height", 12).attr("fill", "none").attr("class", "multiplied-feature-frame layer-inner-works").attr("id", `fc-multiplied-feature-frame-node-${nodeID}`).style("stroke-width", 1).style("stroke", "black").style("opacity", 1)
-    for(let l=0; l < multipliedFeature.length; l++) inner.append("rect").attr("x", currentNodeX + distanceToFeature + l * cellWidth).attr("y", currentNodeY - 12/6).attr("width", cellWidth).attr("height", 12).attr("fill", featureColor(multipliedFeature[l])).lower();
+    inner.append("rect").attr("x", currentNodeX + distanceToFeature).attr("y", currentNodeY - 12/2).attr("width", multipliedFeature.length * cellWidth).attr("height", 12).attr("fill", "none").attr("class", "multiplied-feature-frame layer-inner-works").attr("id", `fc-multiplied-feature-frame-node-${nodeID}`).style("stroke-width", 1).style("stroke", "black").style("opacity", 1)
+    for(let l=0; l < multipliedFeature.length; l++) inner.append("rect").attr("x", currentNodeX + distanceToFeature + l * cellWidth).attr("y", currentNodeY - 12/2).attr("width", cellWidth).attr("height", 12).attr("fill", featureColor(multipliedFeature[l])).lower();
     // visualize bias vector and its addition
     inner.append("line")
         .attr("x1", currentNodeX + distanceToFeature + multipliedFeature.length * cellWidth)
@@ -573,8 +573,8 @@ export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, 
     inner.append("rect").attr("x", currentNodeX + distanceToFeature).attr("y", currentNodeY + distanceToFeature / 2 - 12/2).attr("width", bias.length * cellWidth).attr("height", 12).attr("fill", "none").attr("class", "bias-frame layer-inner-works").attr("id", `fc-bias-frame-node-${nodeID}`).style("stroke-width", 1).style("stroke", "black").style("opacity", 1);
     // its addition
     const biasedAddition = addVector(multipliedFeature, bias);
-    for(let l=0; l < biasedAddition.length; l++) inner.append("rect").attr("x", currentNodeX + distanceToFeature * 2 + multipliedFeature.length * cellWidth + l * cellWidth).attr("y", currentNodeY - 12/6).attr("width", cellWidth).attr("height", 12).attr("fill", featureColor(biasedAddition[l]))
-    inner.append("rect").attr("x", currentNodeX + distanceToFeature * 2 + multipliedFeature.length * cellWidth).attr("y", currentNodeY - 12/6).attr("width", biasedAddition.length * cellWidth).attr("height", 12).attr("fill", "none").attr("class", "biased-addition-frame layer-inner-works").attr("id", `fc-biased-addition-frame-node-${nodeID}`).style("stroke-width", 1).style("stroke", "black").style("opacity", 1);
+    for(let l=0; l < biasedAddition.length; l++) inner.append("rect").attr("x", currentNodeX + distanceToFeature * 2 + multipliedFeature.length * cellWidth + l * cellWidth).attr("y", currentNodeY - 12/2).attr("width", cellWidth).attr("height", 12).attr("fill", featureColor(biasedAddition[l]))
+    inner.append("rect").attr("x", currentNodeX + distanceToFeature * 2 + multipliedFeature.length * cellWidth).attr("y", currentNodeY - 12/2).attr("width", biasedAddition.length * cellWidth).attr("height", 12).attr("fill", "none").attr("class", "biased-addition-frame layer-inner-works").attr("id", `fc-biased-addition-frame-node-${nodeID}`).style("stroke-width", 1).style("stroke", "black").style("opacity", 1);
     // visualize activation function
     inner.append("line").attr("x1", currentNodeX + distanceToFeature * 2 + multipliedFeature.length * cellWidth + biasedAddition.length * cellWidth).attr("y1", currentNodeY).attr("x2", currentNodeX + distanceToFeature * 3 + multipliedFeature.length * cellWidth + biasedAddition.length * cellWidth).attr("y2", currentNodeY).attr("stroke", "black").attr("opacity", 1).attr("class", "activation-line layer-inner-works").lower();
 }
