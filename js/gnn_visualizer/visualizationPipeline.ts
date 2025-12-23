@@ -473,7 +473,7 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
         .attr("class", "bias-to-output-path layer-inner-works")
         .lower();
     // add activation function icon
-
+    
 }
 
 export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, sortedGNNFeatures: any[][], direction: string){
@@ -485,6 +485,9 @@ export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, 
     const currentNodeY = computeFeatureLayerY(nodeID, 50, 20);
 
     const inner = d3.select('#matrix-svg').append("g").attr("class", "layer-inner-works-group");
+
+    let dirCoefficient = 1;
+    if (direction === "up") dirCoefficient = -1;
 
     // input to weighted vector path
     inner.append("line")
@@ -498,12 +501,12 @@ export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, 
         .lower();
     // intersect to weight matrix path
     const matrixStartX = currentNodeX + distanceToFeature;
-    const matrixStartY = currentNodeY - distanceToFeature;
+    const matrixStartY = currentNodeY - (dirCoefficient) * distanceToFeature;
     inner.append("path")
         .attr("d", curve([
             [currentNodeX + distanceToFeature / 2, currentNodeY],
-            [currentNodeX + distanceToFeature / 2, currentNodeY - distanceToFeature / 2],
-            [matrixStartX + cellWidth * weightMatrix[0].length / 2, currentNodeY - distanceToFeature / 2],
+            [currentNodeX + distanceToFeature / 2, currentNodeY - distanceToFeature / 2 * (dirCoefficient)],
+            [matrixStartX + cellWidth * weightMatrix[0].length / 2, currentNodeY - distanceToFeature / 2 * (dirCoefficient)],
             [matrixStartX + cellWidth * weightMatrix[0].length / 2, matrixStartY]
         ]))
         .attr("stroke", "black")
@@ -553,8 +556,8 @@ export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, 
         .lower();
     inner.append("path")
         .attr("d", curve([
-            [currentNodeX + distanceToFeature + multipliedFeature.length * cellWidth, currentNodeY + distanceToFeature / 2],
-            [currentNodeX + distanceToFeature * 1.5 + multipliedFeature.length * cellWidth, currentNodeY + distanceToFeature / 2],
+            [currentNodeX + distanceToFeature + multipliedFeature.length * cellWidth, currentNodeY + (dirCoefficient) * distanceToFeature / 2],
+            [currentNodeX + distanceToFeature * 1.5 + multipliedFeature.length * cellWidth, currentNodeY + (dirCoefficient) * distanceToFeature / 2],
             [currentNodeX + distanceToFeature * 1.5 + multipliedFeature.length * cellWidth, currentNodeY],
             [currentNodeX + distanceToFeature * 2 + multipliedFeature.length * cellWidth, currentNodeY],
         ])).attr("stroke", "black").attr("opacity", 1).attr("fill", "none").attr("class", "bias-to-output-path layer-inner-works")
@@ -562,7 +565,7 @@ export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, 
     for(let m=0; m < bias.length; m++){
         inner.append("rect")
             .attr("x", currentNodeX + distanceToFeature + m * cellWidth)
-            .attr("y", currentNodeY + distanceToFeature / 2 - 12/2)
+            .attr("y", currentNodeY + (dirCoefficient) * distanceToFeature / 2 - 12/2)
             .attr("width", cellWidth)
             .attr("height", 12)
             .attr("fill", featureColor(bias[m]))
@@ -570,7 +573,7 @@ export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, 
             .attr("id", `fc-bias-cell-node-${nodeID}-dim-${m}`)
             .style("opacity", 1);
     }
-    inner.append("rect").attr("x", currentNodeX + distanceToFeature).attr("y", currentNodeY + distanceToFeature / 2 - 12/2).attr("width", bias.length * cellWidth).attr("height", 12).attr("fill", "none").attr("class", "bias-frame layer-inner-works").attr("id", `fc-bias-frame-node-${nodeID}`).style("stroke-width", 1).style("stroke", "black").style("opacity", 1);
+    inner.append("rect").attr("x", currentNodeX + distanceToFeature).attr("y", currentNodeY + (dirCoefficient) * distanceToFeature / 2 - 12/2).attr("width", bias.length * cellWidth).attr("height", 12).attr("fill", "none").attr("class", "bias-frame layer-inner-works").attr("id", `fc-bias-frame-node-${nodeID}`).style("stroke-width", 1).style("stroke", "black").style("opacity", 1);
     // its addition
     const biasedAddition = addVector(multipliedFeature, bias);
     for(let l=0; l < biasedAddition.length; l++) inner.append("rect").attr("x", currentNodeX + distanceToFeature * 2 + multipliedFeature.length * cellWidth + l * cellWidth).attr("y", currentNodeY - 12/2).attr("width", cellWidth).attr("height", 12).attr("fill", featureColor(biasedAddition[l]))

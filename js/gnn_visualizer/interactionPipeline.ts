@@ -177,6 +177,7 @@ export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: an
             const transitDistance = (sortedGNNFeatures[sortedGNNFeatures.length-1][0].length + biasDim * 2) * cellWidth + distanceToFeature * 3 - 100;
             transitFCLayer(transitDistance);
             let direction = "down";
+            if (id < (sortedGNNFeatures[sortedGNNFeatures.length-1].length)/2) direction = "up";
             visualizeInnerFCLayerSubpipe(cellWidth, id, sortedGNNFeatures, direction);
         });
 }
