@@ -428,7 +428,7 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
     }
     inner.append("rect")
         .attr("x", currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth)
-        .attr("y", currentNodeY - distanceBetweenFeatures)
+        .attr("y", currentNodeY - (dirCoefficient) * distanceBetweenFeatures)
         .attr("width", bias.length * cellWidth)
         .attr("height", 12)
         .attr("fill", "none")
@@ -441,7 +441,7 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
     for (let m=0; m < bias.length; m++){
         inner.append("rect")
             .attr("x", currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth + m * cellWidth)
-            .attr("y", currentNodeY - distanceBetweenFeatures)
+            .attr("y", currentNodeY - (dirCoefficient) * distanceBetweenFeatures)
             .attr("width", cellWidth)
             .attr("height", 12)
             .attr("fill", featureColor(bias[m]))
@@ -462,8 +462,8 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
         .lower();
     inner.append("path")
         .attr("d", curve([
-            [currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth + bias.length * cellWidth, currentNodeY - distanceBetweenFeatures + 12/2], 
-            [currentNodeX + distanceBetweenFeatures*2.5 + aggregatedFeature.length * cellWidth + bias.length * cellWidth, currentNodeY - distanceBetweenFeatures + 12/2],
+            [currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth + bias.length * cellWidth, currentNodeY - (dirCoefficient) * distanceBetweenFeatures + 12/2], 
+            [currentNodeX + distanceBetweenFeatures*2.5 + aggregatedFeature.length * cellWidth + bias.length * cellWidth, currentNodeY - (dirCoefficient) * distanceBetweenFeatures + 12/2],
             [currentNodeX + distanceBetweenFeatures*2.5 + aggregatedFeature.length * cellWidth + bias.length * cellWidth, currentNodeY],
             [currentNodeX + distanceBetweenFeatures*3 + aggregatedFeature.length * cellWidth + bias.length * cellWidth, currentNodeY]
         ]))
