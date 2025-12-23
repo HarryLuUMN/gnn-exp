@@ -174,7 +174,7 @@ export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: an
             d3.select(this).style("opacity", 1);
             d3.select("#feature-layer-" + maxLayerNum + "-node-" + id).style("opacity", 1);
             // the problem for both transition distance is need to minus the 'gap=100' to align the view!!!
-            const transitDistance = (sortedGNNFeatures[maxLayerNum][0].length + biasDim * 2) * cellWidth + distanceToFeature * 3 - 100;
+            const transitDistance = (sortedGNNFeatures[sortedGNNFeatures.length-1][0].length + biasDim * 2) * cellWidth + distanceToFeature * 3 - 100;
             transitFCLayer(transitDistance);
             let direction = "down";
             visualizeInnerFCLayerSubpipe(cellWidth, id, sortedGNNFeatures, direction);
