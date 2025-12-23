@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
 import { extractFCNodeIndex, extractFeatureId, getMaxLayerID, transitFCLayer, transitFeatureLayers } from './pipeUtils';
-import { visualizeInnerGNNLayerSubpipe } from './visualizationPipeline';
+import { visualizeInnerFCLayerSubpipe, visualizeInnerGNNLayerSubpipe } from './visualizationPipeline';
+import { distanceToFeature } from '../utils/const';
 
 var isExpandLayer = false;
 var currentLayerID = -1;
@@ -17,7 +18,7 @@ export function interactionPipeline(cellWidth: number, adjacencyMatrix: number[]
     interactNodesAndLinksPipe(adjacencyMatrix);
     interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacencyMatrix);
     interactLayerExpansionPipe(cellWidth, adjacencyMatrix, sortedGNNFeatures);
-    interactFCExpansionPipe(transitDistance);
+    interactFCExpansionPipe(cellWidth, sortedGNNFeatures, transitDistance);
 }
 
 export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
@@ -160,7 +161,8 @@ export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: n
     });
 }
 
-export function interactFCExpansionPipe(transitDistance: number){
+export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: any[][]){
+    const biasDim = 4;
     const g = d3.select("#matvis");
     g.selectAll(".fc-feature-layer")
         .on("click", function(event: any, d: any) {
@@ -174,9 +176,12 @@ export function interactFCExpansionPipe(transitDistance: number){
                 .attr("pointer-events", "none");
             d3.select(this).style("opacity", 1);
             d3.select("#feature-layer-" + maxLayerNum + "-node-" + id).style("opacity", 1);
+            // the problem for both transition distance is need to minus the 'gap=100' to align the view!!!
+            const transitDistance = (sortedGNNFeatures[maxLayerNum][0].length + biasDim * 2) * cellWidth + distanceToFeature * 3 - 100;
             transitFCLayer(transitDistance);
+            let direction = "down";
+            visualizeInnerFCLayerSubpipe(cellWidth, id, sortedGNNFeatures, direction);
         });
-
 }
 
 
