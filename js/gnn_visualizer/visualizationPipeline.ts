@@ -402,7 +402,7 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
     }
     // visualize bias and actiivation function
     const multipliedFeature = vecMatMul(aggregatedFeature, weightMatrix);
-    const bias = randomVector(sortedGNNFeatures[layerID][0].length);
+    const bias = modelInfo[`conv${layerID}`]["bias"];;
     inner.append("rect")
         .attr("x", currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth)
         .attr("y", currentNodeY - 12/2)
@@ -477,11 +477,12 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
     
 }
 
-export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, sortedGNNFeatures: any[][], direction: string){
+export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, sortedGNNFeatures: any[][], modelInfo: any, direction: string){
+    console.log("inside fc visualizeInnerFCLayerSubpipe", modelInfo);
     const startX = sortedGNNFeatures[0].length * 20 + 20 + 50;
 
-    const weightMatrix = randomMatrix(2, 4);
-    const bias = randomVector(4);
+    const weightMatrix = matrixTranspose(modelInfo['classifier']["weight"]);
+    const bias = modelInfo['classifier']["bias"];
     const currentNodeX = computeFeatureLayerX(startX, sortedGNNFeatures.length, cellWidth, 100, sortedGNNFeatures);
     const currentNodeY = computeFeatureLayerY(nodeID, 50, 20);
 

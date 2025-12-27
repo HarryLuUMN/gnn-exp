@@ -15,7 +15,7 @@ export function interactionPipeline(cellWidth: number, adjacencyMatrix: number[]
     interactNodesAndLinksPipe(adjacencyMatrix);
     interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacencyMatrix);
     interactLayerExpansionPipe(cellWidth, adjacencyMatrix, sortedGNNFeatures, modelInfo);
-    interactFCExpansionPipe(cellWidth, sortedGNNFeatures);
+    interactFCExpansionPipe(cellWidth, sortedGNNFeatures, modelInfo);
 }
 
 export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
@@ -158,7 +158,7 @@ export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: n
     });
 }
 
-export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: any[][]){
+export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: any[][], modelInfo: any){
     const biasDim = 4;
     const g = d3.select("#matvis");
     g.selectAll(".fc-feature-layer")
@@ -178,7 +178,7 @@ export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: an
             transitFCLayer(transitDistance);
             let direction = "down";
             if (id < (sortedGNNFeatures[sortedGNNFeatures.length-1].length)/2) direction = "up";
-            visualizeInnerFCLayerSubpipe(cellWidth, id, sortedGNNFeatures, direction);
+            visualizeInnerFCLayerSubpipe(cellWidth, id, sortedGNNFeatures, modelInfo, direction);
         });
 }
 
