@@ -47,6 +47,11 @@ class GNNVisualizer(anywidget.AnyWidget):
                     "weight": self.tensor_to_json(module.weight),
                     "bias": self.tensor_to_json(module.bias),
                 }
+            elif self._is_activation_module(module):
+                activation_type = self._get_activation_type(module)
+                model_info[name] = {
+                    "type": activation_type,
+                }
 
         self.modelInfo = model_info
         self.intmData = {**self.intmData, 'act0': data['x'].detach().cpu().numpy().tolist()}
@@ -99,6 +104,50 @@ class GNNVisualizer(anywidget.AnyWidget):
         def hook(module, input, output):
             buffer[name] = output.detach()
         return hook
+
+    @staticmethod
+    def _is_activation_module(module):
+        """Check if a module is an activation function."""
+        activation_types = [
+            torch.nn.ReLU,
+            torch.nn.Tanh,
+            torch.nn.Sigmoid,
+            torch.nn.Softmax,
+            torch.nn.LeakyReLU,
+            torch.nn.ELU,
+            torch.nn.GELU,
+            torch.nn.ReLU6,
+            torch.nn.SELU,
+            torch.nn.Softplus,
+        ]
+        # Check for Swish (may not exist in all PyTorch versions)
+        try:
+            activation_types.append(torch.nn.Swish)
+        except AttributeError:
+            pass
+        
+        return isinstance(module, tuple(activation_types))
+
+    @staticmethod
+    def _get_activation_type(module):
+        """Get the string name of the activation function type."""
+        activation_map = {
+            torch.nn.ReLU: "ReLU",
+            torch.nn.Tanh: "Tanh",
+            torch.nn.Sigmoid: "Sigmoid",
+            torch.nn.Softmax: "Softmax",
+            torch.nn.LeakyReLU: "LeakyReLU",
+            torch.nn.ELU: "ELU",
+            torch.nn.GELU: "GELU",
+            torch.nn.ReLU6: "ReLU6",
+            torch.nn.SELU: "SELU",
+            torch.nn.Softplus: "Softplus",
+        }
+        # Handle Swish which might be defined differently or not exist
+        module_type = type(module)
+        if module_type.__name__ == "Swish":
+            return "Swish"
+        return activation_map.get(module_type, module_type.__name__)
 
     @staticmethod
     def tensor_to_json(x):
