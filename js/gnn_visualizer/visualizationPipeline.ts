@@ -481,7 +481,7 @@ export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, 
     console.log("inside fc visualizeInnerFCLayerSubpipe", modelInfo);
     const startX = sortedGNNFeatures[0].length * 20 + 20 + 50;
 
-    const weightMatrix = matrixTranspose(modelInfo['classifier']["weight"]);
+    const weightMatrix:number[][] = matrixTranspose(modelInfo['classifier']["weight"]);
     const bias = modelInfo['classifier']["bias"];
     const currentNodeX = computeFeatureLayerX(startX, sortedGNNFeatures.length, cellWidth, 100, sortedGNNFeatures);
     const currentNodeY = computeFeatureLayerY(nodeID, 50, 20);
@@ -490,7 +490,7 @@ export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, 
 
     let dirCoefficient = 1;
     if (direction === "up") dirCoefficient = -1;
-
+    
     // input to weighted vector path
     inner.append("line")
         .attr("x1", currentNodeX)
