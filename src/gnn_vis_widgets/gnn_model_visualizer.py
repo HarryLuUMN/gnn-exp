@@ -28,8 +28,8 @@ class GNNVisualizer(anywidget.AnyWidget):
         self.modelInfo = modelInfo
         print(f"graphData: {self.graphData.keys()}, intmData: {self.intmData.keys()} loaded.")
 
-    def add_model(self, data, model):
-        intermedia_output = self.fetch_model_intermedia(data, model)
+    def add_model(self, data, model, forward_fn=None):
+        intermedia_output = self.fetch_model_intermedia(data, model, forward_fn)
         self.intmData = intermedia_output
         self.graphData = {
             "x": data.x.detach().cpu().numpy().tolist(),
@@ -82,7 +82,7 @@ class GNNVisualizer(anywidget.AnyWidget):
         self.value += 1  # trigger re-render in frontend
         return 
 
-    def fetch_model_intermedia(self, data, model):
+    def fetch_model_intermedia(self, data, model, forward_fn=None):
         hooks = []
         buffer = {}
 
@@ -93,7 +93,10 @@ class GNNVisualizer(anywidget.AnyWidget):
             hooks.append(h)
 
         with torch.no_grad():
-            _ = model(data.x, data.edge_index)
+            if forward_fn:
+                _ = forward_fn(model, data)
+            else:
+                _ = model(data.x, data.edge_index)
 
         for h in hooks:
             h.remove()
