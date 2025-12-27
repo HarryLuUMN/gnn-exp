@@ -49,6 +49,9 @@ class GNNVisualizer(anywidget.AnyWidget):
                 }
 
         self.modelInfo = model_info
+        self.intmData = {**self.intmData, 'act0': data['x'].detach().cpu().numpy().tolist()}
+
+        print(f"check act0: {self.intmData['act0'][:5]}")
 
         print(
             f"modelInfo: {self.modelInfo.keys()}, "

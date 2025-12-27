@@ -23,8 +23,8 @@ export function modelPipeline(
     console.log("Processed nodes and links:", nodeList, linkList);
     
     // visualization pipes
-    visualizationPipeline(cellWidth, cellHeight, adjacancyMatrix, intmData, modelInfo, linkList);
-    interactionPipeline(cellWidth, adjacancyMatrix, sortedGNNFeatures);
+    visualizationPipeline(cellWidth, cellHeight, adjacancyMatrix, intmData, linkList);
+    interactionPipeline(cellWidth, adjacancyMatrix, sortedGNNFeatures, modelInfo);
     
     return null;
 }

@@ -10,11 +10,11 @@ const maxLayerNum = getMaxLayerID();
 console.log("maxLayerNum:", maxLayerNum);
 
 
-export function interactionPipeline(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[]) {
+export function interactionPipeline(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[], modelInfo: any) {
     // interaction pipes
     interactNodesAndLinksPipe(adjacencyMatrix);
     interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacencyMatrix);
-    interactLayerExpansionPipe(cellWidth, adjacencyMatrix, sortedGNNFeatures);
+    interactLayerExpansionPipe(cellWidth, adjacencyMatrix, sortedGNNFeatures, modelInfo);
     interactFCExpansionPipe(cellWidth, sortedGNNFeatures);
 }
 
@@ -114,7 +114,7 @@ export function interactNodesAndDeactivateMatrixSubpipe() {
     g.selectAll(".adj-matrix-row-border, .adj-matrix-col-border").style("opacity", 0);
 }
 
-export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][]){
+export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any){
     const g = d3.select("#matvis");
 
     g.selectAll(".feature-layer")
@@ -141,7 +141,7 @@ export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: n
             transitFeatureLayers(layerID, dist);
             let direction = "up";
             if (nodeID < (adjacencyMatrix.length)/2) direction = "down";
-            visualizeInnerGNNLayerSubpipe(cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures, direction);
+            visualizeInnerGNNLayerSubpipe(cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures, modelInfo, direction);
         });
 
     g.on("click", function(event: any, d: any) {

@@ -3,7 +3,7 @@ import { addVector, countOnes, curve, extractSortedGNNLayerFeatures, featureColo
 import { computeFeatureLayerX, computeFeatureLayerY } from "./geometryUtils";
 import { distanceToFeature } from "../utils/const";
 
-export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, modelInfo: any, linkList: any[]) {
+export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[]) {
     // define parameters
     const gapSizeBetweenLayers = 100;
     
@@ -266,7 +266,8 @@ export function visualizeFCForEachSingleNodeSubpipe(layerX: number, intmData: an
     }
 }
 
-export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], direction: string){
+export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any, direction: string){
+    console.log("inside layer modelInfo:", modelInfo);
     const distanceBetweenFeatures = 50;
     const gapXBetweenLayers = 100;
     const startX = adjacencyMatrix.length * 20 + 20 + 50;
