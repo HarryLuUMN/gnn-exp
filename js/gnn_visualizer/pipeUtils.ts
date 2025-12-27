@@ -8,6 +8,13 @@ export function injectSVG(g:any, x: number, y: number, SVGPath:string, svgClass:
     });
 }
 
+export function matrixTranspose<T>(matrix: T[][]): T[][] {
+  return matrix[0].map((_, colIndex) =>
+    matrix.map(row => row[colIndex])
+  )
+}
+
+
 export function transformDataToMatrixVisFormat(nodes: any, links: any) {
     const matrixSize = nodes.length;
     let adjacancyMatrix: number[][] = Array.from({ length: matrixSize }, () =>

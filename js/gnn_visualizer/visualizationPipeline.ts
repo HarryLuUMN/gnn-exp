@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { addVector, countOnes, curve, extractSortedGNNLayerFeatures, featureColor, injectSVG, randomMatrix, randomVector, scaleVector, vecMatMul } from "./pipeUtils";
+import { addVector, countOnes, curve, extractSortedGNNLayerFeatures, featureColor, injectSVG, matrixTranspose, randomMatrix, randomVector, scaleVector, vecMatMul } from "./pipeUtils";
 import { computeFeatureLayerX, computeFeatureLayerY } from "./geometryUtils";
 import { distanceToFeature } from "../utils/const";
 
@@ -267,7 +267,7 @@ export function visualizeFCForEachSingleNodeSubpipe(layerX: number, intmData: an
 }
 
 export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any, direction: string){
-    console.log("inside layer modelInfo:", modelInfo);
+    console.log("inside layer modelInfo:", modelInfo, layerID);
     const distanceBetweenFeatures = 50;
     const gapXBetweenLayers = 100;
     const startX = adjacencyMatrix.length * 20 + 20 + 50;
@@ -369,7 +369,8 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
         .attr("fill", "none")
         .attr("class", "weight-matrix-to-intersect-path layer-inner-works")
         .lower();
-    const weightMatrix = randomMatrix(sortedGNNFeatures[layerID-1][0].length, sortedGNNFeatures[layerID][0].length);
+    const weightMatrix:number[][] = matrixTranspose(modelInfo[`conv${layerID}`]["weight"]);
+    console.log("weightMatrix:", weightMatrix);
     const matrixStartX = currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures*0.5 - cellWidth * weightMatrix[0].length / 2;
     const matrixStartY = currentNodeY + (dirCoefficient) * distanceBetweenFeatures * 1;
     let matrixStartYOffset = 0;
