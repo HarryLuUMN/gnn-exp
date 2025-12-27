@@ -6,6 +6,7 @@ interface GNNVisualizerProps {
     modelInfo: any;
     onLoadComplete: () => void;
     graphData: any;
+    renderToken: number;
 }
 
 const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
@@ -13,6 +14,7 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     modelInfo, 
     onLoadComplete,
     graphData,
+    renderToken
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -22,9 +24,12 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     }
     
     useEffect(() => {
-           modelPipeline(setIsLoading, modelInfo, intmData, graphData);
-           onLoadComplete();
-    }, [graphData, intmData]);
+        console.log("modelInfo in GNNVisualizer:", modelInfo);
+        console.log("intmData in GNNVisualizer:", intmData);
+        console.log("graphData in GNNVisualizer:", graphData);
+        modelPipeline(setIsLoading, modelInfo, intmData, graphData);
+        onLoadComplete();
+    }, [graphData, intmData, renderToken]);
     
 
     return (

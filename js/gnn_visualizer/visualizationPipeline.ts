@@ -216,7 +216,7 @@ export function visualizeFCForEachSingleNodeSubpipe(layerX: number, modelInfo: a
     // get the last layer number from modelInfo
     const sortedLayers = extractSortedGNNLayerFeatures(modelInfo);
     const lastLayerNum = sortedLayers[sortedLayers.length - 1].length;
-    const fcLayerFeatures: any[][] = modelInfo[`fc_layer_1`];
+    const fcLayerFeatures: any[][] = modelInfo[`softmax`];
     console.log("fc data", fcLayerFeatures, lastLayerNum);
     const layerY = 50;
     const svg = d3.select('#matrix-svg');

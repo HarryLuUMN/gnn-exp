@@ -18,12 +18,12 @@ export function modelPipeline(
     // data processing pipes
     const { nodeList, linkList} = preMatrixVisualizationDataProcessingPipe("node prediction", undefined, undefined, graphData);
     const adjacancyMatrix = transformDataToMatrixVisFormat(nodeList, linkList);
-    const sortedGNNFeatures = extractSortedGNNLayerFeatures(modelInfo);
+    const sortedGNNFeatures = extractSortedGNNLayerFeatures(intmData);
     
     console.log("Processed nodes and links:", nodeList, linkList);
     
     // visualization pipes
-    visualizationPipeline(cellWidth, cellHeight, adjacancyMatrix, modelInfo, intmData, linkList);
+    visualizationPipeline(cellWidth, cellHeight, adjacancyMatrix, intmData, modelInfo, linkList);
     interactionPipeline(cellWidth, adjacancyMatrix, sortedGNNFeatures);
     
     return null;

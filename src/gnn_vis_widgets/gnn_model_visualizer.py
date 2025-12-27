@@ -15,6 +15,8 @@ class GNNVisualizer(anywidget.AnyWidget):
     modelInfo = traitlets.Dict().tag(sync=True)
     intmData = traitlets.Dict().tag(sync=True)
 
+    renderToken = traitlets.Int(0).tag(sync=True)
+
     _esm = DIST / "gnn_visualizer" / "index.js"
     _css = DIST / "gnn_visualizer" / "index.css"
 
@@ -61,6 +63,11 @@ class GNNVisualizer(anywidget.AnyWidget):
             else:
                 print(f"Last layer ({last_layer_name}) has no bias")
 
+        self.renderToken += 1
+
+    def start_visualize(self):
+        self.value += 1  # trigger re-render in frontend
+        return 
 
     def fetch_model_intermedia(self, data, model):
         hooks = []

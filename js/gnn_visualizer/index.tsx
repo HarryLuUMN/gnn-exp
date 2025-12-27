@@ -9,6 +9,8 @@ const render = createRender(() => {
     const [graphPath, setGraphPath] = useModelState<string>("graphPath");
     const [intmData, setIntmData] = useModelState<any>("intmData");
     const [modelInfo, setModelInfo] = useModelState<any>("modelInfo");
+    const [renderToken] = useModelState<number>("renderToken");
+
     const [isLoading, setIsLoading] = React.useState(true);
 
 	console.log("GNNVisualizer received graphData =", graphData);
@@ -20,6 +22,7 @@ const render = createRender(() => {
                 modelInfo={modelInfo}
                 onLoadComplete={() =>setIsLoading(false)}
                 intmData={intmData}
+                renderToken={renderToken}
             />
         </div>
     );
