@@ -139,7 +139,7 @@ export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: 
         }
         layerX +=  (gapXBetweenLayers);
     }
-    visualizeFCForEachSingleNodeSubpipe(layerX, intmData);
+    visualizeFCForNodeTaskSubpipe(layerX, intmData);
 }
 
 export function visualizeLinksBetweenLayersPipe(
@@ -210,12 +210,25 @@ export function visualizeLinksBetweenLayersPipe(
     }
 }
 
-export function visualizeFCForEachSingleNodeSubpipe(layerX: number, intmData: any){
+export function visualizeFCForEdgeTaskSubpipe(layerX: any, intmData: any){
+    const sortedLayers = extractSortedGNNLayerFeatures(intmData);
+    const lastLayerNum = sortedLayers[sortedLayers.length - 1].length;
+    const fcLayerFeatures: any[][] = intmData[`softmax`];
+    console.log("fc data", fcLayerFeatures, lastLayerNum);
+    const layerY = 50;
+    const svg = d3.select('#matrix-svg');
+
+
+}
+
+
+
+export function visualizeFCForNodeTaskSubpipe(layerX: number, intmData: any){
     console.log("inside visualizeFCFeaturesPipe", intmData);
     // get the last layer number from intmData
     const sortedLayers = extractSortedGNNLayerFeatures(intmData);
     const lastLayerNum = sortedLayers[sortedLayers.length - 1].length;
-    const fcLayerFeatures: any[][] = intmData[`softmax`];
+    const fcLayerFeatures: any[][] = intmData[`softmax`]; // TODO: make it more general 
     console.log("fc data", fcLayerFeatures, lastLayerNum);
     const layerY = 50;
     const svg = d3.select('#matrix-svg');
@@ -490,7 +503,7 @@ export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, 
 
     let dirCoefficient = 1;
     if (direction === "up") dirCoefficient = -1;
-    
+
     // input to weighted vector path
     inner.append("line")
         .attr("x1", currentNodeX)

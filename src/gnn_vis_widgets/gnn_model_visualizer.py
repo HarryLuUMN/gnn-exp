@@ -31,6 +31,11 @@ class GNNVisualizer(anywidget.AnyWidget):
     def add_model(self, data, model):
         intermedia_output = self.fetch_model_intermedia(data, model)
         self.intmData = intermedia_output
+        self.graphData = {
+            "x": data.x.detach().cpu().numpy().tolist(),
+            "edge_index": data.edge_index.detach().cpu().numpy().tolist(),
+            "y": data.y.detach().cpu().numpy().tolist() if data.y is not None else None,
+        }
 
         model_info = {}
 

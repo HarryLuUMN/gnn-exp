@@ -18,7 +18,7 @@ export function preMatrixVisualizationDataProcessingPipe(
     data: any,
     sandboxMode: boolean = false
 ) {
-
+    console.log("preMatrixVisualizationDataProcessingPipe:", modelType, hubNodeA, hubNodeB, data);
     let processed: number[] = [];
     if (modelType?.includes("link prediction")) {
         const sub = new Set<number>();
