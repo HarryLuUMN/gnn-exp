@@ -3,14 +3,14 @@ import { addVector, countOnes, curve, extractSortedGNNLayerFeatures, featureColo
 import { computeFeatureLayerX, computeFeatureLayerY } from "./geometryUtils";
 import { distanceToFeature } from "../utils/const";
 
-export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], modelInfo: any, intmData: any, linkList: any[]) {
+export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, modelInfo: any, linkList: any[]) {
     // define parameters
     const gapSizeBetweenLayers = 100;
     
     // visualization pipes
     visualizeMatrixPipe(adjacencyMatrix);
-    visualizeIntermediateFeaturePipe(cellWidth, cellHeight, gapSizeBetweenLayers, intmData, modelInfo, adjacencyMatrix);
-    visualizeLinksBetweenLayersPipe(linkList, gapSizeBetweenLayers, modelInfo);
+    visualizeIntermediateFeaturePipe(cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix);
+    visualizeLinksBetweenLayersPipe(linkList, gapSizeBetweenLayers, intmData);
 }
 
 export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
@@ -90,15 +90,14 @@ export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
     
 }
 
-export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, modelInfo: any, adjacencyMatrix: number[][]){
+export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, adjacencyMatrix: number[][]){
     console.log("inside visualizeIntermediateFeaturePipe", intmData, adjacencyMatrix);
 
     const svg = d3.select('#matrix-svg');
     const startX = adjacencyMatrix.length * 20 + 20 + 50;
     const startY = 50;
 
-    console.log("modelInfo", modelInfo); 
-    const sortedGNNFeatures = extractSortedGNNLayerFeatures(modelInfo);
+    const sortedGNNFeatures = extractSortedGNNLayerFeatures(intmData);
     console.log("Sorted GNN Layer Features:", sortedGNNFeatures);
 
     let layerX = startX;
@@ -140,23 +139,23 @@ export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: 
         }
         layerX +=  (gapXBetweenLayers);
     }
-    visualizeFCForEachSingleNodeSubpipe(layerX, modelInfo);
+    visualizeFCForEachSingleNodeSubpipe(layerX, intmData);
 }
 
 export function visualizeLinksBetweenLayersPipe(
     links: any,
     gapSize: number,
-    modelInfo: any
+    intmData: any
 ){
     console.log("start visualizeLinksBetweenLayers");
     // visualize links between GNN layers
     const svg = d3.select('#matrix-svg');
 
-    console.log("modelInfo inside visualizeLinksBetweenLayers:", modelInfo);
-    console.log("sortedGNNFeatures:", extractSortedGNNLayerFeatures(modelInfo));
+    console.log("intmData inside visualizeLinksBetweenLayers:", intmData);
+    console.log("sortedGNNFeatures:", extractSortedGNNLayerFeatures(intmData));
 
 
-    const sortedGNNFeatures = extractSortedGNNLayerFeatures(modelInfo);
+    const sortedGNNFeatures = extractSortedGNNLayerFeatures(intmData);
     // const undirectLinks = removeRepeatLinks(links);
 
     const startX = 50 + sortedGNNFeatures[0].length * 20 + 20;
@@ -211,12 +210,12 @@ export function visualizeLinksBetweenLayersPipe(
     }
 }
 
-export function visualizeFCForEachSingleNodeSubpipe(layerX: number, modelInfo: any){
-    console.log("inside visualizeFCFeaturesPipe", modelInfo);
-    // get the last layer number from modelInfo
-    const sortedLayers = extractSortedGNNLayerFeatures(modelInfo);
+export function visualizeFCForEachSingleNodeSubpipe(layerX: number, intmData: any){
+    console.log("inside visualizeFCFeaturesPipe", intmData);
+    // get the last layer number from intmData
+    const sortedLayers = extractSortedGNNLayerFeatures(intmData);
     const lastLayerNum = sortedLayers[sortedLayers.length - 1].length;
-    const fcLayerFeatures: any[][] = modelInfo[`softmax`];
+    const fcLayerFeatures: any[][] = intmData[`softmax`];
     console.log("fc data", fcLayerFeatures, lastLayerNum);
     const layerY = 50;
     const svg = d3.select('#matrix-svg');
