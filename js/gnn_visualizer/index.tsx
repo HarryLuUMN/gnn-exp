@@ -9,11 +9,14 @@ const render = createRender(() => {
     const [graphPath, setGraphPath] = useModelState<string>("graphPath");
     const [intmData, setIntmData] = useModelState<any>("intmData");
     const [modelInfo, setModelInfo] = useModelState<any>("modelInfo");
+
+    const [queries, setQueries] = useModelState<number[][]>("queries");
     const [renderToken] = useModelState<number>("renderToken");
 
     const [isLoading, setIsLoading] = React.useState(true);
 
 	console.log("GNNVisualizer received graphData =", graphData);
+	console.log("GNNVisualizer received queries =", queries, "type:", typeof queries, "isArray:", Array.isArray(queries));
 
     return (
         <div className="gnn_vis_widgets">
@@ -23,6 +26,7 @@ const render = createRender(() => {
                 onLoadComplete={() =>setIsLoading(false)}
                 intmData={intmData}
                 renderToken={renderToken}
+                queries={queries}
             />
         </div>
     );

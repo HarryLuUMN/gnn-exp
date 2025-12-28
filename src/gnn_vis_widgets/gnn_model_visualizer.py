@@ -15,6 +15,8 @@ class GNNVisualizer(anywidget.AnyWidget):
     modelInfo = traitlets.Dict().tag(sync=True)
     intmData = traitlets.Dict().tag(sync=True)
 
+    queries = traitlets.List(default_value=[]).tag(sync=True)
+
     renderToken = traitlets.Int(0).tag(sync=True)
 
     _esm = DIST / "gnn_visualizer" / "index.js"
@@ -22,14 +24,32 @@ class GNNVisualizer(anywidget.AnyWidget):
 
     value = traitlets.Int(0).tag(sync=True)
 
+    @traitlets.observe("queries")
+    def _on_queries_change(self, change):
+        print(f"Python: queries changed to: {change['new']}, type: {type(change['new'])}")
+
     def add_data(self, graphFile, weightFile, modelInfo):
         self.graphData = load_json(self=self,file_path=graphFile, root=ROOT)
         self.intmData = load_json(self=self,file_path=weightFile, root=ROOT)
         self.modelInfo = modelInfo
         print(f"graphData: {self.graphData.keys()}, intmData: {self.intmData.keys()} loaded.")
 
-    def add_model(self, data, model, forward_fn=None):
+    def add_model(self, data, model, forward_fn=None, queries=[]):
         intermedia_output = self.fetch_model_intermedia(data, model, forward_fn)
+        
+        # deduplicate while preserving order and ensure queries are JSON-serializable
+        seen = []
+        queries_list = []
+        for q in queries:
+            # Convert to tuple for hashing, then back to list
+            q_tuple = tuple(q) if isinstance(q, (list, tuple)) else (q,)
+            if q_tuple not in seen:
+                seen.append(q_tuple)
+                # Ensure each query is a list of integers
+                queries_list.append([int(x) for x in q] if isinstance(q, (list, tuple)) else [int(q)])
+        
+        self.queries = queries_list
+        print(f"Queries set to: {self.queries}")
         self.intmData = intermedia_output
         self.graphData = {
             "x": data.x.detach().cpu().numpy().tolist(),

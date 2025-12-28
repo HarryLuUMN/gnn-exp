@@ -3,13 +3,13 @@ import { addVector, countOnes, curve, extractSortedGNNLayerFeatures, featureColo
 import { computeFeatureLayerX, computeFeatureLayerY } from "./geometryUtils";
 import { distanceToFeature } from "../utils/const";
 
-export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[]) {
+export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = []) {
     // define parameters
     const gapSizeBetweenLayers = 100;
     
     // visualization pipes
     visualizeMatrixPipe(adjacencyMatrix);
-    visualizeIntermediateFeaturePipe(cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix);
+    visualizeIntermediateFeaturePipe(cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix, queries);
     visualizeLinksBetweenLayersPipe(linkList, gapSizeBetweenLayers, intmData);
 }
 
@@ -90,7 +90,7 @@ export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
     
 }
 
-export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, adjacencyMatrix: number[][]){
+export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, adjacencyMatrix: number[][], queries: number[][]){
     console.log("inside visualizeIntermediateFeaturePipe", intmData, adjacencyMatrix);
 
     const svg = d3.select('#matrix-svg');
@@ -140,6 +140,7 @@ export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: 
         layerX +=  (gapXBetweenLayers);
     }
     visualizeFCForNodeTaskSubpipe(layerX, intmData);
+    // visualizeFCForEdgeTaskSubpipe(layerX, intmData, queries);
 }
 
 export function visualizeLinksBetweenLayersPipe(
@@ -210,18 +211,81 @@ export function visualizeLinksBetweenLayersPipe(
     }
 }
 
-export function visualizeFCForEdgeTaskSubpipe(layerX: any, intmData: any){
+export function visualizeFCForEdgeTaskSubpipe(layerX: any, intmData: any, queries: number[][]){
+    const sortedLayers = extractSortedGNNLayerFeatures(intmData);
+    const lastLayerNum = sortedLayers[sortedLayers.length - 1].length;
+    const fcLayerFeatures: any[][] = intmData[`decoder`];
+    console.log("fc data", fcLayerFeatures, lastLayerNum);
+    const layerY = 50;
+    const prevLayerX = layerX - 100;
+    const svg = d3.select('#matrix-svg');
+    console.log("queries for edge task:", queries, fcLayerFeatures);
+    // visualize links
+    for (let i=0; i < queries.length; i++){
+        const nodeA = queries[i][0];
+        const nodeB = queries[i][1];
+        const layerYA = layerY + nodeA * 20 + 12;
+        const layerYB = layerY + nodeB * 20 + 12;
+        const layerYMid = (layerYA + layerYB) / 2;
+        svg.append("path")
+            .attr("d", curve([
+                [prevLayerX, layerYA],
+                [prevLayerX + 50, layerYA],
+                [prevLayerX + 50, layerYMid],
+                [layerX, layerYMid],
+            ])).attr("stroke", "black").attr("opacity", 0.1).attr("fill", "none").attr("class", "link-path-fc").attr("id", `link-path-fc-${i}`).lower();
+        svg.append("path")
+            .attr("d", curve([
+                [prevLayerX, layerYB],
+                [prevLayerX + 50, layerYB],
+                [prevLayerX + 50, layerYMid],
+                [layerX, layerYMid],
+            ])).attr("stroke", "black").attr("opacity", 0.1).attr("fill", "none").attr("class", "link-path-fc").attr("id", `link-path-fc-${i}`).lower();
+        // visualize final probabilities output
+        const prob = Math.random();
+        const probArr = [1 - prob, prob];
+        const g = svg.append("g").attr("class", "fc-feature-layer").attr("id", `fc-feature-layer-node-${i}`);
+        for(let j=0; j < probArr.length; j++){
+            g.append("rect")
+                .attr("x", layerX + j * 6)
+                .attr("y", layerYMid - 6)
+                .attr("width", 6)
+                .attr("height", 12)
+                .attr("fill", featureColor(probArr[j]))
+                .attr("class", "fc-feature-cell")
+                .attr("id", `fc-feature-layer-node-${i}-dim-${j}`)
+                .style("stroke-width", 0.5)
+                .style("stroke", "gray")
+                .style("stroke-opacity", 0.5)
+                .style("opacity", 1);
+        }
+        g.append("rect")
+            .attr("x", layerX)
+            .attr("y", layerYMid - 6)
+            .attr("width", probArr.length * 6)
+            .attr("height", 12)
+            .attr("fill", "none")
+            .attr("class", "fc-feature-layer-frame")
+            .attr("id", `fc-feature-layer-frame-node-${i}`)
+            .style("stroke-width", 1)
+            .style("stroke", "black")
+            .style("opacity", 0.5);
+    }
+
+}
+
+export function visualizeFCForGraphTaskSubpipe(layerX: any, intmData: any){
     const sortedLayers = extractSortedGNNLayerFeatures(intmData);
     const lastLayerNum = sortedLayers[sortedLayers.length - 1].length;
     const fcLayerFeatures: any[][] = intmData[`softmax`];
     console.log("fc data", fcLayerFeatures, lastLayerNum);
     const layerY = 50;
     const svg = d3.select('#matrix-svg');
-
+    for (let i=0; i < fcLayerFeatures.length; i++){
+        
+    }
 
 }
-
-
 
 export function visualizeFCForNodeTaskSubpipe(layerX: number, intmData: any){
     console.log("inside visualizeFCFeaturesPipe", intmData);
