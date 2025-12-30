@@ -1,6 +1,6 @@
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import { interactionPipeline } from "./interactionPipeline";
-import { extractSortedGNNLayerFeatures, transformDataToMatrixVisFormat } from "./pipeUtils";
+import { extractSortedGNNLayerFeatures, transformDataToMatrixVisFormat } from "./utils/dataProcessingUtils";
 import { visualizationPipeline } from "./visualizationPipeline";
 
 export function modelPipeline(

@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
-import { extractFCNodeIndex, extractFeatureId, getMaxLayerID, transitFCLayer, transitFeatureLayers } from './pipeUtils';
+import { transitFCLayer, transitFeatureLayers } from './utils/animationUtils';
+import { extractFCNodeIndex, extractFeatureId, getMaxLayerID} from './utils/dataProcessingUtils';
 import { visualizeInnerFCLayerSubpipe, visualizeInnerGNNLayerSubpipe } from './visualizationPipeline';
 import { distanceToFeature } from '../utils/const';
 

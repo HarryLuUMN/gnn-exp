@@ -1,7 +1,10 @@
 import * as d3 from "d3";
-import { addVector, countOnes, curve, divideVector, extractSortedGNNLayerFeatures, featureColor, injectSVG, matrixTranspose, randomMatrix, randomVector, scaleVector, vecMatMul } from "./pipeUtils";
+import { injectSVG } from "./utils/pipeUtils";
 import { computeFeatureLayerX, computeFeatureLayerY } from "./geometryUtils";
 import { distanceToFeature } from "../utils/const";
+import { matrixTranspose, randomVector, scaleVector, vecMatMul, addVector, countOnes, divideVector } from "./utils/mathUtils";
+import { curve, featureColor } from "./utils/const";
+import { extractSortedGNNLayerFeatures } from "./utils/dataProcessingUtils";
 
 export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = []) {
     // define parameters
