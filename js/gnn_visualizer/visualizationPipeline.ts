@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { addVector, countOnes, curve, extractSortedGNNLayerFeatures, featureColor, injectSVG, matrixTranspose, randomMatrix, randomVector, scaleVector, vecMatMul } from "./pipeUtils";
+import { addVector, countOnes, curve, divideVector, extractSortedGNNLayerFeatures, featureColor, injectSVG, matrixTranspose, randomMatrix, randomVector, scaleVector, vecMatMul } from "./pipeUtils";
 import { computeFeatureLayerX, computeFeatureLayerY } from "./geometryUtils";
 import { distanceToFeature } from "../utils/const";
 
@@ -141,6 +141,7 @@ export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: 
     }
     visualizeFCForNodeTaskSubpipe(layerX, intmData);
     // visualizeFCForEdgeTaskSubpipe(layerX, intmData, queries);
+    // visualizeFCForGraphTaskSubpipe(layerX, intmData);
 }
 
 export function visualizeLinksBetweenLayersPipe(
@@ -277,14 +278,56 @@ export function visualizeFCForEdgeTaskSubpipe(layerX: any, intmData: any, querie
 export function visualizeFCForGraphTaskSubpipe(layerX: any, intmData: any){
     const sortedLayers = extractSortedGNNLayerFeatures(intmData);
     const lastLayerNum = sortedLayers[sortedLayers.length - 1].length;
-    const fcLayerFeatures: any[][] = intmData[`softmax`];
+    const fcLayerFeatures: any[][] = intmData[`conv4`];
     console.log("fc data", fcLayerFeatures, lastLayerNum);
+    const prevLayerX = layerX - 100;
     const layerY = 50;
     const svg = d3.select('#matrix-svg');
+    const midLayerY = layerY + (fcLayerFeatures.length * 20) / 2;
     for (let i=0; i < fcLayerFeatures.length; i++){
-        
+        const curLayerY = layerY + i * 20 + 12;
+        svg.append("path")
+            .attr("d", curve([
+                [prevLayerX, curLayerY],
+                [prevLayerX + 50, curLayerY],
+                [prevLayerX + 50, midLayerY],
+                [layerX, midLayerY],
+            ])).attr("stroke", "black").attr("opacity", 0.1).attr("fill", "none").attr("class", "link-path-fc").attr("id", `link-path-fc-${i}`).lower();
     }
+    let vec = Array(fcLayerFeatures[0].length).fill(0);
+    for (let i=0; i < fcLayerFeatures.length; i++)
+        vec = addVector(vec, fcLayerFeatures[i]);
+    vec = divideVector(vec, fcLayerFeatures.length);
+    console.log("averaged graph feature vector:", vec);
+    const g = svg.append("g").attr("class", "fc-feature-layer").attr("id", `fc-feature-layer-node-graph`);
+    for(let j=0; j < vec.length; j++){
+        g.append("rect")
+            .attr("x", layerX + j * 6)
+            .attr("y", midLayerY - 6)
+            .attr("width", 6)
+            .attr("height", 12)
+            .attr("fill", featureColor(vec[j]))
+            .attr("class", "fc-feature-cell")
+            .attr("id", `fc-feature-layer-node-graph-dim-${j}`)
+            .style("stroke-width", 0.5)
+            .style("stroke", "gray")
+            .style("stroke-opacity", 0.5)
+            .style("opacity", 1);
+    }
+    g.append("rect")
+        .attr("x", layerX)
+        .attr("y", midLayerY - 6)
+        .attr("width", vec.length * 6)
+        .attr("height", 12)
+        .attr("fill", "none")
+        .attr("class", "fc-feature-layer-frame")
+        .attr("id", `fc-feature-layer-frame-node-graph`)
+        .style("stroke-width", 1)
+        .style("stroke", "black")
+        .style("opacity", 0.5);
 
+    const resultVec = randomVector(4);
+    visualizeSingleFCSubpipe(layerX + 100, midLayerY - 12, resultVec, 0, svg);
 }
 
 export function visualizeFCForNodeTaskSubpipe(layerX: number, intmData: any){
@@ -300,47 +343,51 @@ export function visualizeFCForNodeTaskSubpipe(layerX: number, intmData: any){
         const feature: any[] | undefined = fcLayerFeatures[i];
         console.log("fc feature:", feature, i);
         if (!Array.isArray(feature)) continue;
-        const g = svg.append("g").attr("class", "fc-feature-layer").attr("id", `fc-feature-layer-node-${i}`);
-
-        g.append("rect")
-            .attr("x", layerX)
-            .attr("y", layerY + i * 20 + 6)
-            .attr("width", feature.length * 6)
-            .attr("height", 12)
-            .attr("fill", "none")
-            .attr("class", "fc-feature-layer-frame")
-            .attr("id", `fc-feature-layer-frame-node-${i}`)
-            .style("stroke-width", 2)
-            .style("stroke", "black")
-            .style("opacity", 0.5);
-
-        for(let j=0; j < feature.length; j++){
-            g.append("rect")
-                .attr("x", layerX + j * 6)
-                .attr("y", layerY + i * 20 + 6)
-                .attr("width", 6)
-                .attr("height", 12)
-                .attr("fill", featureColor(feature[j]))
-                .attr("class", "fc-feature-cell")
-                .attr("id", `fc-feature-layer-node-${i}-dim-${j}`)
-                .style("stroke-width", 0.5)
-                .style("stroke", "gray")
-                .style("stroke-opacity", 0.5)
-                .style("opacity", 1);
-        }
-
-        svg.append("line")
-            .attr("x1", layerX)
-            .attr("y1", layerY + i * 20 + 12)
-            .attr("x2", layerX - 100)
-            .attr("y2", layerY + i * 20 + 12)
-            .attr("stroke", "black")
-            .attr("opacity", 0.1)
-            .attr("fill", "none")
-            .attr("class", "link-path-fc")
-            .attr("id", `link-path-fc-${i}`)
-            .lower();
+        visualizeSingleFCSubpipe(layerX, layerY, feature, i, svg);
     }
+}
+
+function visualizeSingleFCSubpipe(layerX: number, layerY: number, feature: any[], i: number, svg: any) {
+    const g = svg.append("g").attr("class", "fc-feature-layer").attr("id", `fc-feature-layer-node-${i}`);
+
+    g.append("rect")
+        .attr("x", layerX)
+        .attr("y", layerY + i * 20 + 6)
+        .attr("width", feature.length * 6)
+        .attr("height", 12)
+        .attr("fill", "none")
+        .attr("class", "fc-feature-layer-frame")
+        .attr("id", `fc-feature-layer-frame-node-${i}`)
+        .style("stroke-width", 2)
+        .style("stroke", "black")
+        .style("opacity", 0.5);
+
+    for (let j = 0; j < feature.length; j++) {
+        g.append("rect")
+            .attr("x", layerX + j * 6)
+            .attr("y", layerY + i * 20 + 6)
+            .attr("width", 6)
+            .attr("height", 12)
+            .attr("fill", featureColor(feature[j]))
+            .attr("class", "fc-feature-cell")
+            .attr("id", `fc-feature-layer-node-${i}-dim-${j}`)
+            .style("stroke-width", 0.5)
+            .style("stroke", "gray")
+            .style("stroke-opacity", 0.5)
+            .style("opacity", 1);
+    }
+
+    svg.append("line")
+        .attr("x1", layerX)
+        .attr("y1", layerY + i * 20 + 12)
+        .attr("x2", layerX - 100)
+        .attr("y2", layerY + i * 20 + 12)
+        .attr("stroke", "black")
+        .attr("opacity", 0.1)
+        .attr("fill", "none")
+        .attr("class", "link-path-fc")
+        .attr("id", `link-path-fc-${i}`)
+        .lower();
 }
 
 export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any, direction: string){

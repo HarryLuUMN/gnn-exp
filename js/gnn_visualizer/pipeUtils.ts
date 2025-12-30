@@ -179,6 +179,13 @@ export function extractFeatureId(id: any) {
     return id.match(/^feature-layer-(\d+)-node-(\d+)$/);
 }
 
+export function divideVector(v: number[], n: number): number[] {
+    if (n === 0) {
+        throw new Error("Division by zero");
+    }
+    return v.map(x => x / n);
+}
+
 export function transitFeatureLayers(layerID: number, distanceX: number) {
     d3.selectAll(".feature-layer")
         .filter(function () {
