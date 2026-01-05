@@ -1,6 +1,6 @@
 # Visual Exploration of Graph Neural Networks in Your Computational Notebook
 
-The reposi contains a graph neural network visualization library adopted from our previous work GNN101. 
+The repository contains a graph neural network visualization library adopted from our previous work GNN101. 
 
 ## Installation
 
