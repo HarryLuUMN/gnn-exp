@@ -4,43 +4,47 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gnn-explorer"
-version = "0.1.0"
+version = "0.1.1"
 description = "Visual exploration of Graph Neural Networks in computational notebooks"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
-keywords = [
-    "graph-neural-networks",
-    "gnn",
-    "visualization",
-    "jupyter",
-    "widget",
-    "interactive",
-    "machine-learning",
-]
+license = { text = "MIT" }
+
 authors = [
-    {name = "Yilin Lu", email = "lu000661@umn.edu"},
-    {name = "Qianwen Wang", email = "qianwen@umn.edu"},
+  { name = "Yilin Lu", email = "lu000661@umn.edu" },
+  { name = "Qianwen Wang", email = "qianwen@umn.edu" },
 ]
+
+keywords = [
+  "graph-neural-networks",
+  "gnn",
+  "visualization",
+  "jupyter",
+  "widget",
+  "interactive",
+  "machine-learning",
+]
+
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Scientific/Engineering :: Visualization",
-    "Framework :: Jupyter",
-    "Framework :: Jupyter :: JupyterLab",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Framework :: Jupyter",
+  "Framework :: Jupyter :: JupyterLab",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Visualization",
 ]
+
 dependencies = [
-    "anywidget>=0.9.0",
+  "anywidget>=0.9.0",
 ]
 
 [project.urls]
@@ -49,28 +53,25 @@ Documentation = "https://github.com/HarryLuUMN/gnn-vis-widgets#readme"
 Repository = "https://github.com/HarryLuUMN/gnn-vis-widgets"
 Issues = "https://github.com/HarryLuUMN/gnn-vis-widgets/issues"
 
-# For projects not using `uv`, you can install these development dependencies with:
-# `pip install -e ".[dev]"`
-# If you're using `uv` for development, feel free to remove this section.
 [project.optional-dependencies]
 dev = ["watchfiles", "jupyterlab"]
 
-# Dependency groups (recognized by `uv`). For more details, visit:
-# https://peps.python.org/pep-0735/
-[dependency-groups]
-dev = ["watchfiles", "jupyterlab"]
-
-
 [tool.hatch.build]
 only-packages = true
-artifacts = ["src/gnn_explorer/static/*"]
 
-[tool.hatch.build.hooks.jupyter-builder]
-build-function = "hatch_jupyter_builder.npm_builder"
-ensured-targets = ["src/gnn_explorer/static/widget.js"]
-skip-if-exists = ["src/gnn_explorer/static/widget.js"]
-dependencies = ["hatch-jupyter-builder>=0.5.0"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/gnn_explorer"]
+include = [
+  "src/gnn_explorer/**/*.js",
+  "src/gnn_explorer/**/*.css",
+  "src/gnn_explorer/**/*.svg",
+  "src/gnn_explorer/**/*.json",
+]
 
-[tool.hatch.build.hooks.jupyter-builder.build-kwargs]
-npm = "npm"
-build_cmd = "build"
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/gnn_explorer/**/*.js",
+  "src/gnn_explorer/**/*.css",
+  "src/gnn_explorer/**/*.svg",
+  "src/gnn_explorer/**/*.json",
+]

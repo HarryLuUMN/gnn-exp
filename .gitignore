@@ -2,7 +2,7 @@ node_modules
 .venv
 dist
 .DS_Store
-
+pypi
 
 # Python
 __pycache__
@@ -10,3 +10,4 @@ __pycache__
 
 src/gnn_vis_widgets/static
 example.ipynb
+key.md
