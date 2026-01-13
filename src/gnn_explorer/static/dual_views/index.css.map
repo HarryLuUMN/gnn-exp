@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../../js/dual_views/style.css"],
+  "sourcesContent": [".gnn_vis_widgets button {\n\tbackground: linear-gradient(\n\t\t300deg,\n\t\t#9933ff 33.26%,\n\t\t#ff6666 46.51%,\n\t\t#faca30 59.77%,\n\t\t#00cd99 73.03%,\n\t\t#00ccff 86.29%\n\t);\n\tborder-radius: 10px;\n\tborder: 0;\n\tcolor: white;\n\tcursor: pointer;\n\tfont-family: \"Roboto\", sans-serif;\n\tfont-size: 2em;\n\tmargin: 10px;\n\tpadding: 10px 20px;\n\ttransition: transform 0.25s ease-in-out;\n}\n\n.gnn_vis_widgets button:hover {\n\ttransform: scale(1.05);\n}\n"],
+  "mappings": "AAAA,CAAC,gBAAgB,OAChB,WAAY,gBACX,MADW,CAEX,KAAQ,MAFG,CAGX,IAHW,CAIX,OAJW,CAKX,OALW,CAMX,KAAQ,QAPV,cASgB,KACf,OAAQ,EACR,MAAO,KACP,OAAQ,QACR,YAAa,MAAQ,CAAE,WACvB,UAAW,IAdZ,OAeS,KAfT,QAgBU,KAAK,KACd,WAAY,UAAU,KAAM,WAC7B,CAEA,CApBC,gBAoBgB,MAAM,OACtB,UAAW,MAAM,KAClB",
+  "names": []
+}
