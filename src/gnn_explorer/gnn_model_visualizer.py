@@ -32,7 +32,7 @@ class GNNVisualizer(anywidget.AnyWidget):
         self.graphData = load_json(self=self,file_path=graphFile, root=ROOT)
         self.intmData = load_json(self=self,file_path=weightFile, root=ROOT)
         self.modelInfo = modelInfo
-        print(f"graphData: {self.graphData.keys()}, intmData: {self.intmData.keys()} loaded.")
+        print(f"graphData: {self.graphData.keys()}, intmData: {self.intmData.keys()} loaded, path: {DIST}.")
 
     def add_model(self, data, model, forward_fn=None, queries=[]):
         intermedia_output = self.fetch_model_intermedia(data, model, forward_fn)
