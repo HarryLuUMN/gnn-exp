@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../../js/gnn_visualizer/style.css"],
+  "sourcesContent": [".body {\n  height: calc((100vh - var(--header-height)) / var(--zoom-ratio));\n  overflow-y: auto;\n}\n\n.rightContainer {\n  display: flex;\n  flex-direction: column;\n  height: calc((100vh - var(--header-height)) / var(--zoom-ratio));\n}\n\n.vizContainer {\n  flex: 1; /* Allow div3 to fill remaining space */\n  overflow: auto;\n}\n\n.node {\n    cursor: pointer;\n    transition: fill 0.2s;\n}\n\n.node-label {\n    font-size: 12px;\n    pointer-events: none;\n    text-anchor: middle;\n}\n\n.link {\n    transition: stroke 0.2s, stroke-width 0.2s;\n}\n\n.matrix-cell {\n    cursor: pointer;\n    transition: fill 0.2s;\n}\n\n.interaction_banned {\n    pointer-events: none;\n}\n"],
+  "mappings": "AAAA,CAAC,KACC,OAAQ,KAAK,CAAC,MAAM,EAAE,IAAI,kBAAkB,EAAE,IAAI,eAClD,WAAY,IACd,CAEA,CAAC,eACC,QAAS,KACT,eAAgB,OAChB,OAAQ,KAAK,CAAC,MAAM,EAAE,IAAI,kBAAkB,EAAE,IAAI,cACpD,CAEA,CAAC,aACC,KAAM,EACN,SAAU,IACZ,CAEA,CAAC,KACG,OAAQ,QACR,WAAY,KAAK,GACrB,CAEA,CAAC,WACG,UAAW,KACX,eAAgB,KAChB,YAAa,MACjB,CAEA,CAAC,KACG,WAAY,OAAO,GAAI,CAAE,aAAa,GAC1C,CAEA,CAAC,YACG,OAAQ,QACR,WAAY,KAAK,GACrB,CAEA,CAAC,mBACG,eAAgB,IACpB",
+  "names": []
+}

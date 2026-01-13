@@ -7,7 +7,7 @@ from .utils.subgraph_sampling import subgraph_hoop_sampling, multiple_subgraph_h
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-DIST = ROOT / "dist"
+DIST = ROOT / "src" / "gnn_explorer" / "static" 
 
 class GNNVisualizer(anywidget.AnyWidget):
     graphData = traitlets.Dict().tag(sync=True)  

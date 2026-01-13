@@ -5,7 +5,7 @@ import json
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-DIST = ROOT / "dist"
+DIST = ROOT / "src" / "gnn_explorer" / "static" 
 
 class GraphEditor(anywidget.AnyWidget):
     dataFile = traitlets.Unicode("/files/test_data/karate_dataset.json").tag(sync=True)

@@ -1,0 +1,2 @@
+.body{height:calc((100vh - var(--header-height)) / var(--zoom-ratio));overflow-y:auto}.rightContainer{display:flex;flex-direction:column;height:calc((100vh - var(--header-height)) / var(--zoom-ratio))}.vizContainer{flex:1;overflow:auto}.node{cursor:pointer;transition:fill .2s}.node-label{font-size:12px;pointer-events:none;text-anchor:middle}.link{transition:stroke .2s,stroke-width .2s}.matrix-cell{cursor:pointer;transition:fill .2s}.interaction_banned{pointer-events:none}
+/*# sourceMappingURL=index.css.map */

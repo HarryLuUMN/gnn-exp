@@ -6,7 +6,7 @@ from .utils.subgraph_sampling import subgraph_hoop_sampling, multiple_subgraph_h
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-DIST = ROOT / "dist"
+DIST = ROOT / "src" / "gnn_explorer" / "static" 
 
 class GraphVisualizer(anywidget.AnyWidget):
     graphData = traitlets.Dict().tag(sync=True)  
@@ -18,6 +18,7 @@ class GraphVisualizer(anywidget.AnyWidget):
 
     def add_data(self, dataFile):
         self.graphData = load_json(self=self,file_path=dataFile, root=ROOT)
+        print(f"graphData: {self.graphData.keys()}, loaded, path: {DIST}.")
 
     def subgraph_hoop_visualizer(self, hubNode: int, hoopNum: int):
         if not self.graphData:
