@@ -1,6 +1,6 @@
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import { interactionPipeline } from "./interactionPipeline";
-import { extractSortedGNNLayerFeatures, transformDataToMatrixVisFormat } from "./utils/dataProcessingUtils";
+import { extractSortedGNNLayerFeatures, processSubgraphDataPipe, transformDataToMatrixVisFormat } from "./utils/dataProcessingUtils";
 import { visualizationPipeline } from "./visualizationPipeline";
 
 export function modelPipeline(
@@ -20,6 +20,9 @@ export function modelPipeline(
     const { nodeList, linkList} = preMatrixVisualizationDataProcessingPipe("node prediction", undefined, undefined, graphData);
     const adjacancyMatrix = transformDataToMatrixVisFormat(nodeList, linkList);
     const sortedGNNFeatures = extractSortedGNNLayerFeatures(intmData);
+
+    const subgraphData = processSubgraphDataPipe(adjacancyMatrix, queries, 2);
+    console.log("subgraphData:", subgraphData);
     
     console.log("Processed nodes and links:", nodeList, linkList);
     
@@ -29,3 +32,4 @@ export function modelPipeline(
     
     return null;
 }
+
