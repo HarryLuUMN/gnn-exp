@@ -3,9 +3,9 @@ import anywidget
 import traitlets
 import json
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
+BASE_DIR = pathlib.Path(__file__).resolve().parent
 
-DIST = ROOT / "src" / "gnn_explorer" / "static" 
+DIST = BASE_DIR / "static"
 
 class GraphEditor(anywidget.AnyWidget):
     dataFile = traitlets.Unicode("/files/test_data/karate_dataset.json").tag(sync=True)

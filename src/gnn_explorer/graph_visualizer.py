@@ -4,9 +4,9 @@ import traitlets
 from .utils.data_loader import load_json
 from .utils.subgraph_sampling import subgraph_hoop_sampling, multiple_subgraph_hoop_sampling
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
+BASE_DIR = pathlib.Path(__file__).resolve().parent
 
-DIST = ROOT / "src" / "gnn_explorer" / "static" 
+DIST = BASE_DIR / "static"
 
 class GraphVisualizer(anywidget.AnyWidget):
     graphData = traitlets.Dict().tag(sync=True)  
@@ -17,7 +17,7 @@ class GraphVisualizer(anywidget.AnyWidget):
     value = traitlets.Int(0).tag(sync=True)
 
     def add_data(self, dataFile):
-        self.graphData = load_json(self=self,file_path=dataFile, root=ROOT)
+        self.graphData = load_json(file_path=dataFile)
         print(f"graphData: {self.graphData.keys()}, loaded, path: {DIST}.")
 
     def subgraph_hoop_visualizer(self, hubNode: int, hoopNum: int):

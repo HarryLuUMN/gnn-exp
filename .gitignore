@@ -8,6 +8,6 @@ pypi
 __pycache__
 .ipynb_checkpoints
 
-src/gnn_vis_widgets/static
+src/gnn_explorer/static
 example.ipynb
 key.md

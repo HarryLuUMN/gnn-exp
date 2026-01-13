@@ -5,9 +5,9 @@ import torch
 from .utils.data_loader import load_json
 from .utils.subgraph_sampling import subgraph_hoop_sampling, multiple_subgraph_hoop_sampling
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
+BASE_DIR = pathlib.Path(__file__).resolve().parent
 
-DIST = ROOT / "src" / "gnn_explorer" / "static" 
+DIST = BASE_DIR / "static"
 
 class GNNVisualizer(anywidget.AnyWidget):
     graphData = traitlets.Dict().tag(sync=True)  
@@ -29,8 +29,8 @@ class GNNVisualizer(anywidget.AnyWidget):
         print(f"Python: queries changed to: {change['new']}, type: {type(change['new'])}")
 
     def add_data(self, graphFile, weightFile, modelInfo):
-        self.graphData = load_json(self=self,file_path=graphFile, root=ROOT)
-        self.intmData = load_json(self=self,file_path=weightFile, root=ROOT)
+        self.graphData = load_json(file_path=graphFile)
+        self.intmData = load_json(file_path=weightFile)
         self.modelInfo = modelInfo
         print(f"graphData: {self.graphData.keys()}, intmData: {self.intmData.keys()} loaded, path: {DIST}.")
 
