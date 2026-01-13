@@ -4,16 +4,19 @@ import { computeFeatureLayerX, computeFeatureLayerY } from "./geometryUtils";
 import { distanceToFeature } from "../utils/const";
 import { matrixTranspose, randomVector, scaleVector, vecMatMul, addVector, countOnes, divideVector } from "./utils/mathUtils";
 import { curve, featureColor } from "./utils/const";
-import { extractSortedGNNLayerFeatures } from "./utils/dataProcessingUtils";
+import { extractSortedGNNLayerFeatures, processSubgraphSequenceDataPipe, SubgraphResult } from "./utils/dataProcessingUtils";
 
-export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = []) {
+export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any) {
     // define parameters
     const gapSizeBetweenLayers = 100;
+
+    subgraphData = processSubgraphSequenceDataPipe(adjacencyMatrix, queries, 4);
+    console.log("subgraphData inside visualizationPipeline:", subgraphData);
     
     // visualization pipes
     visualizeMatrixPipe(adjacencyMatrix);
-    visualizeIntermediateFeaturePipe(cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix, queries);
-    visualizeLinksBetweenLayersPipe(linkList, gapSizeBetweenLayers, intmData);
+    visualizeIntermediateFeaturePipe(cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix, queries, subgraphData);
+    visualizeLinksBetweenLayersPipe(linkList, gapSizeBetweenLayers, intmData, subgraphData);
 }
 
 export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
@@ -93,7 +96,7 @@ export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
     
 }
 
-export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, adjacencyMatrix: number[][], queries: number[][]){
+export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, adjacencyMatrix: number[][], queries: number[][] = [], subgraphData: any){
     console.log("inside visualizeIntermediateFeaturePipe", intmData, adjacencyMatrix);
 
     const svg = d3.select('#matrix-svg');
@@ -105,54 +108,59 @@ export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: 
 
     let layerX = startX;
     for(let i=0; i < sortedGNNFeatures.length; i++){
-        
+        const subgraph = subgraphData[i];
+        console.log("subgraph inside visualizeIntermediateFeaturePipe:", i, subgraph.nodes);
         if (i > 0)layerX += cellWidth * sortedGNNFeatures[i-1][0].length;
         const layerFeatures = sortedGNNFeatures[i];
         for(let j=0; j < layerFeatures.length; j++){
-            const layerY = startY + j * (20);
-            const feature = layerFeatures[j];
-            const g = svg.append("g").attr("class", "feature-layer").attr("id", `feature-layer-${i}-node-${j}`);
-            
-            g.append("rect")
-                .attr("x", layerX)
-                .attr("y", layerY + (cellHeight/2))
-                .attr("width", feature.length * cellWidth)
-                .attr("height", cellHeight)
-                .attr("fill", "none")
-                .attr("class", "feature-layer-frame")
-                .attr("id", `feature-layer-frame-${i}-node-${j}`)
-                .style("stroke-width", 2)
-                .style("stroke", "black")
-                .style("opacity", 0.5);
-
-            for(let k=0; k < feature.length; k++){
+            if (subgraph.nodes.includes(j)) {
+                const layerY = startY + j * (20);
+                const feature = layerFeatures[j];
+                const g = svg.append("g").attr("class", "feature-layer").attr("id", `feature-layer-${i}-node-${j}`);
+                
                 g.append("rect")
-                    .attr("x", layerX + k * cellWidth)
+                    .attr("x", layerX)
                     .attr("y", layerY + (cellHeight/2))
-                    .attr("width", cellWidth)
+                    .attr("width", feature.length * cellWidth)
                     .attr("height", cellHeight)
-                    .attr("fill", featureColor(feature[k]))
-                    .attr("class", "feature-cell")
-                    .attr("id", `feature-layer-${i}-node-${j}-dim-${k}`)
-                    .style("stroke-width", 0.5)
-                    .style("stroke", "gray")
-                    .style("stroke-opacity", 0.5)
-                    .style("opacity", 1);
+                    .attr("fill", "none")
+                    .attr("class", "feature-layer-frame")
+                    .attr("id", `feature-layer-frame-${i}-node-${j}`)
+                    .style("stroke-width", 2)
+                    .style("stroke", "black")
+                    .style("opacity", 0.5);
+
+                for(let k=0; k < feature.length; k++){
+                    g.append("rect")
+                        .attr("x", layerX + k * cellWidth)
+                        .attr("y", layerY + (cellHeight/2))
+                        .attr("width", cellWidth)
+                        .attr("height", cellHeight)
+                        .attr("fill", featureColor(feature[k]))
+                        .attr("class", "feature-cell")
+                        .attr("id", `feature-layer-${i}-node-${j}-dim-${k}`)
+                        .style("stroke-width", 0.5)
+                        .style("stroke", "gray")
+                        .style("stroke-opacity", 0.5)
+                        .style("opacity", 1);
+                }
             }
         }
         layerX +=  (gapXBetweenLayers);
     }
-    visualizeFCForNodeTaskSubpipe(layerX, intmData);
-    // visualizeFCForEdgeTaskSubpipe(layerX, intmData, queries);
+    // visualizeFCForNodeTaskSubpipe(layerX, intmData);
+    visualizeFCForEdgeTaskSubpipe(layerX, intmData, queries);
     // visualizeFCForGraphTaskSubpipe(layerX, intmData);
 }
 
 export function visualizeLinksBetweenLayersPipe(
     links: any,
     gapSize: number,
-    intmData: any
+    intmData: any,
+    subgraphData: SubgraphResult[]
 ){
     console.log("start visualizeLinksBetweenLayers");
+    console.log("subgraphData inside visualizeLinksBetweenLayers:", subgraphData);
     // visualize links between GNN layers
     const svg = d3.select('#matrix-svg');
 
@@ -174,43 +182,49 @@ export function visualizeLinksBetweenLayersPipe(
         const prevLayerX = layerX;
         layerX += sortedGNNFeatures[i+1][0].length * 6 + gapSize;
         const midLayerX = (prevLayerX + layerX) / 2;
+        const subgraph = subgraphData[i+1];
+        console.log("subgraph inside visualizeLinksBetweenLayers:", i, subgraph.nodes);
         // looping through nodes in layer i
         for (let j = 0; j < links.length; j++) {
             const link = links[j];
             const sourceIdx = link.source;
             const targetIdx = link.target;
 
-            const sourceY = startY + sourceIdx * 20 + 12;
-            const targetY = startY + targetIdx * 20 + 12;
+            if (subgraph.nodes.includes(targetIdx)) {
+                const sourceY = startY + sourceIdx * 20 + 12;
+                const targetY = startY + targetIdx * 20 + 12;
 
-            const pathStart: [number, number] = [prevLayerX, sourceY];
-            const pathEnd: [number, number] = [layerX, targetY];
+                const pathStart: [number, number] = [prevLayerX, sourceY];
+                const pathEnd: [number, number] = [layerX, targetY];
 
-            const mid1: [number, number] = [midLayerX, sourceY];
-            const mid2: [number, number] = [midLayerX, targetY];
-            svg.append("path")
-                .attr("d", curve([pathStart, mid1, mid2, pathEnd]))
-                .attr("stroke", "black")
-                .attr("opacity", 0.1)
-                .attr("fill", "none")
-                .attr("class", "link-path")
-                .attr("id", `link-path-${i}-${sourceIdx}-to-${targetIdx}`)
-                .lower();
+                const mid1: [number, number] = [midLayerX, sourceY];
+                const mid2: [number, number] = [midLayerX, targetY];
+                svg.append("path")
+                    .attr("d", curve([pathStart, mid1, mid2, pathEnd]))
+                    .attr("stroke", "black")
+                    .attr("opacity", 0.1)
+                    .attr("fill", "none")
+                    .attr("class", "link-path")
+                    .attr("id", `link-path-${i}-${sourceIdx}-to-${targetIdx}`)
+                    .lower();
+            }
         }
         // visualize self-looping
         for(let n=0; n < sortedGNNFeatures[i].length; n++){
-            const layerY = startY + n * 20 + 12;
-            svg.append("line")
-                .attr("x1", layerX)
-                .attr("y1", layerY)
-                .attr("x2", layerX - 125)
-                .attr("y2", layerY)
-                .attr("stroke", "black")
-                .attr("opacity", 0.1)
-                .attr("fill", "none")
-                .attr("class", "link-path")
-                .attr("id", `link-path-${i}-${n}-to-${n}`)
-                .lower();
+            if (subgraph.nodes.includes(n)) {
+                const layerY = startY + n * 20 + 12;
+                svg.append("line")
+                    .attr("x1", layerX)
+                    .attr("y1", layerY)
+                    .attr("x2", layerX - 125)
+                    .attr("y2", layerY)
+                    .attr("stroke", "black")
+                    .attr("opacity", 0.1)
+                    .attr("fill", "none")
+                    .attr("class", "link-path")
+                    .attr("id", `link-path-${i}-${n}-to-${n}`)
+                    .lower();
+            }
         }
     }
 }

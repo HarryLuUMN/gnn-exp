@@ -30,7 +30,7 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
         console.log("intmData in GNNVisualizer:", intmData);
         console.log("graphData in GNNVisualizer:", graphData);
         console.log("queries in GNNVisualizer:", queries);
-        modelPipeline(setIsLoading, modelInfo, intmData, graphData, [[1, 5], [10, 18], [20, 23]]);
+        modelPipeline(setIsLoading, modelInfo, intmData, graphData, [[12, 18]]);
         onLoadComplete();
     }, [graphData, intmData, renderToken, queries]);
     

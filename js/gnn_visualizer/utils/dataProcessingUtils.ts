@@ -87,7 +87,7 @@ export function extractFCNodeIndex(id: string): number {
     return Number(match[1]);
 }
 
-type SubgraphResult = {
+export type SubgraphResult = {
     subG: number[][];
     nodes: number[];                
     indexMap: Map<number, number>;   
@@ -201,4 +201,17 @@ export function processSubgraphDataPipe(
     }
 
     return G;
+}
+
+export function processSubgraphSequenceDataPipe(
+    adjacencyMatrix: number[][],
+    queries: number[][],
+    distance: number
+): SubgraphResult[] {
+    const subgraphs: SubgraphResult[] = [];
+    for (let i = distance; i >= 0; i--) {
+        const subgraph = processSubgraphDataPipe(adjacencyMatrix, queries, i);
+        subgraphs.push(subgraph);
+    }
+    return subgraphs;   
 }
