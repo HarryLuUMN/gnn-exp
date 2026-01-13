@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "gnn-explorer"
@@ -15,63 +15,28 @@ authors = [
   { name = "Qianwen Wang", email = "qianwen@umn.edu" },
 ]
 
-keywords = [
-  "graph-neural-networks",
-  "gnn",
-  "visualization",
-  "jupyter",
-  "widget",
-  "interactive",
-  "machine-learning",
-]
-
-classifiers = [
-  "Development Status :: 4 - Beta",
-  "Intended Audience :: Developers",
-  "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Framework :: Jupyter",
-  "Framework :: Jupyter :: JupyterLab",
-  "Topic :: Scientific/Engineering :: Artificial Intelligence",
-  "Topic :: Scientific/Engineering :: Visualization",
-]
-
 dependencies = [
   "anywidget>=0.9.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/HarryLuUMN/gnn-vis-widgets"
-Documentation = "https://github.com/HarryLuUMN/gnn-vis-widgets#readme"
 Repository = "https://github.com/HarryLuUMN/gnn-vis-widgets"
-Issues = "https://github.com/HarryLuUMN/gnn-vis-widgets/issues"
 
-[project.optional-dependencies]
-dev = ["watchfiles", "jupyterlab"]
+# ----------------------------
+# setuptools config
+# ----------------------------
 
-[tool.hatch.build]
-only-packages = true
+[tool.setuptools]
+package-dir = {"" = "src"}
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/gnn_explorer"]
-include = [
-  "src/gnn_explorer/**/*.js",
-  "src/gnn_explorer/**/*.css",
-  "src/gnn_explorer/**/*.svg",
-  "src/gnn_explorer/**/*.json",
-]
+[tool.setuptools.packages.find]
+where = ["src"]
 
-[tool.hatch.build.targets.sdist]
-include = [
-  "src/gnn_explorer/**/*.js",
-  "src/gnn_explorer/**/*.css",
-  "src/gnn_explorer/**/*.svg",
-  "src/gnn_explorer/**/*.json",
+[tool.setuptools.package-data]
+gnn_explorer = [
+  "static/**/*.js",
+  "static/**/*.css",
+  "static/**/*.svg",
+  "static/**/*.json",
 ]
