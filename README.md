@@ -1,4 +1,4 @@
-# Visual Exploration of Graph Neural Networks in Your Computational Notebook
+# gnn-exp: Visual Exploration and Explanation of Graph Neural Networks in Your Computational Notebook
 
 The repository contains a graph neural network visualization library adopted from our previous work GNN101. 
 
