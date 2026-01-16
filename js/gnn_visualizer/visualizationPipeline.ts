@@ -5,6 +5,7 @@ import { distanceToFeature } from "../utils/const";
 import { matrixTranspose, randomVector, scaleVector, vecMatMul, addVector, countOnes, divideVector } from "./utils/mathUtils";
 import { curve, featureColor } from "./utils/const";
 import { extractSortedGNNLayerFeatures, processSubgraphSequenceDataPipe, SubgraphResult } from "./utils/dataProcessingUtils";
+import { getCanvasId, getSvgId } from "../states";
 
 export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any, subgraphSample: any) {
     // define parameters
@@ -20,10 +21,11 @@ export function visualizationPipeline(cellWidth: number, cellHeight: number, adj
 }
 
 export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
-    
+    const svgId = getSvgId();
     console.log("Adjacency Matrix in the Vis Pipe:", adjacencyMatrix);
 
-    const g = d3.select("#matvis");
+    const canvasId = getCanvasId();
+    const g = d3.select(`#${canvasId}`);
     g.selectAll("*").remove();
 
     const width = 2400;
@@ -33,7 +35,7 @@ export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
                 .append("svg")
                 .attr("width", width)
                 .attr("height", height)
-                .attr("id", "matrix-svg");
+                .attr("id", svgId);
 
     // visualize the matrix
     const startX = 50;
@@ -99,7 +101,8 @@ export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
 export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, adjacencyMatrix: number[][], queries: number[][] = [], subgraphData: any, subgraphSample: any){
     console.log("inside visualizeIntermediateFeaturePipe", intmData, adjacencyMatrix);
 
-    const svg = d3.select('#matrix-svg');
+    const svgId = getSvgId();
+    const svg = d3.select(`#${svgId}`);
     const startX = adjacencyMatrix.length * 20 + 20 + 50;
     const startY = 50;
 
@@ -163,7 +166,8 @@ export function visualizeLinksBetweenLayersPipe(
     console.log("start visualizeLinksBetweenLayers");
     console.log("subgraphData inside visualizeLinksBetweenLayers:", subgraphData);
     // visualize links between GNN layers
-    const svg = d3.select('#matrix-svg');
+    const svgId = getSvgId();
+    const svg = d3.select(`#${svgId}`);
 
     console.log("intmData inside visualizeLinksBetweenLayers:", intmData);
     console.log("sortedGNNFeatures:", extractSortedGNNLayerFeatures(intmData));
@@ -240,7 +244,8 @@ export function visualizeFCForEdgeTaskSubpipe(layerX: any, intmData: any, querie
     console.log("fc data", fcLayerFeatures, lastLayerNum);
     const layerY = 50;
     const prevLayerX = layerX - 100;
-    const svg = d3.select('#matrix-svg');
+    const svgId = getSvgId();
+    const svg = d3.select(`#${svgId}`);
     console.log("queries for edge task:", queries, fcLayerFeatures);
     // visualize links
     for (let i=0; i < queries.length; i++){
@@ -303,7 +308,8 @@ export function visualizeFCForGraphTaskSubpipe(layerX: any, intmData: any){
     console.log("fc data", fcLayerFeatures, lastLayerNum);
     const prevLayerX = layerX - 100;
     const layerY = 50;
-    const svg = d3.select('#matrix-svg');
+    const svgId = getSvgId();
+    const svg = d3.select(`#${svgId}`);
     const midLayerY = layerY + (fcLayerFeatures.length * 20) / 2;
     for (let i=0; i < fcLayerFeatures.length; i++){
         const curLayerY = layerY + i * 20 + 12;
@@ -359,7 +365,8 @@ export function visualizeFCForNodeTaskSubpipe(layerX: number, intmData: any){
     const fcLayerFeatures: any[][] = intmData[`softmax`]; // TODO: make it more general 
     console.log("fc data", fcLayerFeatures, lastLayerNum);
     const layerY = 50;
-    const svg = d3.select('#matrix-svg');
+    const svgId = getSvgId();
+    const svg = d3.select(`#${svgId}`);
     for(let i=0; i < fcLayerFeatures.length; i++){
         const feature: any[] | undefined = fcLayerFeatures[i];
         console.log("fc feature:", feature, i);
@@ -416,7 +423,8 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
     const distanceBetweenFeatures = 50;
     const gapXBetweenLayers = 100;
     const startX = adjacencyMatrix.length * 20 + 20 + 50;
-    const g = d3.select('#matrix-svg');
+    const svgId = getSvgId();
+    const g = d3.select(`#${svgId}`);
     const inner = g.append("g").attr("class", "layer-inner-works-group").attr("id", `layer-inner-works-group-layer-${layerID}-node-${nodeID}`);
 
     const currentNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
@@ -631,7 +639,8 @@ export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, 
     const currentNodeX = computeFeatureLayerX(startX, sortedGNNFeatures.length, cellWidth, 100, sortedGNNFeatures);
     const currentNodeY = computeFeatureLayerY(nodeID, 50, 20);
 
-    const inner = d3.select('#matrix-svg').append("g").attr("class", "layer-inner-works-group");
+    const svgId = getSvgId();
+    const inner = d3.select(`#${svgId}`).append("g").attr("class", "layer-inner-works-group");
 
     let dirCoefficient = 1;
     if (direction === "up") dirCoefficient = -1;

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { modelPipeline } from "./modelPipeline";
+import { initCanvasId, initSvgId } from "../states";
 
 interface GNNVisualizerProps {
     intmData: any;
@@ -22,6 +23,8 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const canvasId = initCanvasId();
+    const svgId = initSvgId();
 
     if (intmData != null) {
 
@@ -39,7 +42,7 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
 
     return (
         <div
-            id="matvis"
+            id={canvasId}
             ref={containerRef}
             style={{
                 width: "100%",

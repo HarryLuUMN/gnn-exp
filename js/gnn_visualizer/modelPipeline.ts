@@ -2,6 +2,7 @@ import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessin
 import { interactionPipeline } from "./interactionPipeline";
 import { extractSortedGNNLayerFeatures, processSubgraphSequenceDataPipe, transformDataToMatrixVisFormat } from "./utils/dataProcessingUtils";
 import { visualizationPipeline } from "./visualizationPipeline";
+import { initCanvasId, initSvgId } from "../states";
 
 export function modelPipeline(
     setIsLoading:any, 
@@ -12,6 +13,9 @@ export function modelPipeline(
     subgraphSample: any
 ){
     console.log("Starting visualization pipeline...", modelInfo, intmData, graphData, setIsLoading, queries);
+
+    initCanvasId();
+    initSvgId();
 
     // define parameters
     const cellWidth = 6;

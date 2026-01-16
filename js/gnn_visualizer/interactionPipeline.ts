@@ -3,6 +3,7 @@ import { transitFCLayer, transitFeatureLayers } from './utils/animationUtils';
 import { extractFCNodeIndex, extractFeatureId, getMaxLayerID} from './utils/dataProcessingUtils';
 import { visualizeInnerFCLayerSubpipe, visualizeInnerGNNLayerSubpipe } from './visualizationPipeline';
 import { distanceToFeature } from '../utils/const';
+import { getCanvasId, getSvgId } from '../states';
 
 var isExpandLayer = false;
 var currentLayerID = -1;
@@ -20,7 +21,8 @@ export function interactionPipeline(cellWidth: number, adjacencyMatrix: number[]
 }
 
 export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
-    const g = d3.select("#matvis");
+    const canvasId = getCanvasId();
+    const g = d3.select(`#${canvasId}`);
     g.selectAll(".feature-layer")
         .on("mouseover", function(event: any, d: any) {
             if (isExpandLayer) return;
@@ -69,7 +71,8 @@ export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
 }
 
 export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyMatrix: number[][]) {
-    const g = d3.select("#matrix-svg");
+    const svgId = getSvgId();
+    const g = d3.select(`#${svgId}`);
     g.selectAll(".fc-feature-layer")
         .on("mouseover", function(event: any, d: any) {
             if (isExpandLayer) return;
@@ -98,7 +101,8 @@ export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyM
 }
 
 export function interactNodesAndActivateMatrixSubpipe(selectedNode: number, adjacencyMatrix: number[][], mode: string) {
-    const g = d3.select("#matrix-svg");
+    const svgId = getSvgId();
+    const g = d3.select(`#${svgId}`);
     if (mode == "activate-single") g.select(`#adj-matrix-row-border-${selectedNode}`).style("opacity", 1);
     if (mode == "activate-multiple") {
         g.select(`#adj-matrix-col-border-${selectedNode}`).style("opacity", 1);
@@ -111,12 +115,14 @@ export function interactNodesAndActivateMatrixSubpipe(selectedNode: number, adja
 }
 
 export function interactNodesAndDeactivateMatrixSubpipe() {
-    const g = d3.select("#matrix-svg");
+    const svgId = getSvgId();
+    const g = d3.select(`#${svgId}`);
     g.selectAll(".adj-matrix-row-border, .adj-matrix-col-border").style("opacity", 0);
 }
 
 export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any){
-    const g = d3.select("#matvis");
+    const canvasId = getCanvasId();
+    const g = d3.select(`#${canvasId}`);
 
     g.selectAll(".feature-layer")
         .on("click", function(event: any, d: any) {
@@ -161,7 +167,8 @@ export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: n
 
 export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: any[][], modelInfo: any){
     const biasDim = 4;
-    const g = d3.select("#matvis");
+    const canvasId = getCanvasId();
+    const g = d3.select(`#${canvasId}`);
     g.selectAll(".fc-feature-layer")
         .on("click", function(event: any, d: any) {
             event.stopPropagation();
