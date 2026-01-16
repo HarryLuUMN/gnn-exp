@@ -8,6 +8,7 @@ interface GNNVisualizerProps {
     graphData: any;
     renderToken: number;
     queries: number[][];
+    subgraphSample: any;
 }
 
 const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
@@ -16,7 +17,8 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     onLoadComplete,
     graphData,
     renderToken,
-    queries
+    queries,
+    subgraphSample
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -30,7 +32,7 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
         console.log("intmData in GNNVisualizer:", intmData);
         console.log("graphData in GNNVisualizer:", graphData);
         console.log("queries in GNNVisualizer:", queries);
-        modelPipeline(setIsLoading, modelInfo, intmData, graphData, [[12, 18]]);
+        modelPipeline(setIsLoading, modelInfo, intmData, graphData, [[12, 18]], subgraphSample);
         onLoadComplete();
     }, [graphData, intmData, renderToken, queries]);
     

@@ -14,6 +14,7 @@ class GNNVisualizer(anywidget.AnyWidget):
     graphPath = traitlets.Unicode("").tag(sync=True)
     modelInfo = traitlets.Dict().tag(sync=True)
     intmData = traitlets.Dict().tag(sync=True)
+    subgraphSample = traitlets.Bool(False).tag(sync=True)
 
     queries = traitlets.List(default_value=[]).tag(sync=True)
 
@@ -28,13 +29,15 @@ class GNNVisualizer(anywidget.AnyWidget):
     def _on_queries_change(self, change):
         print(f"Python: queries changed to: {change['new']}, type: {type(change['new'])}")
 
-    def add_data(self, graphFile, weightFile, modelInfo):
+    def add_data(self, graphFile, weightFile, modelInfo, subgraphSample):
         self.graphData = load_json(file_path=graphFile)
         self.intmData = load_json(file_path=weightFile)
         self.modelInfo = modelInfo
+        self.subgraphSample = subgraphSample
         print(f"graphData: {self.graphData.keys()}, intmData: {self.intmData.keys()} loaded, path: {DIST}.")
 
-    def add_model(self, data, model, forward_fn=None, queries=[]):
+    def add_model(self, data, model, subgraphSample, forward_fn=None, queries=[]):
+        self.subgraphSample = subgraphSample    
         intermedia_output = self.fetch_model_intermedia(data, model, forward_fn)
         
         # deduplicate while preserving order and ensure queries are JSON-serializable

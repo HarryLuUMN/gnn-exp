@@ -11,6 +11,7 @@ const render = createRender(() => {
     const [modelInfo, setModelInfo] = useModelState<any>("modelInfo");
 
     const [queries, setQueries] = useModelState<number[][]>("queries");
+    const [subgraphSample, setSubgraphSample] = useModelState<any>("subgraphSample");
     const [renderToken] = useModelState<number>("renderToken");
 
     const [isLoading, setIsLoading] = React.useState(true);
@@ -27,6 +28,7 @@ const render = createRender(() => {
                 intmData={intmData}
                 renderToken={renderToken}
                 queries={queries}
+                subgraphSample={subgraphSample}
             />
         </div>
     );

@@ -8,7 +8,8 @@ export function modelPipeline(
     modelInfo:any, 
     intmData:any, 
     graphData:any,
-    queries: number[][]
+    queries: number[][],
+    subgraphSample: any
 ){
     console.log("Starting visualization pipeline...", modelInfo, intmData, graphData, setIsLoading, queries);
 
@@ -27,7 +28,7 @@ export function modelPipeline(
     console.log("Processed nodes and links:", nodeList, linkList);
     
     // visualization pipes
-    visualizationPipeline(cellWidth, cellHeight, adjacancyMatrix, intmData, linkList, queries);
+    visualizationPipeline(cellWidth, cellHeight, adjacancyMatrix, intmData, linkList, queries, subgraphData, subgraphSample);
     interactionPipeline(cellWidth, adjacancyMatrix, sortedGNNFeatures, modelInfo);
     
     return null;

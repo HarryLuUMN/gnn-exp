@@ -1,12 +1,12 @@
 import * as d3 from "d3";
 import { injectSVG } from "./utils/pipeUtils";
-import { computeFeatureLayerX, computeFeatureLayerY } from "./geometryUtils";
+import { computeFeatureLayerX, computeFeatureLayerY } from "./utils/geometryUtils";
 import { distanceToFeature } from "../utils/const";
 import { matrixTranspose, randomVector, scaleVector, vecMatMul, addVector, countOnes, divideVector } from "./utils/mathUtils";
 import { curve, featureColor } from "./utils/const";
 import { extractSortedGNNLayerFeatures, processSubgraphSequenceDataPipe, SubgraphResult } from "./utils/dataProcessingUtils";
 
-export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any) {
+export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any, subgraphSample: any) {
     // define parameters
     const gapSizeBetweenLayers = 100;
 
@@ -15,8 +15,8 @@ export function visualizationPipeline(cellWidth: number, cellHeight: number, adj
     
     // visualization pipes
     visualizeMatrixPipe(adjacencyMatrix);
-    visualizeIntermediateFeaturePipe(cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix, queries, subgraphData);
-    visualizeLinksBetweenLayersPipe(linkList, gapSizeBetweenLayers, intmData, subgraphData);
+    visualizeIntermediateFeaturePipe(cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix, queries, subgraphData, subgraphSample);
+    visualizeLinksBetweenLayersPipe(linkList, gapSizeBetweenLayers, intmData, subgraphData, subgraphSample);
 }
 
 export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
@@ -96,7 +96,7 @@ export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
     
 }
 
-export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, adjacencyMatrix: number[][], queries: number[][] = [], subgraphData: any){
+export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, adjacencyMatrix: number[][], queries: number[][] = [], subgraphData: any, subgraphSample: any){
     console.log("inside visualizeIntermediateFeaturePipe", intmData, adjacencyMatrix);
 
     const svg = d3.select('#matrix-svg');
@@ -113,7 +113,7 @@ export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: 
         if (i > 0)layerX += cellWidth * sortedGNNFeatures[i-1][0].length;
         const layerFeatures = sortedGNNFeatures[i];
         for(let j=0; j < layerFeatures.length; j++){
-            if (subgraph.nodes.includes(j)) {
+            if (!subgraphSample || subgraph.nodes.includes(j)) {
                 const layerY = startY + j * (20);
                 const feature = layerFeatures[j];
                 const g = svg.append("g").attr("class", "feature-layer").attr("id", `feature-layer-${i}-node-${j}`);
@@ -157,7 +157,8 @@ export function visualizeLinksBetweenLayersPipe(
     links: any,
     gapSize: number,
     intmData: any,
-    subgraphData: SubgraphResult[]
+    subgraphData: SubgraphResult[],
+    subgraphSample: any
 ){
     console.log("start visualizeLinksBetweenLayers");
     console.log("subgraphData inside visualizeLinksBetweenLayers:", subgraphData);
@@ -185,12 +186,15 @@ export function visualizeLinksBetweenLayersPipe(
         const subgraph = subgraphData[i+1];
         console.log("subgraph inside visualizeLinksBetweenLayers:", i, subgraph.nodes);
         // looping through nodes in layer i
+        let testArr = [];
         for (let j = 0; j < links.length; j++) {
             const link = links[j];
             const sourceIdx = link.source;
             const targetIdx = link.target;
 
-            if (subgraph.nodes.includes(targetIdx)) {
+            console.log("subgraphSample:", subgraphSample, subgraph.nodes.includes(targetIdx));
+
+            if (!subgraphSample || subgraph.nodes.includes(targetIdx)) {
                 const sourceY = startY + sourceIdx * 20 + 12;
                 const targetY = startY + targetIdx * 20 + 12;
 
@@ -211,7 +215,7 @@ export function visualizeLinksBetweenLayersPipe(
         }
         // visualize self-looping
         for(let n=0; n < sortedGNNFeatures[i].length; n++){
-            if (subgraph.nodes.includes(n)) {
+            if (!subgraphSample || subgraph.nodes.includes(n)) {
                 const layerY = startY + n * 20 + 12;
                 svg.append("line")
                     .attr("x1", layerX)
