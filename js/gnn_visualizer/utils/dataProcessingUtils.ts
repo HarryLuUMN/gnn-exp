@@ -87,10 +87,10 @@ export function extractFCNodeIndex(id: string): number {
     return Number(match[1]);
 }
 
-type SubgraphResult = {
+export type SubgraphResult = {
     subG: number[][];
-    nodes: number[];
-    indexMap: Map<number, number>;
+    nodes: number[];                
+    indexMap: Map<number, number>;   
 };
 
 export function extractKHopSubgraph(
@@ -107,7 +107,7 @@ export function extractKHopSubgraph(
 
     while (queue.length > 0) {
         const { node, dist } = queue.shift()!;
-        if (dist === d) continue;
+        if (dist >= d) continue;
 
         for (let v = 0; v < N; v++) {
             if (G[node][v] !== 0 && !visited.has(v)) {
@@ -117,14 +117,10 @@ export function extractKHopSubgraph(
         }
     }
 
-    // local index -> global node id
-    const nodes = Array.from(visited);
+    const nodes = Array.from(visited).sort((a, b) => a - b);
 
-    // global node id -> local index
     const indexMap = new Map<number, number>();
-    nodes.forEach((nodeId, localIdx) => {
-        indexMap.set(nodeId, localIdx);
-    });
+    nodes.forEach((id, idx) => indexMap.set(id, idx));
 
     const M = nodes.length;
     const subG = Array.from({ length: M }, () => Array(M).fill(0));
@@ -142,16 +138,17 @@ export function mergeSubgraphs(
     g1: SubgraphResult,
     g2: SubgraphResult
 ): SubgraphResult {
+    if (g1.nodes.length === 0) return g2;
+    if (g2.nodes.length === 0) return g1;
+
     const mergedNodeSet = new Set<number>();
     g1.nodes.forEach(n => mergedNodeSet.add(n));
     g2.nodes.forEach(n => mergedNodeSet.add(n));
 
-    const nodes = Array.from(mergedNodeSet);
+    const nodes = Array.from(mergedNodeSet).sort((a, b) => a - b);
 
     const indexMap = new Map<number, number>();
-    nodes.forEach((nodeId, localIdx) => {
-        indexMap.set(nodeId, localIdx);
-    });
+    nodes.forEach((id, idx) => indexMap.set(id, idx));
 
     const M = nodes.length;
     const subG = Array.from({ length: M }, () => Array(M).fill(0));
@@ -160,11 +157,9 @@ export function mergeSubgraphs(
         for (let j = 0; j < g1.nodes.length; j++) {
             const w = g1.subG[i][j];
             if (w !== 0) {
-                const uGlobal = g1.nodes[i];
-                const vGlobal = g1.nodes[j];
-                const uLocal = indexMap.get(uGlobal)!;
-                const vLocal = indexMap.get(vGlobal)!;
-                subG[uLocal][vLocal] = w;
+                const u = indexMap.get(g1.nodes[i])!;
+                const v = indexMap.get(g1.nodes[j])!;
+                subG[u][v] = w;
             }
         }
     }
@@ -173,11 +168,9 @@ export function mergeSubgraphs(
         for (let j = 0; j < g2.nodes.length; j++) {
             const w = g2.subG[i][j];
             if (w !== 0) {
-                const uGlobal = g2.nodes[i];
-                const vGlobal = g2.nodes[j];
-                const uLocal = indexMap.get(uGlobal)!;
-                const vLocal = indexMap.get(vGlobal)!;
-                subG[uLocal][vLocal] = w;
+                const u = indexMap.get(g2.nodes[i])!;
+                const v = indexMap.get(g2.nodes[j])!;
+                subG[u][v] = w;
             }
         }
     }
@@ -188,14 +181,37 @@ export function mergeSubgraphs(
 export function flattenAndUnique(arr: number[][]): number[] {
     return Array.from(new Set(arr.flat()));
 }
-  
-export function subgraphDataProcessingPipe(adjacencyMatrix: number[][], queries: number[][], distance: number){
-    const flattenedQueries = flattenAndUnique(queries);
-    let G: SubgraphResult = {subG: [], nodes: [], indexMap: new Map<number, number>()};
-    for (let i = 0; i < flattenedQueries.length; i++){
-        let g = extractKHopSubgraph(adjacencyMatrix, flattenedQueries[i], distance);
+
+export function processSubgraphDataPipe(
+    adjacencyMatrix: number[][],
+    queries: number[][],
+    distance: number
+): SubgraphResult {
+    const centers = flattenAndUnique(queries);
+
+    let G: SubgraphResult = {
+        subG: [],
+        nodes: [],
+        indexMap: new Map<number, number>()
+    };
+
+    for (const c of centers) {
+        const g = extractKHopSubgraph(adjacencyMatrix, c, distance);
         G = mergeSubgraphs(G, g);
     }
-    console.log("G in subgraphDataProcessingPipe:", G);
+
     return G;
+}
+
+export function processSubgraphSequenceDataPipe(
+    adjacencyMatrix: number[][],
+    queries: number[][],
+    distance: number
+): SubgraphResult[] {
+    const subgraphs: SubgraphResult[] = [];
+    for (let i = distance; i >= 0; i--) {
+        const subgraph = processSubgraphDataPipe(adjacencyMatrix, queries, i);
+        subgraphs.push(subgraph);
+    }
+    return subgraphs;   
 }

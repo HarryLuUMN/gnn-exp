@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: gnn-explorer
-Version: 0.1.1
+Version: 0.1.2
 Summary: Visual exploration of Graph Neural Networks in computational notebooks
 Author-email: Yilin Lu <lu000661@umn.edu>, Qianwen Wang <qianwen@umn.edu>
 License: MIT
