@@ -94,7 +94,9 @@ export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyM
                 g.select(`#feature-layer-frame-${sortedGNNFeatures.length-1}-node-${queries[Number(match[1])][0]}`).style("opacity", 1);
                 g.select(`#feature-layer-frame-${sortedGNNFeatures.length-1}-node-${queries[Number(match[1])][1]}`).style("opacity", 1);
             } else if (mode == "graph") {
-                
+                g.select(".agg-feature-layer-frame").style("opacity", 1);
+                g.select("#fc-feature-layer-frame-node-0").style("opacity", 1);
+                g.select("#link-path-fc-0").style("opacity", 1);
             }
         })
         .on("mouseout", function(event: any, d: any) {
@@ -106,6 +108,7 @@ export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyM
                 .style("opacity", 0.1);
             d3.selectAll(".feature-layer-frame")
                 .style("opacity", 0.5);
+            g.select(".agg-feature-layer-frame").style("opacity", 0.5);
             interactNodesAndDeactivateMatrixSubpipe();
         });
 
