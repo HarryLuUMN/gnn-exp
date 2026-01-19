@@ -68,7 +68,7 @@ export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
         });
 }
 
-export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyMatrix: number[][], mode: string = "edge", queries: number[][] = [[12, 18]]) {
+export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyMatrix: number[][], mode: string = "graph", queries: number[][] = [[12, 18]]) {
     const g = d3.select("#matrix-svg");
     g.selectAll(".fc-feature-layer")
         .on("mouseover", function(event: any, d: any) {
@@ -94,7 +94,7 @@ export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyM
                 g.select(`#feature-layer-frame-${sortedGNNFeatures.length-1}-node-${queries[Number(match[1])][0]}`).style("opacity", 1);
                 g.select(`#feature-layer-frame-${sortedGNNFeatures.length-1}-node-${queries[Number(match[1])][1]}`).style("opacity", 1);
             } else if (mode == "graph") {
-
+                
             }
         })
         .on("mouseout", function(event: any, d: any) {
@@ -107,6 +107,27 @@ export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyM
             d3.selectAll(".feature-layer-frame")
                 .style("opacity", 0.5);
             interactNodesAndDeactivateMatrixSubpipe();
+        });
+
+    g.selectAll(".agg-feature-layer")
+        .on("mouseover", function(event: any, d: any) {
+            if (isExpandLayer) return;
+            d3.select(this)
+                .select(".agg-feature-layer-frame")
+                .style("opacity", 1);
+            d3.selectAll(".agg-link-path-fc").style("opacity", 1);
+            d3.selectAll(`[id^="feature-layer-frame-${sortedGNNFeatures.length-1}-node-"]`).style("opacity", 1);
+
+        })
+        .on("mouseout", function(event: any, d: any) {
+            if (isExpandLayer) return;
+            d3.select(this)
+                .select(".agg-feature-layer-frame")
+                .style("opacity", 0.5);
+            d3.selectAll(".agg-link-path-fc")
+                .style("opacity", 0.1);
+            d3.selectAll(".feature-layer-frame")
+                .style("opacity", 0.5);
         });
 }
 

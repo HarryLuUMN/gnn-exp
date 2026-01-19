@@ -149,8 +149,8 @@ export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: 
         layerX +=  (gapXBetweenLayers);
     }
     // visualizeFCForNodeTaskSubpipe(layerX, intmData);
-    visualizeFCForEdgeTaskSubpipe(layerX, intmData, queries);
-    // visualizeFCForGraphTaskSubpipe(layerX, intmData);
+    // visualizeFCForEdgeTaskSubpipe(layerX, intmData, queries);
+    visualizeFCForGraphTaskSubpipe(layerX, intmData);
 }
 
 export function visualizeLinksBetweenLayersPipe(
@@ -313,14 +313,14 @@ export function visualizeFCForGraphTaskSubpipe(layerX: any, intmData: any){
                 [prevLayerX + 50, curLayerY],
                 [prevLayerX + 50, midLayerY],
                 [layerX, midLayerY],
-            ])).attr("stroke", "black").attr("opacity", 0.1).attr("fill", "none").attr("class", "link-path-fc").attr("id", `link-path-fc-${i}`).lower();
+            ])).attr("stroke", "black").attr("opacity", 0.1).attr("fill", "none").attr("class", "agg-link-path-fc").attr("id", `agg-link-path-fc-${i}`).lower();
     }
     let vec = Array(fcLayerFeatures[0].length).fill(0);
     for (let i=0; i < fcLayerFeatures.length; i++)
         vec = addVector(vec, fcLayerFeatures[i]);
     vec = divideVector(vec, fcLayerFeatures.length);
     console.log("averaged graph feature vector:", vec);
-    const g = svg.append("g").attr("class", "fc-feature-layer").attr("id", `fc-feature-layer-node-graph`);
+    const g = svg.append("g").attr("class", "agg-feature-layer").attr("id", `agg-feature-layer-node-graph`);
     for(let j=0; j < vec.length; j++){
         g.append("rect")
             .attr("x", layerX + j * 6)
@@ -328,8 +328,8 @@ export function visualizeFCForGraphTaskSubpipe(layerX: any, intmData: any){
             .attr("width", 6)
             .attr("height", 12)
             .attr("fill", featureColor(vec[j]))
-            .attr("class", "fc-feature-cell")
-            .attr("id", `fc-feature-layer-node-graph-dim-${j}`)
+            .attr("class", "agg-feature-cell")
+            .attr("id", `agg-feature-layer-node-graph-dim-${j}`)
             .style("stroke-width", 0.5)
             .style("stroke", "gray")
             .style("stroke-opacity", 0.5)
@@ -341,8 +341,8 @@ export function visualizeFCForGraphTaskSubpipe(layerX: any, intmData: any){
         .attr("width", vec.length * 6)
         .attr("height", 12)
         .attr("fill", "none")
-        .attr("class", "fc-feature-layer-frame")
-        .attr("id", `fc-feature-layer-frame-node-graph`)
+        .attr("class", "agg-feature-layer-frame")
+        .attr("id", `agg-feature-layer-frame-node-graph`)
         .style("stroke-width", 1)
         .style("stroke", "black")
         .style("opacity", 0.5);
