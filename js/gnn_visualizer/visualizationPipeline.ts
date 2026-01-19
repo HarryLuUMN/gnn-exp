@@ -622,19 +622,24 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
     
 }
 
-export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, sortedGNNFeatures: any[][], modelInfo: any, direction: string){
+export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, sortedGNNFeatures: any[][], modelInfo: any, direction: string, mode: string = 'auto'){
     console.log("inside fc visualizeInnerFCLayerSubpipe", modelInfo);
-    const startX = sortedGNNFeatures[0].length * 20 + 20 + 50;
+    let startX = sortedGNNFeatures[0].length * 20 + 20 + 50;
 
     const weightMatrix:number[][] = matrixTranspose(modelInfo['classifier']["weight"]);
     const bias = modelInfo['classifier']["bias"];
-    const currentNodeX = computeFeatureLayerX(startX, sortedGNNFeatures.length, cellWidth, 100, sortedGNNFeatures);
-    const currentNodeY = computeFeatureLayerY(nodeID, 50, 20);
+    let currentNodeX = computeFeatureLayerX(startX, sortedGNNFeatures.length, cellWidth, 100, sortedGNNFeatures);
+    let currentNodeY = computeFeatureLayerY(nodeID, 50, 20);
 
     const inner = d3.select('#matrix-svg').append("g").attr("class", "layer-inner-works-group");
 
     let dirCoefficient = 1;
     if (direction === "up") dirCoefficient = -1;
+
+    if (mode == 'graph'){
+        currentNodeX = currentNodeX + 100;
+        currentNodeY = (computeFeatureLayerY(0, 50, 20) + computeFeatureLayerY(sortedGNNFeatures[sortedGNNFeatures.length-2].length - 1, 50, 20)) / 2;
+    }  
 
     // input to weighted vector path
     inner.append("line")

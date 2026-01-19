@@ -196,7 +196,7 @@ export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: n
     });
 }
 
-export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: any[][], modelInfo: any){
+export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: any[][], modelInfo: any, mode: string = 'auto'){
     const biasDim = 4;
     const g = d3.select("#matvis");
     g.selectAll(".fc-feature-layer")
@@ -210,13 +210,13 @@ export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: an
                 .style("opacity", 0.1)
                 .attr("pointer-events", "none");
             d3.select(this).style("opacity", 1);
-            d3.select("#feature-layer-" + maxLayerNum + "-node-" + id).style("opacity", 1);
+            if (mode != "graph")d3.select("#feature-layer-" + maxLayerNum + "-node-" + id).style("opacity", 1);
             // the problem for both transition distance is need to minus the 'gap=100' to align the view!!!
             const transitDistance = (sortedGNNFeatures[sortedGNNFeatures.length-1][0].length + biasDim * 2) * cellWidth + distanceToFeature * 3 - 100;
             transitFCLayer(transitDistance);
             let direction = "down";
             if (id < (sortedGNNFeatures[sortedGNNFeatures.length-1].length)/2) direction = "up";
-            visualizeInnerFCLayerSubpipe(cellWidth, id, sortedGNNFeatures, modelInfo, direction);
+            visualizeInnerFCLayerSubpipe(cellWidth, id, sortedGNNFeatures, modelInfo, direction, mode);
         });
 }
 
