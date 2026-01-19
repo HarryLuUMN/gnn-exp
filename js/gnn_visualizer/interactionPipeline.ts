@@ -68,7 +68,7 @@ export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
         });
 }
 
-export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyMatrix: number[][]) {
+export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyMatrix: number[][], mode: string = "edge", queries: number[][] = [[12, 18]]) {
     const g = d3.select("#matrix-svg");
     g.selectAll(".fc-feature-layer")
         .on("mouseover", function(event: any, d: any) {
@@ -80,9 +80,22 @@ export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyM
             const id = (this as HTMLElement).id;
             const match = id.match(/^fc-feature-layer-node-(\d+)$/);
             if (!match) return;
-            g.select(`#link-path-fc-${match[1]}`).style("opacity", 1);
-            g.select(`#feature-layer-${sortedGNNFeatures.length-1}-node-${match[1]}`).select(".feature-layer-frame").style("opacity", 1);
-            interactNodesAndActivateMatrixSubpipe(Number(match[1]), adjacencyMatrix, "activate-single");
+            if (mode == "node") {
+                g.select(`#link-path-fc-${match[1]}`).style("opacity", 1);
+                g.select(`#feature-layer-${sortedGNNFeatures.length-1}-node-${match[1]}`).select(".feature-layer-frame").style("opacity", 1);
+                interactNodesAndActivateMatrixSubpipe(Number(match[1]), adjacencyMatrix, "activate-single");
+            } else if (mode == "edge") {
+                g.selectAll(`.link-path-fc-${match[1]}`).style("opacity", 1);
+                g.select(`#feature-layer-${sortedGNNFeatures.length-1}-node-${match[1]}`).select(".feature-layer-frame").style("opacity", 1);
+                console.log("match[1]:", queries[Number(match[1])]);
+                console.log("queries:", queries[Number(match[1])][0], queries[Number(match[1])][1]);
+                interactNodesAndActivateMatrixSubpipe(queries[Number(match[1])][0], adjacencyMatrix, "activate-single");
+                interactNodesAndActivateMatrixSubpipe(queries[Number(match[1])][1], adjacencyMatrix, "activate-single");
+                g.select(`#feature-layer-frame-${sortedGNNFeatures.length-1}-node-${queries[Number(match[1])][0]}`).style("opacity", 1);
+                g.select(`#feature-layer-frame-${sortedGNNFeatures.length-1}-node-${queries[Number(match[1])][1]}`).style("opacity", 1);
+            } else if (mode == "graph") {
+
+            }
         })
         .on("mouseout", function(event: any, d: any) {
             if (isExpandLayer) return;

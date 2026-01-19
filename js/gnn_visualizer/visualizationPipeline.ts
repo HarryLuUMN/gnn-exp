@@ -255,14 +255,14 @@ export function visualizeFCForEdgeTaskSubpipe(layerX: any, intmData: any, querie
                 [prevLayerX + 50, layerYA],
                 [prevLayerX + 50, layerYMid],
                 [layerX, layerYMid],
-            ])).attr("stroke", "black").attr("opacity", 0.1).attr("fill", "none").attr("class", "link-path-fc").attr("id", `link-path-fc-${i}`).lower();
+            ])).attr("stroke", "black").attr("opacity", 0.1).attr("fill", "none").attr("class", `link-path-fc link-path-fc-${i}`).lower();
         svg.append("path")
             .attr("d", curve([
                 [prevLayerX, layerYB],
                 [prevLayerX + 50, layerYB],
                 [prevLayerX + 50, layerYMid],
                 [layerX, layerYMid],
-            ])).attr("stroke", "black").attr("opacity", 0.1).attr("fill", "none").attr("class", "link-path-fc").attr("id", `link-path-fc-${i}`).lower();
+            ])).attr("stroke", "black").attr("opacity", 0.1).attr("fill", "none").attr("class", `link-path-fc link-path-fc-${i}`).lower();
         // visualize final probabilities output
         const prob = Math.random();
         const probArr = [1 - prob, prob];
