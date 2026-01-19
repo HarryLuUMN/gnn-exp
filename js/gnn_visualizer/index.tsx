@@ -13,11 +13,12 @@ const render = createRender(() => {
     const [queries, setQueries] = useModelState<number[][]>("queries");
     const [subgraphSample, setSubgraphSample] = useModelState<any>("subgraphSample");
     const [renderToken] = useModelState<number>("renderToken");
-
+    const [mode, setMode] = useModelState<string>("mode");
     const [isLoading, setIsLoading] = React.useState(true);
 
 	console.log("GNNVisualizer received graphData =", graphData);
 	console.log("GNNVisualizer received queries =", queries, "type:", typeof queries, "isArray:", Array.isArray(queries));
+	console.log("GNNVisualizer received mode =", mode);
 
     return (
         <div className="gnn_vis_widgets">
@@ -29,6 +30,7 @@ const render = createRender(() => {
                 renderToken={renderToken}
                 queries={queries}
                 subgraphSample={subgraphSample}
+                mode={mode}
             />
         </div>
     );

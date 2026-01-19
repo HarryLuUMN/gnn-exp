@@ -6,7 +6,7 @@ import { matrixTranspose, randomVector, scaleVector, vecMatMul, addVector, count
 import { curve, featureColor } from "./utils/const";
 import { extractSortedGNNLayerFeatures, processSubgraphSequenceDataPipe, SubgraphResult } from "./utils/dataProcessingUtils";
 
-export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any, subgraphSample: any) {
+export function visualizationPipeline(cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any, subgraphSample: any, mode: string) {
     // define parameters
     const gapSizeBetweenLayers = 100;
 
@@ -15,7 +15,7 @@ export function visualizationPipeline(cellWidth: number, cellHeight: number, adj
     
     // visualization pipes
     visualizeMatrixPipe(adjacencyMatrix);
-    visualizeIntermediateFeaturePipe(cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix, queries, subgraphData, subgraphSample);
+    visualizeIntermediateFeaturePipe(cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix, queries, subgraphData, subgraphSample, mode);
     visualizeLinksBetweenLayersPipe(linkList, gapSizeBetweenLayers, intmData, subgraphData, subgraphSample);
 }
 
@@ -96,7 +96,7 @@ export function visualizeMatrixPipe(adjacencyMatrix: number[][]) {
     
 }
 
-export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, adjacencyMatrix: number[][], queries: number[][] = [], subgraphData: any, subgraphSample: any){
+export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, adjacencyMatrix: number[][], queries: number[][] = [], subgraphData: any, subgraphSample: any, mode: string){
     console.log("inside visualizeIntermediateFeaturePipe", intmData, adjacencyMatrix);
 
     const svg = d3.select('#matrix-svg');
@@ -148,9 +148,10 @@ export function visualizeIntermediateFeaturePipe(cellWidth: number, cellHeight: 
         }
         layerX +=  (gapXBetweenLayers);
     }
-    // visualizeFCForNodeTaskSubpipe(layerX, intmData);
-    // visualizeFCForEdgeTaskSubpipe(layerX, intmData, queries);
-    visualizeFCForGraphTaskSubpipe(layerX, intmData);
+    console.log("mode inside visualizeIntermediateFeaturePipe:", mode);
+    if (mode == 'node') visualizeFCForNodeTaskSubpipe(layerX, intmData);
+    else if (mode == 'edge') visualizeFCForEdgeTaskSubpipe(layerX, intmData, queries);
+    else if (mode == 'graph') visualizeFCForGraphTaskSubpipe(layerX, intmData);
 }
 
 export function visualizeLinksBetweenLayersPipe(
@@ -622,7 +623,7 @@ export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number
     
 }
 
-export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, sortedGNNFeatures: any[][], modelInfo: any, direction: string, mode: string = 'auto'){
+export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, sortedGNNFeatures: any[][], modelInfo: any, direction: string, mode: string){
     console.log("inside fc visualizeInnerFCLayerSubpipe", modelInfo);
     let startX = sortedGNNFeatures[0].length * 20 + 20 + 50;
 

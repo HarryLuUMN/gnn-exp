@@ -11,12 +11,12 @@ const maxLayerNum = getMaxLayerID();
 console.log("maxLayerNum:", maxLayerNum);
 
 
-export function interactionPipeline(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[], modelInfo: any) {
+export function interactionPipeline(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[], modelInfo: any, mode: string, queries: number[][] = [[12, 18]]) {
     // interaction pipes
     interactNodesAndLinksPipe(adjacencyMatrix);
-    interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacencyMatrix);
+    interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacencyMatrix, mode, queries);
     interactLayerExpansionPipe(cellWidth, adjacencyMatrix, sortedGNNFeatures, modelInfo);
-    interactFCExpansionPipe(cellWidth, sortedGNNFeatures, modelInfo);
+    interactFCExpansionPipe(cellWidth, sortedGNNFeatures, modelInfo, mode);
 }
 
 export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
@@ -68,7 +68,7 @@ export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
         });
 }
 
-export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyMatrix: number[][], mode: string = "graph", queries: number[][] = [[12, 18]]) {
+export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyMatrix: number[][], mode: string, queries: number[][] = [[12, 18]]) {
     const g = d3.select("#matrix-svg");
     g.selectAll(".fc-feature-layer")
         .on("mouseover", function(event: any, d: any) {
@@ -196,7 +196,7 @@ export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: n
     });
 }
 
-export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: any[][], modelInfo: any, mode: string = 'auto'){
+export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: any[][], modelInfo: any, mode: string){
     const biasDim = 4;
     const g = d3.select("#matvis");
     g.selectAll(".fc-feature-layer")

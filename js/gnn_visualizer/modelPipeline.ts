@@ -9,9 +9,10 @@ export function modelPipeline(
     intmData:any, 
     graphData:any,
     queries: number[][],
-    subgraphSample: any
+    subgraphSample: any,
+    mode: string
 ){
-    console.log("Starting visualization pipeline...", modelInfo, intmData, graphData, setIsLoading, queries);
+    console.log("Starting visualization pipeline...", modelInfo, intmData, graphData, setIsLoading, queries, mode);
 
     // define parameters
     const cellWidth = 6;
@@ -28,8 +29,8 @@ export function modelPipeline(
     console.log("Processed nodes and links:", nodeList, linkList);
     
     // visualization pipes
-    visualizationPipeline(cellWidth, cellHeight, adjacancyMatrix, intmData, linkList, queries, subgraphData, subgraphSample);
-    interactionPipeline(cellWidth, adjacancyMatrix, sortedGNNFeatures, modelInfo);
+    visualizationPipeline(cellWidth, cellHeight, adjacancyMatrix, intmData, linkList, queries, subgraphData, subgraphSample, mode);
+    interactionPipeline(cellWidth, adjacancyMatrix, sortedGNNFeatures, modelInfo, mode, queries);
     
     return null;
 }
