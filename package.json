@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "esbuild js/*/index.tsx --bundle --format=esm --minify --sourcemap --outdir=src/gnn_explorer/static --outbase=js",
+    "build": "esbuild js/*/index.tsx --bundle --format=esm --minify --sourcemap --outdir=src/gnn_exp/static --outbase=js",
     "dev": "npm run build -- --watch",
     "typecheck": "tsc --noEmit"
   },

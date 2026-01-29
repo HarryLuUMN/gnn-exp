@@ -8,6 +8,8 @@ pypi
 __pycache__
 .ipynb_checkpoints
 
-src/gnn_explorer/static
+src/gnn_exp/static
+src/gnn_explorer.egg-info
+src/gnn_exp.egg-info
 example.ipynb
 key.md

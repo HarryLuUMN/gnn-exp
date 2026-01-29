@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gnn-explorer"
-version = "0.1.2"
-description = "Visual exploration of Graph Neural Networks in computational notebooks"
+name = "gnn-exp"
+version = "0.1.0"
+description = "Visual exploration and explanation of Graph Neural Networks in computational notebooks"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }
@@ -34,7 +34,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-gnn_explorer = [
+gnn_exp = [
   "static/**/*.js",
   "static/**/*.css",
   "static/**/*.svg",
