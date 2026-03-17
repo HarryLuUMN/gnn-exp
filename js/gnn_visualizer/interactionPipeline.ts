@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 import { transitFCLayer, transitFeatureLayers } from './utils/animationUtils';
 import { extractFCNodeIndex, extractFeatureId } from './utils/dataProcessingUtils';
-import { visualizeInnerFCLayerSubpipe, visualizeInnerGNNLayerSubpipe } from './visualizationPipeline';
+import { resizeSvgToContent, visualizeInnerFCLayerSubpipe, visualizeInnerGNNLayerSubpipe } from './visualizationPipeline';
 import { distanceToFeature } from '../utils/const';
 
 type InteractionState = {
@@ -183,6 +183,7 @@ export function interactLayerExpansionPipe(container: HTMLDivElement, cellWidth:
             let direction = "up";
             if (nodeID < (adjacencyMatrix.length)/2) direction = "down";
             visualizeInnerGNNLayerSubpipe(container, cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures, modelInfo, direction);
+            resizeSvgToContent(container);
         });
 
     g.on("click", function() {
@@ -196,6 +197,7 @@ export function interactLayerExpansionPipe(container: HTMLDivElement, cellWidth:
         if(state.currentLayerID !== -1 && state.currentLayerID != maxLayerNum+1)transitFeatureLayers(container, state.currentLayerID, 0);
         if(state.currentLayerID === maxLayerNum+1)transitFCLayer(container, 0);
         state.currentLayerID = -1;
+        resizeSvgToContent(container);
     });
 }
 
@@ -221,5 +223,6 @@ export function interactFCExpansionPipe(container: HTMLDivElement, cellWidth: nu
             let direction = "down";
             if (id < (sortedGNNFeatures[sortedGNNFeatures.length-1].length)/2) direction = "up";
             visualizeInnerFCLayerSubpipe(container, cellWidth, id, sortedGNNFeatures, modelInfo, direction, mode);
+            resizeSvgToContent(container);
         });
 }

@@ -17,6 +17,7 @@ export function visualizationPipeline(container: HTMLDivElement, cellWidth: numb
     visualizeMatrixPipe(container, adjacencyMatrix);
     visualizeIntermediateFeaturePipe(container, cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix, queries, subgraphData, subgraphSample, mode);
     visualizeLinksBetweenLayersPipe(container, linkList, gapSizeBetweenLayers, intmData, subgraphData, subgraphSample);
+    resizeSvgToContent(container);
 }
 
 export function visualizeMatrixPipe(container: HTMLDivElement, adjacencyMatrix: number[][]) {
@@ -26,8 +27,8 @@ export function visualizeMatrixPipe(container: HTMLDivElement, adjacencyMatrix: 
     const g = d3.select(container);
     g.selectAll("*").remove();
 
-    const width = 2400;
-    const height = 800;
+    const width = 1;
+    const height = 1;
 
     const svg = g
                 .append("svg")
@@ -94,6 +95,23 @@ export function visualizeMatrixPipe(container: HTMLDivElement, adjacencyMatrix: 
     }
     svg.selectAll(".adj-matrix-row-border, .adj-matrix-col-border").raise();
     
+}
+
+export function resizeSvgToContent(container: HTMLDivElement, padding: number = 24) {
+    const svg = d3.select(container).select<SVGSVGElement>("svg");
+    const svgNode = svg.node();
+    if (!svgNode) {
+        return;
+    }
+
+    const bbox = svgNode.getBBox();
+    const width = Math.max(1, Math.ceil(bbox.x + bbox.width + padding));
+    const height = Math.max(1, Math.ceil(bbox.y + bbox.height + padding));
+
+    svg
+        .attr("width", width)
+        .attr("height", height)
+        .attr("viewBox", `0 0 ${width} ${height}`);
 }
 
 export function visualizeIntermediateFeaturePipe(container: HTMLDivElement, cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, adjacencyMatrix: number[][], queries: number[][] = [], subgraphData: any, subgraphSample: any, mode: string){
