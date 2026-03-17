@@ -104,14 +104,21 @@ export function resizeSvgToContent(container: HTMLDivElement, padding: number = 
         return;
     }
 
-    const bbox = svgNode.getBBox();
-    const width = Math.max(1, Math.ceil(bbox.x + bbox.width + padding));
-    const height = Math.max(1, Math.ceil(bbox.y + bbox.height + padding));
+    const applyResize = () => {
+        const bbox = svgNode.getBBox();
+        const width = Math.max(1, Math.ceil(bbox.width + padding));
+        const height = Math.max(1, Math.ceil(bbox.height + padding));
+        const minX = Math.floor(bbox.x - padding / 2);
+        const minY = Math.floor(bbox.y - padding / 2);
 
-    svg
-        .attr("width", width)
-        .attr("height", height)
-        .attr("viewBox", `0 0 ${width} ${height}`);
+        svg
+            .attr("width", width)
+            .attr("height", height)
+            .attr("viewBox", `${minX} ${minY} ${width} ${height}`);
+    };
+
+    requestAnimationFrame(applyResize);
+    window.setTimeout(applyResize, 550);
 }
 
 export function visualizeIntermediateFeaturePipe(container: HTMLDivElement, cellWidth: number, cellHeight: number, gapXBetweenLayers: number, intmData: any, adjacencyMatrix: number[][], queries: number[][] = [], subgraphData: any, subgraphSample: any, mode: string){
