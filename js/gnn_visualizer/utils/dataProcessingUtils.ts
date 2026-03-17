@@ -1,5 +1,3 @@
-import * as d3 from "d3";
-
 export function transformDataToMatrixVisFormat(nodes: any, links: any) {
     const matrixSize = nodes.length;
     let adjacancyMatrix: number[][] = Array.from({ length: matrixSize }, () =>
@@ -62,23 +60,6 @@ export function removeRepeatLinks(links: any[]) {
 
 export function extractFeatureId(id: any) {
     return id.match(/^feature-layer-(\d+)-node-(\d+)$/);
-}
-
-export function getMaxLayerID(): number {
-    let maxLayerID = -Infinity;
-
-    d3.selectAll(".feature-layer").each(function () {
-        const idStr = (this as HTMLElement).id;
-        const match = idStr.match(/^feature-layer-(\d+)-node-\d+$/);
-        if (!match) return;
-
-        const layerID = Number(match[1]);
-        if (layerID > maxLayerID) {
-            maxLayerID = layerID;
-        }
-    });
-
-    return maxLayerID;
 }
 
 export function extractFCNodeIndex(id: string): number {
