@@ -1,29 +1,31 @@
 import * as d3 from 'd3';
 import { transitFCLayer, transitFeatureLayers } from './utils/animationUtils';
-import { extractFCNodeIndex, extractFeatureId, getMaxLayerID} from './utils/dataProcessingUtils';
+import { extractFCNodeIndex, extractFeatureId } from './utils/dataProcessingUtils';
 import { visualizeInnerFCLayerSubpipe, visualizeInnerGNNLayerSubpipe } from './visualizationPipeline';
 import { distanceToFeature } from '../utils/const';
 
-var isExpandLayer = false;
-var currentLayerID = -1;
+type InteractionState = {
+    currentLayerID: number;
+    isExpandLayer: boolean;
+};
 
-const maxLayerNum = getMaxLayerID();
-console.log("maxLayerNum:", maxLayerNum);
-
-
-export function interactionPipeline(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[], modelInfo: any, mode: string, queries: number[][] = [[12, 18]]) {
+export function interactionPipeline(container: HTMLDivElement, cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[], modelInfo: any, mode: string, queries: number[][] = [[12, 18]]) {
+    const state: InteractionState = {
+        currentLayerID: -1,
+        isExpandLayer: false,
+    };
     // interaction pipes
-    interactNodesAndLinksPipe(adjacencyMatrix);
-    interactFCNodesAndLinksPipe(sortedGNNFeatures, adjacencyMatrix, mode, queries);
-    interactLayerExpansionPipe(cellWidth, adjacencyMatrix, sortedGNNFeatures, modelInfo);
-    interactFCExpansionPipe(cellWidth, sortedGNNFeatures, modelInfo, mode);
+    interactNodesAndLinksPipe(container, adjacencyMatrix, state);
+    interactFCNodesAndLinksPipe(container, sortedGNNFeatures, adjacencyMatrix, mode, queries, state);
+    interactLayerExpansionPipe(container, cellWidth, adjacencyMatrix, sortedGNNFeatures, modelInfo, state);
+    interactFCExpansionPipe(container, cellWidth, sortedGNNFeatures, modelInfo, mode, state);
 }
 
-export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
-    const g = d3.select("#matvis");
+export function interactNodesAndLinksPipe(container: HTMLDivElement, adjacencyMatrix: number[][], state: InteractionState) {
+    const g = d3.select(container);
     g.selectAll(".feature-layer")
-        .on("mouseover", function(event: any, d: any) {
-            if (isExpandLayer) return;
+        .on("mouseover", function() {
+            if (state.isExpandLayer) return;
             const id = (this as HTMLElement).id;
             const match = extractFeatureId(id);
 
@@ -50,29 +52,29 @@ export function interactNodesAndLinksPipe(adjacencyMatrix: number[][]) {
                     .style("opacity", 1);
             }
 
-            if(ithLayer!=0)interactNodesAndActivateMatrixSubpipe(jthNode, adjacencyMatrix, "activate-multiple");
-            else interactNodesAndActivateMatrixSubpipe(jthNode, adjacencyMatrix, "activate-single");
+            if(ithLayer!=0)interactNodesAndActivateMatrixSubpipe(container, jthNode, adjacencyMatrix, "activate-multiple");
+            else interactNodesAndActivateMatrixSubpipe(container, jthNode, adjacencyMatrix, "activate-single");
         })
-        .on("mouseout", function(event: any, d: any) {
-            if (isExpandLayer) return;
+        .on("mouseout", function() {
+            if (state.isExpandLayer) return;
             console.log("mouseout node:", this);
             g.selectAll(".link-path")
                 .style("stroke", "black")
                 .style("opacity", 0.1);
 
-            d3.selectAll(".feature-layer-frame")
+            g.selectAll(".feature-layer-frame")
                 .style("opacity", 0.5)
                 .style("stroke", "black");
             
-            interactNodesAndDeactivateMatrixSubpipe();
+            interactNodesAndDeactivateMatrixSubpipe(container);
         });
 }
 
-export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyMatrix: number[][], mode: string, queries: number[][] = [[12, 18]]) {
-    const g = d3.select("#matrix-svg");
+export function interactFCNodesAndLinksPipe(container: HTMLDivElement, sortedGNNFeatures: any[], adjacencyMatrix: number[][], mode: string, queries: number[][] = [[12, 18]], state: InteractionState) {
+    const g = d3.select(container).select("svg");
     g.selectAll(".fc-feature-layer")
-        .on("mouseover", function(event: any, d: any) {
-            if (isExpandLayer) return;
+        .on("mouseover", function() {
+            if (state.isExpandLayer) return;
             d3.select(this)
                 .select(".fc-feature-layer-frame")
                 .style("opacity", 1);
@@ -83,14 +85,14 @@ export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyM
             if (mode == "node") {
                 g.select(`#link-path-fc-${match[1]}`).style("opacity", 1);
                 g.select(`#feature-layer-${sortedGNNFeatures.length-1}-node-${match[1]}`).select(".feature-layer-frame").style("opacity", 1);
-                interactNodesAndActivateMatrixSubpipe(Number(match[1]), adjacencyMatrix, "activate-single");
+                interactNodesAndActivateMatrixSubpipe(container, Number(match[1]), adjacencyMatrix, "activate-single");
             } else if (mode == "edge") {
                 g.selectAll(`.link-path-fc-${match[1]}`).style("opacity", 1);
                 g.select(`#feature-layer-${sortedGNNFeatures.length-1}-node-${match[1]}`).select(".feature-layer-frame").style("opacity", 1);
                 console.log("match[1]:", queries[Number(match[1])]);
                 console.log("queries:", queries[Number(match[1])][0], queries[Number(match[1])][1]);
-                interactNodesAndActivateMatrixSubpipe(queries[Number(match[1])][0], adjacencyMatrix, "activate-single");
-                interactNodesAndActivateMatrixSubpipe(queries[Number(match[1])][1], adjacencyMatrix, "activate-single");
+                interactNodesAndActivateMatrixSubpipe(container, queries[Number(match[1])][0], adjacencyMatrix, "activate-single");
+                interactNodesAndActivateMatrixSubpipe(container, queries[Number(match[1])][1], adjacencyMatrix, "activate-single");
                 g.select(`#feature-layer-frame-${sortedGNNFeatures.length-1}-node-${queries[Number(match[1])][0]}`).style("opacity", 1);
                 g.select(`#feature-layer-frame-${sortedGNNFeatures.length-1}-node-${queries[Number(match[1])][1]}`).style("opacity", 1);
             } else if (mode == "graph") {
@@ -99,43 +101,43 @@ export function interactFCNodesAndLinksPipe(sortedGNNFeatures: any[], adjacencyM
                 g.select("#link-path-fc-0").style("opacity", 1);
             }
         })
-        .on("mouseout", function(event: any, d: any) {
-            if (isExpandLayer) return;
+        .on("mouseout", function() {
+            if (state.isExpandLayer) return;
             d3.select(this)
                 .select(".fc-feature-layer-frame")
                 .style("opacity", 0.5);
-            d3.selectAll(".link-path-fc")
+            g.selectAll(".link-path-fc")
                 .style("opacity", 0.1);
-            d3.selectAll(".feature-layer-frame")
+            g.selectAll(".feature-layer-frame")
                 .style("opacity", 0.5);
             g.select(".agg-feature-layer-frame").style("opacity", 0.5);
-            interactNodesAndDeactivateMatrixSubpipe();
+            interactNodesAndDeactivateMatrixSubpipe(container);
         });
 
     g.selectAll(".agg-feature-layer")
-        .on("mouseover", function(event: any, d: any) {
-            if (isExpandLayer) return;
+        .on("mouseover", function() {
+            if (state.isExpandLayer) return;
             d3.select(this)
                 .select(".agg-feature-layer-frame")
                 .style("opacity", 1);
-            d3.selectAll(".agg-link-path-fc").style("opacity", 1);
-            d3.selectAll(`[id^="feature-layer-frame-${sortedGNNFeatures.length-1}-node-"]`).style("opacity", 1);
+            g.selectAll(".agg-link-path-fc").style("opacity", 1);
+            g.selectAll(`[id^="feature-layer-frame-${sortedGNNFeatures.length-1}-node-"]`).style("opacity", 1);
 
         })
-        .on("mouseout", function(event: any, d: any) {
-            if (isExpandLayer) return;
+        .on("mouseout", function() {
+            if (state.isExpandLayer) return;
             d3.select(this)
                 .select(".agg-feature-layer-frame")
                 .style("opacity", 0.5);
-            d3.selectAll(".agg-link-path-fc")
+            g.selectAll(".agg-link-path-fc")
                 .style("opacity", 0.1);
-            d3.selectAll(".feature-layer-frame")
+            g.selectAll(".feature-layer-frame")
                 .style("opacity", 0.5);
         });
 }
 
-export function interactNodesAndActivateMatrixSubpipe(selectedNode: number, adjacencyMatrix: number[][], mode: string) {
-    const g = d3.select("#matrix-svg");
+export function interactNodesAndActivateMatrixSubpipe(container: HTMLDivElement, selectedNode: number, adjacencyMatrix: number[][], mode: string) {
+    const g = d3.select(container).select("svg");
     if (mode == "activate-single") g.select(`#adj-matrix-row-border-${selectedNode}`).style("opacity", 1);
     if (mode == "activate-multiple") {
         g.select(`#adj-matrix-col-border-${selectedNode}`).style("opacity", 1);
@@ -147,77 +149,77 @@ export function interactNodesAndActivateMatrixSubpipe(selectedNode: number, adja
     }
 }
 
-export function interactNodesAndDeactivateMatrixSubpipe() {
-    const g = d3.select("#matrix-svg");
+export function interactNodesAndDeactivateMatrixSubpipe(container: HTMLDivElement) {
+    const g = d3.select(container).select("svg");
     g.selectAll(".adj-matrix-row-border, .adj-matrix-col-border").style("opacity", 0);
 }
 
-export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any){
-    const g = d3.select("#matvis");
+export function interactLayerExpansionPipe(container: HTMLDivElement, cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any, state: InteractionState){
+    const g = d3.select(container);
+    const maxLayerNum = sortedGNNFeatures.length - 1;
 
     g.selectAll(".feature-layer")
-        .on("click", function(event: any, d: any) {
+        .on("click", function(event: any) {
             event.stopPropagation();
-            isExpandLayer = !isExpandLayer;
+            state.isExpandLayer = !state.isExpandLayer;
             const id = (this as HTMLElement).id;
             const matchedID = extractFeatureId(id);
             const layerID = matchedID[1];
             const nodeID = matchedID[2];
-            currentLayerID = Number(layerID);
-            console.log("isExpandLayer click:", isExpandLayer, matchedID);
-            d3.selectAll(".link-path, .link-path-fc").style("opacity", 0);
-            d3.selectAll(".feature-layer, .fc-feature-layer")
+            state.currentLayerID = Number(layerID);
+            console.log("isExpandLayer click:", state.isExpandLayer, matchedID);
+            g.selectAll(".link-path, .link-path-fc").style("opacity", 0);
+            g.selectAll(".feature-layer, .fc-feature-layer")
                 .style("opacity", 0.1)
                 .attr("pointer-events", "none");
             d3.select(this).style("opacity", 1);
             for(let i = 0; i < adjacencyMatrix[nodeID].length; i++) {
                 if (adjacencyMatrix[nodeID][i] === 1){
-                    d3.select(`#feature-layer-${layerID-1}-node-${i}`).style("opacity", 1);
+                    g.select(`#feature-layer-${layerID-1}-node-${i}`).style("opacity", 1);
                 }
             }
             const dist = 50 * 3 + sortedGNNFeatures[layerID-1][0].length * cellWidth + sortedGNNFeatures[layerID][0].length * cellWidth - 100;
-            transitFeatureLayers(layerID, dist);
+            transitFeatureLayers(container, layerID, dist);
             let direction = "up";
             if (nodeID < (adjacencyMatrix.length)/2) direction = "down";
-            visualizeInnerGNNLayerSubpipe(cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures, modelInfo, direction);
+            visualizeInnerGNNLayerSubpipe(container, cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures, modelInfo, direction);
         });
 
-    g.on("click", function(event: any, d: any) {
-        if(isExpandLayer)isExpandLayer = false;
-        console.log("isExpandLayer updated:", isExpandLayer);
-        d3.selectAll(".link-path, .link-path-fc").style("opacity", 0.1);
-        d3.selectAll(".feature-layer, .fc-feature-layer")
+    g.on("click", function() {
+        if(state.isExpandLayer) state.isExpandLayer = false;
+        console.log("isExpandLayer updated:", state.isExpandLayer);
+        g.selectAll(".link-path, .link-path-fc").style("opacity", 0.1);
+        g.selectAll(".feature-layer, .fc-feature-layer")
             .style("opacity", 1)
             .attr("pointer-events", "auto");
-        d3.selectAll(".layer-inner-works-group").remove();
-        if(currentLayerID !== -1 && currentLayerID != maxLayerNum+1)transitFeatureLayers(currentLayerID, 0);
-        if(currentLayerID === maxLayerNum+1)transitFCLayer(0);
-        currentLayerID = -1;
+        g.selectAll(".layer-inner-works-group").remove();
+        if(state.currentLayerID !== -1 && state.currentLayerID != maxLayerNum+1)transitFeatureLayers(container, state.currentLayerID, 0);
+        if(state.currentLayerID === maxLayerNum+1)transitFCLayer(container, 0);
+        state.currentLayerID = -1;
     });
 }
 
-export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: any[][], modelInfo: any, mode: string){
+export function interactFCExpansionPipe(container: HTMLDivElement, cellWidth: number, sortedGNNFeatures: any[][], modelInfo: any, mode: string, state: InteractionState){
     const biasDim = 4;
-    const g = d3.select("#matvis");
+    const g = d3.select(container);
+    const maxLayerNum = sortedGNNFeatures.length - 1;
     g.selectAll(".fc-feature-layer")
-        .on("click", function(event: any, d: any) {
+        .on("click", function(event: any) {
             event.stopPropagation();
-            isExpandLayer = true;
-            currentLayerID = maxLayerNum + 1;
+            state.isExpandLayer = true;
+            state.currentLayerID = maxLayerNum + 1;
             const id = extractFCNodeIndex((this as HTMLElement).id);
-            d3.selectAll(".link-path, .link-path-fc").style("opacity", 0);
-            d3.selectAll(".feature-layer, .fc-feature-layer")
+            g.selectAll(".link-path, .link-path-fc").style("opacity", 0);
+            g.selectAll(".feature-layer, .fc-feature-layer")
                 .style("opacity", 0.1)
                 .attr("pointer-events", "none");
             d3.select(this).style("opacity", 1);
-            if (mode != "graph")d3.select("#feature-layer-" + maxLayerNum + "-node-" + id).style("opacity", 1);
+            if (mode != "graph") g.select("#feature-layer-" + maxLayerNum + "-node-" + id).style("opacity", 1);
             // the problem for both transition distance is need to minus the 'gap=100' to align the view!!!
             const transitDistance = (sortedGNNFeatures[sortedGNNFeatures.length-1][0].length + biasDim * 2) * cellWidth + distanceToFeature * 3 - 100;
-            transitFCLayer(transitDistance);
+            transitFCLayer(container, transitDistance);
             let direction = "down";
             if (id < (sortedGNNFeatures[sortedGNNFeatures.length-1].length)/2) direction = "up";
-            visualizeInnerFCLayerSubpipe(cellWidth, id, sortedGNNFeatures, modelInfo, direction, mode);
+            visualizeInnerFCLayerSubpipe(container, cellWidth, id, sortedGNNFeatures, modelInfo, direction, mode);
         });
 }
-
-

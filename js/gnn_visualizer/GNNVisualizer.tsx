@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { modelPipeline } from "./modelPipeline";
 
 interface GNNVisualizerProps {
@@ -23,26 +23,38 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     mode,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [isLoading, setIsLoading] = useState(true);
-
-    if (intmData != null) {
-
-    }
     
     useEffect(() => {
+        const container = containerRef.current;
+        if (!container || !intmData || !modelInfo || !graphData) {
+            return;
+        }
+
         console.log("modelInfo in GNNVisualizer:", modelInfo);
         console.log("intmData in GNNVisualizer:", intmData);
         console.log("graphData in GNNVisualizer:", graphData);
         console.log("queries in GNNVisualizer:", queries);
         console.log("mode in GNNVisualizer:", mode);
-        modelPipeline(setIsLoading, modelInfo, intmData, graphData, [[12, 18]], subgraphSample, mode);
+
+        modelPipeline(
+            container,
+            () => undefined,
+            modelInfo,
+            intmData,
+            graphData,
+            queries,
+            subgraphSample,
+            mode
+        );
         onLoadComplete();
-    }, [graphData, intmData, renderToken, queries, mode]);
+        return () => {
+            container.replaceChildren();
+        };
+    }, [graphData, intmData, modelInfo, onLoadComplete, queries, renderToken, subgraphSample, mode]);
     
 
     return (
         <div
-            id="matvis"
             ref={containerRef}
             style={{
                 width: "100%",

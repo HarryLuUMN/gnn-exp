@@ -4,6 +4,7 @@ import { extractSortedGNNLayerFeatures, processSubgraphSequenceDataPipe, transfo
 import { visualizationPipeline } from "./visualizationPipeline";
 
 export function modelPipeline(
+    container: HTMLDivElement,
     setIsLoading:any, 
     modelInfo:any, 
     intmData:any, 
@@ -29,9 +30,8 @@ export function modelPipeline(
     console.log("Processed nodes and links:", nodeList, linkList);
     
     // visualization pipes
-    visualizationPipeline(cellWidth, cellHeight, adjacancyMatrix, intmData, linkList, queries, subgraphData, subgraphSample, mode);
-    interactionPipeline(cellWidth, adjacancyMatrix, sortedGNNFeatures, modelInfo, mode, queries);
+    visualizationPipeline(container, cellWidth, cellHeight, adjacancyMatrix, intmData, linkList, queries, subgraphData, subgraphSample, mode);
+    interactionPipeline(container, cellWidth, adjacancyMatrix, sortedGNNFeatures, modelInfo, mode, queries);
     
     return null;
 }
-
