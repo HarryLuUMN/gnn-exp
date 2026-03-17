@@ -13,3 +13,4 @@ src/gnn_explorer.egg-info
 src/gnn_exp.egg-info
 example.ipynb
 key.md
+AGENTS.md
