@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gnn-exp"
-version = "0.1.0"
+version = "0.1.1"
 description = "Visual exploration and explanation of Graph Neural Networks in computational notebooks"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -20,8 +20,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/HarryLuUMN/gnn-vis-widgets"
-Repository = "https://github.com/HarryLuUMN/gnn-vis-widgets"
+Homepage = "https://github.com/HarryLuUMN/gnn-exp"
+Repository = "https://github.com/HarryLuUMN/gnn-exp"
 
 # ----------------------------
 # setuptools config
