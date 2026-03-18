@@ -23,8 +23,8 @@ export function modelPipeline(
     const { nodeList, linkList} = preMatrixVisualizationDataProcessingPipe("node prediction", undefined, undefined, graphData);
     const adjacancyMatrix = transformDataToMatrixVisFormat(nodeList, linkList);
     const sortedGNNFeatures = extractSortedGNNLayerFeatures(intmData);
-
-    const subgraphData = processSubgraphSequenceDataPipe(adjacancyMatrix, queries, 5);
+    const subgraphHopDistance = Math.max(sortedGNNFeatures.length - 1, 0);
+    const subgraphData = processSubgraphSequenceDataPipe(adjacancyMatrix, queries, subgraphHopDistance);
     console.log("subgraphData:", subgraphData);
     
     console.log("Processed nodes and links:", nodeList, linkList);

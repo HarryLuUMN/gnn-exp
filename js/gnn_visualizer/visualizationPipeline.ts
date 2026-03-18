@@ -4,13 +4,11 @@ import { computeFeatureLayerX, computeFeatureLayerY } from "./utils/geometryUtil
 import { distanceToFeature } from "../utils/const";
 import { matrixTranspose, randomVector, scaleVector, vecMatMul, addVector, countOnes, divideVector } from "./utils/mathUtils";
 import { curve, featureColor } from "./utils/const";
-import { extractSortedGNNLayerFeatures, processSubgraphSequenceDataPipe, SubgraphResult } from "./utils/dataProcessingUtils";
+import { extractSortedGNNLayerFeatures, SubgraphResult } from "./utils/dataProcessingUtils";
 
 export function visualizationPipeline(container: HTMLDivElement, cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any, subgraphSample: any, mode: string) {
     // define parameters
     const gapSizeBetweenLayers = 100;
-
-    subgraphData = processSubgraphSequenceDataPipe(adjacencyMatrix, queries, 4);
     console.log("subgraphData inside visualizationPipeline:", subgraphData);
     
     // visualization pipes
@@ -174,7 +172,7 @@ export function visualizeIntermediateFeaturePipe(container: HTMLDivElement, cell
         layerX +=  (gapXBetweenLayers);
     }
     console.log("mode inside visualizeIntermediateFeaturePipe:", mode);
-    if (mode == 'node') visualizeFCForNodeTaskSubpipe(container, layerX, intmData);
+    if (mode == 'node') visualizeFCForNodeTaskSubpipe(container, layerX, intmData, subgraphData, subgraphSample);
     else if (mode == 'edge') visualizeFCForEdgeTaskSubpipe(container, layerX, intmData, queries);
     else if (mode == 'graph') visualizeFCForGraphTaskSubpipe(container, layerX, intmData);
 }
@@ -377,7 +375,20 @@ export function visualizeFCForGraphTaskSubpipe(container: HTMLDivElement, layerX
     visualizeSingleFCSubpipe(layerX + 100, midLayerY - 12, resultVec, 0, svg);
 }
 
-export function visualizeFCForNodeTaskSubpipe(container: HTMLDivElement, layerX: number, intmData: any){
+function getVisibleNodeIdsForFinalLayer(fcLayerFeatures: any[][], subgraphData: SubgraphResult[], subgraphSample: any): number[] {
+    if (!subgraphSample) {
+        return fcLayerFeatures.map((_, index) => index);
+    }
+
+    const finalSubgraph = subgraphData[subgraphData.length - 1];
+    if (!finalSubgraph) {
+        return fcLayerFeatures.map((_, index) => index);
+    }
+
+    return finalSubgraph.nodes.filter((nodeId) => Array.isArray(fcLayerFeatures[nodeId]));
+}
+
+export function visualizeFCForNodeTaskSubpipe(container: HTMLDivElement, layerX: number, intmData: any, subgraphData: SubgraphResult[], subgraphSample: any){
     console.log("inside visualizeFCFeaturesPipe", intmData);
     // get the last layer number from intmData
     const sortedLayers = extractSortedGNNLayerFeatures(intmData);
@@ -386,11 +397,12 @@ export function visualizeFCForNodeTaskSubpipe(container: HTMLDivElement, layerX:
     console.log("fc data", fcLayerFeatures, lastLayerNum);
     const layerY = 50;
     const svg = d3.select(container).select("svg");
-    for(let i=0; i < fcLayerFeatures.length; i++){
-        const feature: any[] | undefined = fcLayerFeatures[i];
-        console.log("fc feature:", feature, i);
+    const visibleNodeIds = getVisibleNodeIdsForFinalLayer(fcLayerFeatures, subgraphData, subgraphSample);
+    for (const nodeId of visibleNodeIds) {
+        const feature: any[] | undefined = fcLayerFeatures[nodeId];
+        console.log("fc feature:", feature, nodeId);
         if (!Array.isArray(feature)) continue;
-        visualizeSingleFCSubpipe(layerX, layerY, feature, i, svg);
+        visualizeSingleFCSubpipe(layerX, layerY, feature, nodeId, svg);
     }
 }
 
