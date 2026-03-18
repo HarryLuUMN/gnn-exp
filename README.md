@@ -172,7 +172,7 @@ visualizer  # Display in notebook
 
 ```
 gnn-explorer/
-├── src/gnn_explorer/          # Python package
+├── src/gnn_exp/               # Python package
 │   ├── graph_visualizer.py    # Graph visualization widget
 │   ├── graph_editor.py        # Graph editing widget
 │   ├── gnn_visualizer.py      # GNN model visualization widget
