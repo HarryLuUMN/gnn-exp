@@ -5,16 +5,13 @@ import GNNVisualizer from "./GNNVisualizer";
 
 const render = createRender(() => {
     // Bind to Python trait `graphData`
-    const [graphData, setGraphData] = useModelState<any>("graphData");
-    const [graphPath, setGraphPath] = useModelState<string>("graphPath");
-    const [intmData, setIntmData] = useModelState<any>("intmData");
-    const [modelInfo, setModelInfo] = useModelState<any>("modelInfo");
-
-    const [queries, setQueries] = useModelState<number[][]>("queries");
-    const [subgraphSample, setSubgraphSample] = useModelState<any>("subgraphSample");
+    const [graphData] = useModelState<any>("graphData");
+    const [intmData] = useModelState<any>("intmData");
+    const [modelInfo] = useModelState<any>("modelInfo");
+    const [queries] = useModelState<number[][]>("queries");
+    const [subgraphSample] = useModelState<any>("subgraphSample");
     const [renderToken] = useModelState<number>("renderToken");
-    const [mode, setMode] = useModelState<string>("mode");
-    const [isLoading, setIsLoading] = React.useState(true);
+    const [mode] = useModelState<string>("mode");
 
 	console.log("GNNVisualizer received graphData =", graphData);
 	console.log("GNNVisualizer received queries =", queries, "type:", typeof queries, "isArray:", Array.isArray(queries));
@@ -25,7 +22,7 @@ const render = createRender(() => {
             <GNNVisualizer
                 graphData={graphData}
                 modelInfo={modelInfo}
-                onLoadComplete={() =>setIsLoading(false)}
+                onLoadComplete={() => undefined}
                 intmData={intmData}
                 renderToken={renderToken}
                 queries={queries}

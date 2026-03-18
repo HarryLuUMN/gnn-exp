@@ -19,16 +19,6 @@ interface Props {
   handleNodePositionsChange: any,
 }
 
-const elementMap: Record<number, string> = {
-  0: "C",
-  1: "N",
-  2: "O",
-  3: "F",
-  4: "H",
-  5: "S",
-  6: "Cl",
-};
-
 const DualViews: React.FC<Props> = ({
   graphData,
   hubNodeA,

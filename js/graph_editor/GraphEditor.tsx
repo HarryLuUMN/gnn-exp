@@ -8,7 +8,17 @@ import {
     randomizeFeatures,
 } from "./graphEditorUtils";
 
-type Position = { x: number; y: number };
+type EditorNode = d3.SimulationNodeDatum & {
+    id: string;
+    group: number;
+    feature: number[];
+};
+
+type EditorLink = d3.SimulationLinkDatum<EditorNode> & {
+    source: string | EditorNode;
+    target: string | EditorNode;
+    value: number;
+};
 
 interface GraphEditorProps {
     dataFile: any;
@@ -21,19 +31,14 @@ export default function GraphEditor({
     handleSimulatedGraphChange,
     onNodePositionsChange,
 }: GraphEditorProps): React.ReactElement {
-    const [defaultPos, setDefaultPos] = useState<Position>({
-        x: 200 / 2.2,
-        y: 120,
-    });
-    const [size, setSize] = useState({ width: 680, height: 420 });
-    const [isRunning, setIsRunning] = useState(true);
+    const [, setSimulationRunning] = useState(true);
 
     const svgContainer = useRef<HTMLDivElement>(null);
-    const simulationRef = useRef<d3.Simulation<any, any> | null>(null);
+    const simulationRef = useRef<d3.Simulation<EditorNode, EditorLink> | null>(null);
     const isRunningRef = useRef(true);
     const isDraggingRef = useRef(false);
-    const linksRef = useRef<any[]>([]);
-    const nodesRef = useRef<any[]>([]);
+    const linksRef = useRef<EditorLink[]>([]);
+    const nodesRef = useRef<EditorNode[]>([]);
     const selectionState = useRef(false);
 
     const datasetRef = useRef<any>({});
@@ -42,10 +47,6 @@ export default function GraphEditor({
     // Sync state
     const selectedNodeRef = useRef<string | null>(null);
     const secondSelectedNodeRef = useRef<string | null>(null);
-    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-    const [secondSelectedNodeId, setSecondSelectedNodeId] = useState<
-        string | null
-    >(null);
 
     const [simGraphData, setSimGraphData] = React.useState<any>();
 
@@ -59,6 +60,14 @@ export default function GraphEditor({
         nodes: nodesRef.current,
         links: linksRef.current,
     });
+
+    const getNodePositionSnapshot = () =>
+        nodesRef.current
+            .filter((node): node is EditorNode & { x: number; y: number } => node.x != null && node.y != null)
+            .map((node) => ({ id: node.id, x: node.x, y: node.y }));
+
+    const getLinkEndpointId = (endpoint: string | EditorNode) =>
+        typeof endpoint === "string" ? endpoint : endpoint.id;
 
     useEffect(() => {
         if (!dataFile) return;
@@ -101,7 +110,6 @@ export default function GraphEditor({
 
         const width = 640;
         const height = 640;
-        const color = d3.scaleOrdinal(d3.schemeTableau10);
 
         
 
@@ -112,8 +120,8 @@ export default function GraphEditor({
                 const initialData = processDataFromVisualizerToEditor(data);
                 datasetRef.current = initialData;
 
-                const links = initialData.links.map((d) => Object.create(d));
-                const nodes = initialData.nodes.map((d) => ({ ...d }));
+                const links: EditorLink[] = initialData.links.map((d) => Object.create(d));
+                const nodes: EditorNode[] = initialData.nodes.map((d) => ({ ...d }));
 
                 nodesRef.current = nodes;
                 linksRef.current = links;
@@ -156,8 +164,6 @@ export default function GraphEditor({
                                 d3.selectAll("circle").attr("stroke", "none");
                                 selectedNodeRef.current = null;
                                 secondSelectedNodeRef.current = null;
-                                setSelectedNodeId(null);
-                                setSecondSelectedNodeId(null);
                                 selectionState.current = false;
                             }
                         }
@@ -236,9 +242,6 @@ export default function GraphEditor({
 
                             const isFirstSelected =
                                 selectedNodeRef.current === clickedId;
-                            const isSecondSelected =
-                                secondSelectedNodeRef.current === clickedId;
-
                             if (
                                 selectedNodeRef.current &&
                                 secondSelectedNodeRef.current
@@ -246,8 +249,6 @@ export default function GraphEditor({
                                 d3.selectAll("circle").attr("stroke", "none");
                                 selectedNodeRef.current = null;
                                 secondSelectedNodeRef.current = null;
-                                setSelectedNodeId(null);
-                                setSecondSelectedNodeId(null);
                                 selectionState.current = false;
                                 return;
                             }
@@ -255,7 +256,6 @@ export default function GraphEditor({
                             if (!selectionState.current) {
                                 d3.select(this).attr("stroke", "black");
                                 selectedNodeRef.current = clickedId;
-                                setSelectedNodeId(clickedId);
                                 selectionState.current = true;
                                 return;
                             }
@@ -267,7 +267,6 @@ export default function GraphEditor({
                             ) {
                                 d3.select(this).attr("stroke", "none");
                                 selectedNodeRef.current = null;
-                                setSelectedNodeId(null);
                                 selectionState.current = false;
                                 return;
                             }
@@ -279,7 +278,6 @@ export default function GraphEditor({
                             ) {
                                 d3.select(this).attr("stroke", "black");
                                 secondSelectedNodeRef.current = clickedId;
-                                setSecondSelectedNodeId(clickedId);
 
                                 const sourceId = selectedNodeRef.current!;
                                 const targetId = secondSelectedNodeRef.current!;
@@ -299,8 +297,6 @@ export default function GraphEditor({
                                     );
                                     selectedNodeRef.current = null;
                                     secondSelectedNodeRef.current = null;
-                                    setSelectedNodeId(null);
-                                    setSecondSelectedNodeId(null);
                                     selectionState.current = false;
                                 } else {
                                     linksRef.current.push({
@@ -320,8 +316,6 @@ export default function GraphEditor({
                                     );
                                     selectedNodeRef.current = null;
                                     secondSelectedNodeRef.current = null;
-                                    setSelectedNodeId(null);
-                                    setSecondSelectedNodeId(null);
                                     selectionState.current = false;
                                     handleTransmitToMainVisualizer();
                                 }
@@ -350,11 +344,11 @@ export default function GraphEditor({
                         .attr("y", (d: any) => d.y);
 
                     if (onNodePositionsChange) {
-                        onNodePositionsChange(nodesRef.current.map(node => ({ id: node.id, x: node.x, y: node.y })));
+                        onNodePositionsChange(getNodePositionSnapshot());
                     }
                 }
 
-                function drag(simulation: any) {
+                function drag(simulation: d3.Simulation<EditorNode, EditorLink>) {
                     function dragstarted(event: any) {
                         isDraggingRef.current = true;
                         simulation.alphaTarget(0.3).restart();
@@ -395,7 +389,7 @@ export default function GraphEditor({
 
                     console.log("new node feature - before add 1:", featureAdd);
 
-                    const newNode = {
+                    const newNode: EditorNode = {
                         id: newNodeId,
                         group: 3,
                         x,
@@ -415,7 +409,7 @@ export default function GraphEditor({
                     simulation.nodes(nodesRef.current);
                     simulation.alpha(0.5).restart();
                     if (onNodePositionsChange) {
-                        onNodePositionsChange(nodesRef.current.map(node => ({ id: node.id, x: node.x, y: node.y })));
+                        onNodePositionsChange(getNodePositionSnapshot());
                     }
                     handleTransmitToMainVisualizer();
                 }
@@ -429,11 +423,11 @@ export default function GraphEditor({
                             linksRef.current = linksRef.current.filter(
                                 (l) =>
                                     !(
-                                        (l.source.id === linkDatum.source.id &&
-                                            l.target.id ===
-                                                linkDatum.target.id) ||
-                                        (l.source.id === linkDatum.target.id &&
-                                            l.target.id === linkDatum.source.id)
+                                        (getLinkEndpointId(l.source) === getLinkEndpointId(linkDatum.source) &&
+                                            getLinkEndpointId(l.target) ===
+                                                getLinkEndpointId(linkDatum.target)) ||
+                                        (getLinkEndpointId(l.source) === getLinkEndpointId(linkDatum.target) &&
+                                            getLinkEndpointId(l.target) === getLinkEndpointId(linkDatum.source))
                                     )
                             );
 
@@ -449,15 +443,13 @@ export default function GraphEditor({
 
                             linksRef.current = linksRef.current.filter(
                                 (l) =>
-                                    l.source.id !== nodeIdToDelete &&
-                                    l.target.id !== nodeIdToDelete
+                                    getLinkEndpointId(l.source) !== nodeIdToDelete &&
+                                    getLinkEndpointId(l.target) !== nodeIdToDelete
                             );
 
                             d3.selectAll("circle").attr("stroke", "none");
                             selectedNodeRef.current = null;
                             secondSelectedNodeRef.current = null;
-                            setSelectedNodeId(null);
-                            setSecondSelectedNodeId(null);
                             selectionState.current = false;
                         }
 
@@ -468,7 +460,7 @@ export default function GraphEditor({
                         simulationRef.current?.nodes(nodesRef.current);
                         simulationRef.current?.alpha(0.5).restart();
                         if (onNodePositionsChange) {
-                            onNodePositionsChange(nodesRef.current.map(node => ({ id: node.id, x: node.x, y: node.y })));
+                            onNodePositionsChange(getNodePositionSnapshot());
                         }
                     }
                     handleTransmitToMainVisualizer();
@@ -500,7 +492,7 @@ export default function GraphEditor({
         }
 
         isRunningRef.current = !isRunningRef.current;
-        setIsRunning(isRunningRef.current);
+        setSimulationRunning(isRunningRef.current);
         sim.alpha(0.5).restart();
     };
 

@@ -5,7 +5,7 @@ import DualViews from "./DualViews";
 
 const render = createRender(() => {
     // Bind to Python trait `graphData`
-    const [graphData, setGraphData] = useModelState<any>("graphData");
+    const [graphData] = useModelState<any>("graphData");
 
 	console.log("DualViews received graphData =", graphData);
 

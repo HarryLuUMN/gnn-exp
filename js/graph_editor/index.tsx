@@ -5,9 +5,9 @@ import GraphEditor from "./GraphEditor";
 
 const render = createRender(() => {
 
-    const [dataFile, setDataFile] = useModelState<string>("dataFile");
-    const [graphData, setGraphData] = useModelState<any>("graphData");  
-    const [nodePositions, setNodePositions] = React.useState<any[]>([]);
+    const [dataFile] = useModelState<string>("dataFile");
+    const [, setGraphData] = useModelState<any>("graphData");  
+    const [, setNodePositions] = React.useState<any[]>([]);
 
     const handleSimulatedGraphChange = (value: any) => {
         setGraphData(value);  

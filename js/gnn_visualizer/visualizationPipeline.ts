@@ -46,7 +46,7 @@ export function visualizationPipeline(container: HTMLDivElement, cellWidth: numb
     // visualization pipes
     visualizeMatrixPipe(container, adjacencyMatrix, visibleLayerNodeIds[0]);
     visualizeIntermediateFeaturePipe(container, cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix, queries, subgraphData, subgraphSample, mode, visibleLayerNodeIds);
-    visualizeLinksBetweenLayersPipe(container, linkList, gapSizeBetweenLayers, intmData, subgraphData, subgraphSample, visibleLayerNodeIds);
+    visualizeLinksBetweenLayersPipe(container, linkList, gapSizeBetweenLayers, intmData, subgraphData, visibleLayerNodeIds);
     resizeSvgToContent(container);
 }
 
@@ -206,7 +206,7 @@ export function visualizeIntermediateFeaturePipe(container: HTMLDivElement, cell
         layerX +=  (gapXBetweenLayers);
     }
     console.log("mode inside visualizeIntermediateFeaturePipe:", mode);
-    if (mode == 'node') visualizeFCForNodeTaskSubpipe(container, layerX, intmData, subgraphData, subgraphSample, visibleLayerNodeIds);
+    if (mode == 'node') visualizeFCForNodeTaskSubpipe(container, layerX, intmData, subgraphData, subgraphSample);
     else if (mode == 'edge') visualizeFCForEdgeTaskSubpipe(container, layerX, intmData, queries);
     else if (mode == 'graph') visualizeFCForGraphTaskSubpipe(container, layerX, intmData);
 }
@@ -217,7 +217,6 @@ export function visualizeLinksBetweenLayersPipe(
     gapSize: number,
     intmData: any,
     subgraphData: SubgraphResult[],
-    subgraphSample: any,
     visibleLayerNodeIds: LayerNodeIds
 ){
     console.log("start visualizeLinksBetweenLayers");
@@ -410,7 +409,7 @@ export function visualizeFCForGraphTaskSubpipe(container: HTMLDivElement, layerX
     visualizeSingleFCSubpipe(layerX + 100, midLayerY - 12, resultVec, 0, svg);
 }
 
-export function visualizeFCForNodeTaskSubpipe(container: HTMLDivElement, layerX: number, intmData: any, subgraphData: SubgraphResult[], subgraphSample: any, visibleLayerNodeIds: LayerNodeIds){
+export function visualizeFCForNodeTaskSubpipe(container: HTMLDivElement, layerX: number, intmData: any, subgraphData: SubgraphResult[], subgraphSample: any){
     console.log("inside visualizeFCFeaturesPipe", intmData);
     // get the last layer number from intmData
     const sortedLayers = extractSortedGNNLayerFeatures(intmData);
