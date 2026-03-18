@@ -474,13 +474,18 @@ function visualizeSingleFCSubpipe(layerX: number, layerY: number, feature: any[]
 export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any, direction: string){
     console.log("inside layer modelInfo:", modelInfo, layerID);
     const distanceBetweenFeatures = 50;
-    const gapXBetweenLayers = 100;
-    const startX = adjacencyMatrix.length * 20 + 20 + 50;
     const g = d3.select(container).select("svg");
     const inner = g.append("g").attr("class", "layer-inner-works-group").attr("id", `layer-inner-works-group-layer-${layerID}-node-${nodeID}`);
+    const currentNodeFrame = g.select<SVGRectElement>(`#feature-layer-frame-${layerID}-node-${nodeID}`);
+    const currentNodeFrameBox = currentNodeFrame.node()?.getBBox();
 
-    const currentNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
-    const currentNodeY = computeFeatureLayerY(nodeID, 50, 20);
+    if (!currentNodeFrameBox) {
+        inner.remove();
+        return;
+    }
+
+    const currentNodeX = currentNodeFrameBox.x;
+    const currentNodeY = currentNodeFrameBox.y + currentNodeFrameBox.height / 2;
 
     let locations = [];
 
@@ -492,8 +497,11 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
 
     for(let j = 0; j < adjacencyMatrix[nodeID].length; j++) {
         if (adjacencyMatrix[nodeID][j] === 1){
-            const targetNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
-            const targetNodeY = computeFeatureLayerY(j, 50, 20);
+            const targetNodeFrame = g.select<SVGRectElement>(`#feature-layer-frame-${layerID-1}-node-${j}`);
+            const targetNodeFrameBox = targetNodeFrame.node()?.getBBox();
+            if (!targetNodeFrameBox) continue;
+            const targetNodeX = targetNodeFrameBox.x + targetNodeFrameBox.width;
+            const targetNodeY = targetNodeFrameBox.y + targetNodeFrameBox.height / 2;
             locations.push([targetNodeX, targetNodeY]);
             const degreeMultiplier = 1 / (Math.sqrt(countOnes(adjacencyMatrix[nodeID]) * countOnes(adjacencyMatrix[j])));
             aggregatedFeature = addVector(aggregatedFeature, scaleVector(degreeMultiplier, sortedGNNFeatures[layerID-1][j]));
