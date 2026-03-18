@@ -182,7 +182,7 @@ export function interactLayerExpansionPipe(container: HTMLDivElement, cellWidth:
             transitFeatureLayers(container, layerID, dist);
             let direction = "up";
             if (nodeID < (adjacencyMatrix.length)/2) direction = "down";
-            visualizeInnerGNNLayerSubpipe(container, cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures, modelInfo, direction, dist, visibleLayerNodeIds);
+            visualizeInnerGNNLayerSubpipe(container, cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures, modelInfo, direction, visibleLayerNodeIds);
             resizeSvgToContent(container);
         });
 

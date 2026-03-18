@@ -443,7 +443,7 @@ function visualizeSingleFCSubpipe(layerX: number, layerY: number, feature: any[]
         .lower();
 }
 
-export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any, direction: string, layerTranslateX: number = 0, visibleLayerNodeIds: LayerNodeIds = []){
+export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any, direction: string, visibleLayerNodeIds: LayerNodeIds = []){
     console.log("inside layer modelInfo:", modelInfo, layerID);
     const distanceBetweenFeatures = 50;
     const g = d3.select(container).select("svg");
@@ -462,7 +462,6 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
     for (let i = 0; i < layerID; i++) {
         currentNodeX += sortedGNNFeatures[i][0].length * cellWidth + 100;
     }
-    currentNodeX += layerTranslateX;
     const currentNodeY = 50 + currentDisplayIndex * 20 + 12;
 
     let locations = [];
