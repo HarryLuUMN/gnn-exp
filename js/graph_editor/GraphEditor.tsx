@@ -61,6 +61,16 @@ export default function GraphEditor({
         links: linksRef.current,
     });
 
+    const getNextNodeId = () => {
+        let maxNodeIndex = -1;
+        for (const node of nodesRef.current) {
+            const match = typeof node.id === "string" ? node.id.match(/^N(\d+)$/) : null;
+            if (!match) continue;
+            maxNodeIndex = Math.max(maxNodeIndex, Number(match[1]));
+        }
+        return `N${maxNodeIndex + 1}`;
+    };
+
     const getNodePositionSnapshot = () =>
         nodesRef.current
             .filter((node): node is EditorNode & { x: number; y: number } => node.x != null && node.y != null)
@@ -379,7 +389,7 @@ export default function GraphEditor({
                 }
 
                 function addNodeAt(x: number, y: number) {
-                    const newNodeId = `N${nodesRef.current.length}`;
+                    const newNodeId = getNextNodeId();
                     // const featureText = randomizeFeatures(dim);
 
                     console.log("new node feature - before add 0:", feature);
