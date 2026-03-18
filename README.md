@@ -64,7 +64,7 @@ Alternatively, use a traditional virtual environment:
 ```sh
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
+pip install -e .
 jupyter lab example.ipynb
 ```
 
