@@ -196,3 +196,31 @@ export function processSubgraphSequenceDataPipe(
     }
     return subgraphs;   
 }
+
+export function getVisibleNodeIdsForLayer(
+    layerFeatures: any[][],
+    subgraphData: SubgraphResult[],
+    layerIndex: number,
+    subgraphSample: any
+): number[] {
+    if (!subgraphSample) {
+        return layerFeatures.map((_, index) => index);
+    }
+
+    const subgraph = subgraphData[layerIndex];
+    if (!subgraph) {
+        return layerFeatures.map((_, index) => index);
+    }
+
+    return subgraph.nodes.filter((nodeId) => Array.isArray(layerFeatures[nodeId]));
+}
+
+export function buildVisibleLayerNodeIds(
+    sortedGNNFeatures: any[][][],
+    subgraphData: SubgraphResult[],
+    subgraphSample: any
+): number[][] {
+    return sortedGNNFeatures.map((layerFeatures, layerIndex) =>
+        getVisibleNodeIdsForLayer(layerFeatures, subgraphData, layerIndex, subgraphSample)
+    );
+}

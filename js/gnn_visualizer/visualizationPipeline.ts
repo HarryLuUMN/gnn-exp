@@ -4,37 +4,9 @@ import { computeFeatureLayerX, computeFeatureLayerY } from "./utils/geometryUtil
 import { distanceToFeature } from "../utils/const";
 import { matrixTranspose, randomVector, scaleVector, vecMatMul, addVector, countOnes, divideVector } from "./utils/mathUtils";
 import { curve, featureColor } from "./utils/const";
-import { extractSortedGNNLayerFeatures, SubgraphResult } from "./utils/dataProcessingUtils";
+import { buildVisibleLayerNodeIds, extractSortedGNNLayerFeatures, getVisibleNodeIdsForLayer, SubgraphResult } from "./utils/dataProcessingUtils";
 
 type LayerNodeIds = number[][];
-
-function getVisibleNodeIdsForLayer(
-    layerFeatures: any[][],
-    subgraphData: SubgraphResult[],
-    layerIndex: number,
-    subgraphSample: any
-): number[] {
-    if (!subgraphSample) {
-        return layerFeatures.map((_, index) => index);
-    }
-
-    const subgraph = subgraphData[layerIndex];
-    if (!subgraph) {
-        return layerFeatures.map((_, index) => index);
-    }
-
-    return subgraph.nodes.filter((nodeId) => Array.isArray(layerFeatures[nodeId]));
-}
-
-function buildVisibleLayerNodeIds(
-    sortedGNNFeatures: any[][][],
-    subgraphData: SubgraphResult[],
-    subgraphSample: any
-): LayerNodeIds {
-    return sortedGNNFeatures.map((layerFeatures, layerIndex) =>
-        getVisibleNodeIdsForLayer(layerFeatures, subgraphData, layerIndex, subgraphSample)
-    );
-}
 
 export function visualizationPipeline(container: HTMLDivElement, cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any, subgraphSample: any, mode: string) {
     // define parameters
@@ -471,21 +443,27 @@ function visualizeSingleFCSubpipe(layerX: number, layerY: number, feature: any[]
         .lower();
 }
 
-export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any, direction: string, layerTranslateX: number = 0){
+export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any, direction: string, layerTranslateX: number = 0, visibleLayerNodeIds: LayerNodeIds = []){
     console.log("inside layer modelInfo:", modelInfo, layerID);
     const distanceBetweenFeatures = 50;
     const g = d3.select(container).select("svg");
     const inner = g.append("g").attr("class", "layer-inner-works-group").attr("id", `layer-inner-works-group-layer-${layerID}-node-${nodeID}`);
-    const currentNodeFrame = g.select<SVGRectElement>(`#feature-layer-frame-${layerID}-node-${nodeID}`);
-    const currentNodeFrameBox = currentNodeFrame.node()?.getBBox();
+    const currentLayerVisibleNodes = visibleLayerNodeIds[layerID] ?? sortedGNNFeatures[layerID].map((_, index) => index);
+    const previousLayerVisibleNodes = visibleLayerNodeIds[layerID - 1] ?? sortedGNNFeatures[layerID - 1].map((_, index) => index);
+    const currentDisplayIndex = currentLayerVisibleNodes.indexOf(nodeID);
 
-    if (!currentNodeFrameBox) {
+    if (currentDisplayIndex === -1) {
         inner.remove();
         return;
     }
 
-    const currentNodeX = currentNodeFrameBox.x + layerTranslateX;
-    const currentNodeY = currentNodeFrameBox.y + currentNodeFrameBox.height / 2;
+    const startX = currentLayerVisibleNodes.length > 0 ? visibleLayerNodeIds[0].length * 20 + 20 + 50 : 50;
+    let currentNodeX = startX;
+    for (let i = 0; i < layerID; i++) {
+        currentNodeX += sortedGNNFeatures[i][0].length * cellWidth + 100;
+    }
+    currentNodeX += layerTranslateX;
+    const currentNodeY = 50 + currentDisplayIndex * 20 + 12;
 
     let locations = [];
 
@@ -495,13 +473,18 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
     let dirCoefficient = 1;
     if (direction === "up") dirCoefficient = -1;
 
+    let previousLayerX = startX;
+    for (let i = 0; i < layerID - 1; i++) {
+        previousLayerX += sortedGNNFeatures[i][0].length * cellWidth + 100;
+    }
+    previousLayerX += sortedGNNFeatures[layerID - 1][0].length * cellWidth;
+
     for(let j = 0; j < adjacencyMatrix[nodeID].length; j++) {
         if (adjacencyMatrix[nodeID][j] === 1){
-            const targetNodeFrame = g.select<SVGRectElement>(`#feature-layer-frame-${layerID-1}-node-${j}`);
-            const targetNodeFrameBox = targetNodeFrame.node()?.getBBox();
-            if (!targetNodeFrameBox) continue;
-            const targetNodeX = targetNodeFrameBox.x + targetNodeFrameBox.width;
-            const targetNodeY = targetNodeFrameBox.y + targetNodeFrameBox.height / 2;
+            const targetDisplayIndex = previousLayerVisibleNodes.indexOf(j);
+            if (targetDisplayIndex === -1) continue;
+            const targetNodeX = previousLayerX;
+            const targetNodeY = 50 + targetDisplayIndex * 20 + 12;
             locations.push([targetNodeX, targetNodeY]);
             const degreeMultiplier = 1 / (Math.sqrt(countOnes(adjacencyMatrix[nodeID]) * countOnes(adjacencyMatrix[j])));
             aggregatedFeature = addVector(aggregatedFeature, scaleVector(degreeMultiplier, sortedGNNFeatures[layerID-1][j]));

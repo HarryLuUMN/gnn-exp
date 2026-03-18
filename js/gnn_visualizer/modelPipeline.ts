@@ -1,6 +1,6 @@
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import { interactionPipeline } from "./interactionPipeline";
-import { extractSortedGNNLayerFeatures, processSubgraphSequenceDataPipe, transformDataToMatrixVisFormat } from "./utils/dataProcessingUtils";
+import { buildVisibleLayerNodeIds, extractSortedGNNLayerFeatures, processSubgraphSequenceDataPipe, transformDataToMatrixVisFormat } from "./utils/dataProcessingUtils";
 import { visualizationPipeline } from "./visualizationPipeline";
 
 export function modelPipeline(
@@ -25,13 +25,14 @@ export function modelPipeline(
     const sortedGNNFeatures = extractSortedGNNLayerFeatures(intmData);
     const subgraphHopDistance = Math.max(sortedGNNFeatures.length - 1, 0);
     const subgraphData = processSubgraphSequenceDataPipe(adjacancyMatrix, queries, subgraphHopDistance);
+    const visibleLayerNodeIds = buildVisibleLayerNodeIds(sortedGNNFeatures, subgraphData, subgraphSample);
     console.log("subgraphData:", subgraphData);
     
     console.log("Processed nodes and links:", nodeList, linkList);
     
     // visualization pipes
     visualizationPipeline(container, cellWidth, cellHeight, adjacancyMatrix, intmData, linkList, queries, subgraphData, subgraphSample, mode);
-    interactionPipeline(container, cellWidth, adjacancyMatrix, sortedGNNFeatures, modelInfo, mode, queries);
+    interactionPipeline(container, cellWidth, adjacancyMatrix, sortedGNNFeatures, modelInfo, mode, queries, visibleLayerNodeIds);
     
     return null;
 }

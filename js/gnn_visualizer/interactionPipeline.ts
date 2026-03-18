@@ -9,7 +9,7 @@ type InteractionState = {
     isExpandLayer: boolean;
 };
 
-export function interactionPipeline(container: HTMLDivElement, cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[], modelInfo: any, mode: string, queries: number[][] = [[12, 18]]) {
+export function interactionPipeline(container: HTMLDivElement, cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[], modelInfo: any, mode: string, queries: number[][] = [[12, 18]], visibleLayerNodeIds: number[][] = []) {
     const state: InteractionState = {
         currentLayerID: -1,
         isExpandLayer: false,
@@ -17,7 +17,7 @@ export function interactionPipeline(container: HTMLDivElement, cellWidth: number
     // interaction pipes
     interactNodesAndLinksPipe(container, adjacencyMatrix, state);
     interactFCNodesAndLinksPipe(container, sortedGNNFeatures, adjacencyMatrix, mode, queries, state);
-    interactLayerExpansionPipe(container, cellWidth, adjacencyMatrix, sortedGNNFeatures, modelInfo, state);
+    interactLayerExpansionPipe(container, cellWidth, adjacencyMatrix, sortedGNNFeatures, modelInfo, state, visibleLayerNodeIds);
     interactFCExpansionPipe(container, cellWidth, sortedGNNFeatures, modelInfo, mode, state);
 }
 
@@ -154,7 +154,7 @@ export function interactNodesAndDeactivateMatrixSubpipe(container: HTMLDivElemen
     g.selectAll(".adj-matrix-row-border, .adj-matrix-col-border").style("opacity", 0);
 }
 
-export function interactLayerExpansionPipe(container: HTMLDivElement, cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any, state: InteractionState){
+export function interactLayerExpansionPipe(container: HTMLDivElement, cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any, state: InteractionState, visibleLayerNodeIds: number[][]){
     const g = d3.select(container);
     const maxLayerNum = sortedGNNFeatures.length - 1;
 
@@ -182,7 +182,7 @@ export function interactLayerExpansionPipe(container: HTMLDivElement, cellWidth:
             transitFeatureLayers(container, layerID, dist);
             let direction = "up";
             if (nodeID < (adjacencyMatrix.length)/2) direction = "down";
-            visualizeInnerGNNLayerSubpipe(container, cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures, modelInfo, direction, dist);
+            visualizeInnerGNNLayerSubpipe(container, cellWidth, layerID, nodeID, adjacencyMatrix, sortedGNNFeatures, modelInfo, direction, dist, visibleLayerNodeIds);
             resizeSvgToContent(container);
         });
 
