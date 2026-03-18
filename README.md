@@ -89,7 +89,7 @@ This will automatically rebuild JavaScript as you make changes to files in `js/`
 ### Visualizing Graphs
 
 ```python
-from gnn_explorer import GraphVisualizer
+from gnn_exp import GraphVisualizer
 
 # Create a visualizer instance
 w = GraphVisualizer()
@@ -116,7 +116,7 @@ w
 ### Editing Graphs
 
 ```python
-from gnn_explorer import GraphEditor
+from gnn_exp import GraphEditor
 
 editor = GraphEditor()
 editor.add_data(dataFile="test_data/karate_dataset.json")
@@ -132,7 +132,7 @@ editor.export_data_to_json("test_data/edited_graph.json")
 import torch
 import torch.nn as nn
 from torch_geometric.nn import GCNConv
-from gnn_explorer import GNNVisualizer
+from gnn_exp import GNNVisualizer
 
 # Define your GNN model
 class GCN(torch.nn.Module):
