@@ -414,6 +414,7 @@ function visualizeSingleFCSubpipe(layerX: number, layerY: number, feature: any[]
 
 export function visualizeInnerGNNLayerSubpipe(cellWidth: number, layerID: number, nodeID: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[][], modelInfo: any, direction: string){
     console.log("inside layer modelInfo:", modelInfo, layerID);
+    if (layerID === 0) return;
     const distanceBetweenFeatures = 50;
     const gapXBetweenLayers = 100;
     const startX = adjacencyMatrix.length * 20 + 20 + 50;
@@ -734,5 +735,4 @@ export function visualizeInnerFCLayerSubpipe(cellWidth: number, nodeID: number, 
     // visualize activation function
     inner.append("line").attr("x1", currentNodeX + distanceToFeature * 2 + multipliedFeature.length * cellWidth + biasedAddition.length * cellWidth).attr("y1", currentNodeY).attr("x2", currentNodeX + distanceToFeature * 3 + multipliedFeature.length * cellWidth + biasedAddition.length * cellWidth).attr("y2", currentNodeY).attr("stroke", "black").attr("opacity", 1).attr("class", "activation-line layer-inner-works").lower();
 }
-
 

@@ -7,9 +7,6 @@ import { distanceToFeature } from '../utils/const';
 var isExpandLayer = false;
 var currentLayerID = -1;
 
-const maxLayerNum = getMaxLayerID();
-console.log("maxLayerNum:", maxLayerNum);
-
 
 export function interactionPipeline(cellWidth: number, adjacencyMatrix: number[][], sortedGNNFeatures: any[], modelInfo: any, mode: string, queries: number[][] = [[12, 18]]) {
     // interaction pipes
@@ -158,11 +155,13 @@ export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: n
     g.selectAll(".feature-layer")
         .on("click", function(event: any, d: any) {
             event.stopPropagation();
-            isExpandLayer = !isExpandLayer;
             const id = (this as HTMLElement).id;
             const matchedID = extractFeatureId(id);
+            if (!matchedID) return;
             const layerID = matchedID[1];
             const nodeID = matchedID[2];
+            if (Number(layerID) === 0) return;
+            isExpandLayer = !isExpandLayer;
             currentLayerID = Number(layerID);
             console.log("isExpandLayer click:", isExpandLayer, matchedID);
             d3.selectAll(".link-path, .link-path-fc").style("opacity", 0);
@@ -183,6 +182,7 @@ export function interactLayerExpansionPipe(cellWidth: number, adjacencyMatrix: n
         });
 
     g.on("click", function(event: any, d: any) {
+        const maxLayerNum = getMaxLayerID();
         if(isExpandLayer)isExpandLayer = false;
         console.log("isExpandLayer updated:", isExpandLayer);
         d3.selectAll(".link-path, .link-path-fc").style("opacity", 0.1);
@@ -201,6 +201,7 @@ export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: an
     const g = d3.select("#matvis");
     g.selectAll(".fc-feature-layer")
         .on("click", function(event: any, d: any) {
+            const maxLayerNum = getMaxLayerID();
             event.stopPropagation();
             isExpandLayer = true;
             currentLayerID = maxLayerNum + 1;
@@ -219,5 +220,4 @@ export function interactFCExpansionPipe(cellWidth: number, sortedGNNFeatures: an
             visualizeInnerFCLayerSubpipe(cellWidth, id, sortedGNNFeatures, modelInfo, direction, mode);
         });
 }
-
 

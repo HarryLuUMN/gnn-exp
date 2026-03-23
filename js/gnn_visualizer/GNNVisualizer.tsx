@@ -35,7 +35,7 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
         console.log("graphData in GNNVisualizer:", graphData);
         console.log("queries in GNNVisualizer:", queries);
         console.log("mode in GNNVisualizer:", mode);
-        modelPipeline(setIsLoading, modelInfo, intmData, graphData, [[12, 18]], subgraphSample, mode);
+        modelPipeline(setIsLoading, modelInfo, intmData, graphData, queries, subgraphSample, mode);
         onLoadComplete();
     }, [graphData, intmData, renderToken, queries, mode]);
     
