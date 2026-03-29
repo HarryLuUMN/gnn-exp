@@ -161,11 +161,13 @@ export function interactLayerExpansionPipe(container: HTMLDivElement, cellWidth:
     g.selectAll(".feature-layer")
         .on("click", function(event: any) {
             event.stopPropagation();
-            state.isExpandLayer = !state.isExpandLayer;
             const id = (this as HTMLElement).id;
             const matchedID = extractFeatureId(id);
+            if (!matchedID) return;
             const layerID = matchedID[1];
             const nodeID = matchedID[2];
+            if (Number(layerID) === 0) return;
+            state.isExpandLayer = !state.isExpandLayer;
             state.currentLayerID = Number(layerID);
             console.log("isExpandLayer click:", state.isExpandLayer, matchedID);
             g.selectAll(".link-path, .link-path-fc").style("opacity", 0);
