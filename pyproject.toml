@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Visual exploration and explanation of Graph Neural Networks in computational notebooks"
 readme = "README.md"
 requires-python = ">=3.8"
-license = { text = "MIT" }
+license = "MIT"
 
 authors = [
   { name = "Yilin Lu", email = "lu000661@umn.edu" },

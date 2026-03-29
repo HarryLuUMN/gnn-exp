@@ -1,1 +1,1 @@
-recursive-include src/gnn_explorer *.js *.css *.svg *.json
+recursive-include src/gnn_exp/static *.js *.css

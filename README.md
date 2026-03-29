@@ -12,6 +12,20 @@ pip install gnn-exp
 
 to install the package. 
 
+## Release Publishing
+
+This repository is configured for PyPI Trusted Publishing with GitHub Actions. Publishing is handled by [`.github/workflows/publish-pypi.yml`](/Users/harrylu_mac/gnn-explorer/.github/workflows/publish-pypi.yml), which builds the frontend assets, creates the Python distributions, and uploads them to PyPI through GitHub OIDC.
+
+To finish the one-time PyPI setup, add a Trusted Publisher for:
+
+- PyPI project: `gnn-exp`
+- GitHub owner: `HarryLuUMN`
+- GitHub repository: `gnn-vis-widgets`
+- Workflow name: `Publish Python Package`
+- Environment name: `pypi`
+
+After that, publishing can be triggered either by creating a GitHub Release or by manually running the workflow from the Actions tab.
+
 ## Features
 
 ### 🎨 **GraphVisualizer** - Dual View Graph Visualization
