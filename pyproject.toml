@@ -20,8 +20,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/HarryLuUMN/gnn-vis-widgets"
-Repository = "https://github.com/HarryLuUMN/gnn-vis-widgets"
+Homepage = "https://github.com/HarryLuUMN/gnn-exp"
+Repository = "https://github.com/HarryLuUMN/gnn-exp"
 
 # ----------------------------
 # setuptools config

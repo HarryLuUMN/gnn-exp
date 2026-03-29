@@ -20,7 +20,7 @@ To finish the one-time PyPI setup, add a Trusted Publisher for:
 
 - PyPI project: `gnn-exp`
 - GitHub owner: `HarryLuUMN`
-- GitHub repository: `gnn-vis-widgets`
+- GitHub repository: `gnn-exp`
 - Workflow name: `Publish Python Package`
 - Environment name: `pypi`
 
@@ -260,8 +260,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Repository
 
-- **Homepage**: https://github.com/HarryLuUMN/gnn-vis-widgets
-- **Repository**: https://github.com/HarryLuUMN/gnn-vis-widgets
+- **Homepage**: https://github.com/HarryLuUMN/gnn-exp
+- **Repository**: https://github.com/HarryLuUMN/gnn-exp
 
 ## Citation
 
