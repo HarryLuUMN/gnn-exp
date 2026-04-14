@@ -8,8 +8,6 @@ import {
     randomizeFeatures,
 } from "./graphEditorUtils";
 
-type Position = { x: number; y: number };
-
 interface GraphEditorProps {
     dataFile: any;
     handleSimulatedGraphChange?: (value: any) => void;
@@ -21,12 +19,7 @@ export default function GraphEditor({
     handleSimulatedGraphChange,
     onNodePositionsChange,
 }: GraphEditorProps): React.ReactElement {
-    const [defaultPos, setDefaultPos] = useState<Position>({
-        x: 200 / 2.2,
-        y: 120,
-    });
-    const [size, setSize] = useState({ width: 680, height: 420 });
-    const [isRunning, setIsRunning] = useState(true);
+    const [, setIsRunning] = useState(true);
 
     const svgContainer = useRef<HTMLDivElement>(null);
     const simulationRef = useRef<d3.Simulation<any, any> | null>(null);
@@ -42,8 +35,8 @@ export default function GraphEditor({
     // Sync state
     const selectedNodeRef = useRef<string | null>(null);
     const secondSelectedNodeRef = useRef<string | null>(null);
-    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-    const [secondSelectedNodeId, setSecondSelectedNodeId] = useState<
+    const [, setSelectedNodeId] = useState<string | null>(null);
+    const [, setSecondSelectedNodeId] = useState<
         string | null
     >(null);
 
@@ -111,11 +104,6 @@ export default function GraphEditor({
 
         const width = 640;
         const height = 640;
-        const color = d3.scaleOrdinal(d3.schemeTableau10);
-
-        
-
-        
         let data = simGraphData;
                 console.log("Loaded graph:", data);
 
@@ -129,7 +117,7 @@ export default function GraphEditor({
                 linksRef.current = links;
 
                 const simulation = d3
-                    .forceSimulation(nodes)
+                    .forceSimulation<any>(nodes)
                     .force(
                         "link",
                         d3
@@ -246,8 +234,6 @@ export default function GraphEditor({
 
                             const isFirstSelected =
                                 selectedNodeRef.current === clickedId;
-                            const isSecondSelected =
-                                secondSelectedNodeRef.current === clickedId;
 
                             if (
                                 selectedNodeRef.current &&

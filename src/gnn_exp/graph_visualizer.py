@@ -10,6 +10,14 @@ DIST = BASE_DIR / "static"
 
 class GraphVisualizer(anywidget.AnyWidget):
     graphData = traitlets.Dict().tag(sync=True)  
+    renderer = traitlets.Enum(
+        values=["svg", "auto", "webgl", "webgpu"],
+        default_value="svg",
+    ).tag(sync=True)
+    effectiveRenderer = traitlets.Enum(
+        values=["svg", "webgl", "webgpu"],
+        default_value="svg",
+    ).tag(sync=True)
 
     _esm = DIST / "dual_views" / "index.js"
     _css = DIST / "dual_views" / "index.css"
@@ -37,4 +45,3 @@ class GraphVisualizer(anywidget.AnyWidget):
         self.graphData = subs 
 
         print(f"Updated to {hoopNum}-hop subgraphs centered at {hubNodes}.")
-
