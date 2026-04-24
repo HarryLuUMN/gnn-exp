@@ -1,4 +1,10 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import {
+    detectCapabilities,
+    resolveRenderer,
+    type RendererMode,
+    type ResolvedRenderer,
+} from "../renderers/capabilities";
 import { modelPipeline } from "./modelPipeline";
 
 interface GNNVisualizerProps {
@@ -10,6 +16,9 @@ interface GNNVisualizerProps {
     queries: number[][];
     subgraphSample: any;
     mode: string;
+    renderer: RendererMode;
+    effectiveRenderer: ResolvedRenderer;
+    setEffectiveRenderer: (renderer: ResolvedRenderer) => void;
 }
 
 const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
@@ -21,8 +30,38 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     queries,
     subgraphSample,
     mode,
+    renderer,
+    effectiveRenderer,
+    setEffectiveRenderer,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
+    const [fallbackFailures, setFallbackFailures] = useState<
+        Partial<Record<ResolvedRenderer, string>>
+    >({});
+    const capabilities = React.useMemo(() => detectCapabilities(), []);
+    const resolution = React.useMemo(
+        () => resolveRenderer(renderer, capabilities, fallbackFailures),
+        [capabilities, fallbackFailures, renderer]
+    );
+
+    useEffect(() => {
+        if (effectiveRenderer !== resolution.effectiveRenderer) {
+            setEffectiveRenderer(resolution.effectiveRenderer);
+        }
+    }, [effectiveRenderer, resolution.effectiveRenderer, setEffectiveRenderer]);
+
+    const onBackendFailure = React.useCallback(
+        (backend: Exclude<ResolvedRenderer, "svg">, reason: string) => {
+            setFallbackFailures((current) => {
+                if (current[backend] === reason) {
+                    return current;
+                }
+
+                return { ...current, [backend]: reason };
+            });
+        },
+        []
+    );
     
     useEffect(() => {
         const container = containerRef.current;
@@ -35,6 +74,10 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
         console.log("graphData in GNNVisualizer:", graphData);
         console.log("queries in GNNVisualizer:", queries);
         console.log("mode in GNNVisualizer:", mode);
+        console.log("renderer in GNNVisualizer:", renderer, resolution);
+
+        let cancelled = false;
+        let cleanup: (() => void) | null = null;
 
         modelPipeline(
             container,
@@ -44,13 +87,57 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
             graphData,
             queries,
             subgraphSample,
-            mode
-        );
-        onLoadComplete();
+            mode,
+            resolution.effectiveRenderer,
+            (backend, reason) => {
+                if (!cancelled) {
+                    onBackendFailure(backend, reason);
+                }
+            }
+        ).then((pipelineCleanup) => {
+            if (cancelled) {
+                pipelineCleanup?.();
+                return;
+            }
+
+            cleanup = pipelineCleanup;
+            if (pipelineCleanup || resolution.effectiveRenderer === "svg") {
+                onLoadComplete();
+            }
+        }).catch((error: unknown) => {
+            if (cancelled) {
+                return;
+            }
+
+            const reason =
+                error instanceof Error ? error.message : "Renderer failed unexpectedly.";
+            if (resolution.effectiveRenderer === "svg") {
+                console.error("SVG visualization pipeline failed.", error);
+                onLoadComplete();
+                return;
+            }
+
+            onBackendFailure(resolution.effectiveRenderer, reason);
+        });
+
         return () => {
+            cancelled = true;
+            cleanup?.();
             container.replaceChildren();
         };
-    }, [graphData, intmData, modelInfo, onLoadComplete, queries, renderToken, subgraphSample, mode]);
+    }, [
+        graphData,
+        intmData,
+        modelInfo,
+        mode,
+        onBackendFailure,
+        onLoadComplete,
+        queries,
+        renderToken,
+        renderer,
+        resolution,
+        subgraphSample,
+    ]);
     
 
     return (

@@ -1,9 +1,17 @@
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
+import type { ResolvedRenderer } from "../renderers/capabilities";
 import { interactionPipeline } from "./interactionPipeline";
 import { extractSortedGNNLayerFeatures, processSubgraphSequenceDataPipe, transformDataToMatrixVisFormat } from "./utils/dataProcessingUtils";
+import { staticVisualizationPipeline } from "./staticVisualizationPipeline";
 import { visualizationPipeline } from "./visualizationPipeline";
 
-export function modelPipeline(
+export type PipelineCleanup = () => void;
+export type RendererFailureHandler = (
+    renderer: Exclude<ResolvedRenderer, "svg">,
+    reason: string
+) => void;
+
+export async function modelPipeline(
     container: HTMLDivElement,
     setIsLoading:any, 
     modelInfo:any, 
@@ -11,9 +19,11 @@ export function modelPipeline(
     graphData:any,
     queries: number[][],
     subgraphSample: any,
-    mode: string
-){
-    console.log("Starting visualization pipeline...", modelInfo, intmData, graphData, setIsLoading, queries, mode);
+    mode: string,
+    renderer: ResolvedRenderer = "svg",
+    onRendererFailure?: RendererFailureHandler
+): Promise<PipelineCleanup | null> {
+    console.log("Starting visualization pipeline...", modelInfo, intmData, graphData, setIsLoading, queries, mode, renderer);
 
     // define parameters
     const cellWidth = 6;
@@ -29,9 +39,40 @@ export function modelPipeline(
     
     console.log("Processed nodes and links:", nodeList, linkList);
     
-    // visualization pipes
+    if (renderer !== "svg") {
+        let result: Awaited<ReturnType<typeof staticVisualizationPipeline>>;
+        try {
+            result = await staticVisualizationPipeline(
+                container,
+                renderer,
+                cellWidth,
+                cellHeight,
+                adjacancyMatrix,
+                intmData,
+                linkList,
+                queries,
+                subgraphSample,
+                mode
+            );
+        } catch (error) {
+            const reason =
+                error instanceof Error ? error.message : "Static GPU renderer failed.";
+            onRendererFailure?.(renderer, reason);
+            return null;
+        }
+
+        if ("error" in result) {
+            onRendererFailure?.(renderer, result.error);
+            return null;
+        }
+
+        return result.cleanup;
+    }
+
     visualizationPipeline(container, cellWidth, cellHeight, adjacancyMatrix, intmData, linkList, queries, subgraphData, subgraphSample, mode);
     interactionPipeline(container, cellWidth, adjacancyMatrix, sortedGNNFeatures, modelInfo, mode, queries);
     
-    return null;
+    return () => {
+        container.replaceChildren();
+    };
 }

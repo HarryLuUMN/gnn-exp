@@ -2,6 +2,10 @@ import * as React from "react";
 import { createRender, useModelState } from "@anywidget/react";
 import "./style.css";
 import GNNVisualizer from "./GNNVisualizer";
+import type {
+    RendererMode,
+    ResolvedRenderer,
+} from "../renderers/capabilities";
 
 const render = createRender(() => {
     const [graphData] = useModelState<any>("graphData");
@@ -11,6 +15,9 @@ const render = createRender(() => {
     const [subgraphSample] = useModelState<any>("subgraphSample");
     const [renderToken] = useModelState<number>("renderToken");
     const [mode] = useModelState<string>("mode");
+    const [renderer] = useModelState<RendererMode>("renderer");
+    const [effectiveRenderer, setEffectiveRenderer] =
+        useModelState<ResolvedRenderer>("effectiveRenderer");
 
 	console.log("GNNVisualizer received graphData =", graphData);
 	console.log("GNNVisualizer received queries =", queries, "type:", typeof queries, "isArray:", Array.isArray(queries));
@@ -27,6 +34,9 @@ const render = createRender(() => {
                 queries={queries}
                 subgraphSample={subgraphSample}
                 mode={mode}
+                renderer={renderer}
+                effectiveRenderer={effectiveRenderer}
+                setEffectiveRenderer={setEffectiveRenderer}
             />
         </div>
     );

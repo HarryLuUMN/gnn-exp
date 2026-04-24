@@ -37,3 +37,7 @@
 .interaction_banned {
     pointer-events: none;
 }
+
+.gnn-static-gpu-canvas {
+  display: block;
+}
