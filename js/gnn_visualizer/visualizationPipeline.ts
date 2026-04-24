@@ -16,7 +16,7 @@ export function visualizationPipeline(container: HTMLDivElement, cellWidth: numb
     // visualization pipes
     visualizeMatrixPipe(container, adjacencyMatrix);
     visualizeIntermediateFeaturePipe(container, cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix, queries, subgraphData, subgraphSample, mode);
-    visualizeLinksBetweenLayersPipe(container, linkList, gapSizeBetweenLayers, intmData, subgraphData, subgraphSample);
+    visualizeLinksBetweenLayersPipe(container, linkList, gapSizeBetweenLayers, intmData, subgraphData, subgraphSample, cellWidth);
     resizeSvgToContent(container);
 }
 
@@ -135,7 +135,6 @@ export function visualizeIntermediateFeaturePipe(container: HTMLDivElement, cell
     for(let i=0; i < sortedGNNFeatures.length; i++){
         const subgraph = subgraphData[i];
         console.log("subgraph inside visualizeIntermediateFeaturePipe:", i, subgraph.nodes);
-        if (i > 0)layerX += cellWidth * sortedGNNFeatures[i-1][0].length;
         const layerFeatures = sortedGNNFeatures[i];
         for(let j=0; j < layerFeatures.length; j++){
             if (!subgraphSample || subgraph.nodes.includes(j)) {
@@ -171,7 +170,7 @@ export function visualizeIntermediateFeaturePipe(container: HTMLDivElement, cell
                 }
             }
         }
-        layerX +=  (gapXBetweenLayers);
+        layerX += (layerFeatures[0]?.length ?? 0) * cellWidth + gapXBetweenLayers;
     }
     console.log("mode inside visualizeIntermediateFeaturePipe:", mode);
     if (mode == 'node') visualizeFCForNodeTaskSubpipe(container, layerX, intmData);
@@ -185,7 +184,8 @@ export function visualizeLinksBetweenLayersPipe(
     gapSize: number,
     intmData: any,
     subgraphData: SubgraphResult[],
-    subgraphSample: any
+    subgraphSample: any,
+    cellWidth: number
 ){
     console.log("start visualizeLinksBetweenLayers");
     console.log("subgraphData inside visualizeLinksBetweenLayers:", subgraphData);
@@ -199,17 +199,23 @@ export function visualizeLinksBetweenLayersPipe(
     const sortedGNNFeatures = extractSortedGNNLayerFeatures(intmData);
     // const undirectLinks = removeRepeatLinks(links);
 
-    const startX = 50 + sortedGNNFeatures[0].length * 20 + 20;
+    const getLayerLeftX = (layerIndex: number) => {
+        let layerX = 50 + sortedGNNFeatures[0].length * 20 + 20;
+        for (let index = 0; index < layerIndex; index++) {
+            layerX += (sortedGNNFeatures[index][0]?.length ?? 0) * cellWidth + gapSize;
+        }
+        return layerX;
+    };
+    const getLayerRightX = (layerIndex: number) =>
+        getLayerLeftX(layerIndex) + (sortedGNNFeatures[layerIndex][0]?.length ?? 0) * cellWidth;
     const startY = 50;
-
-    let layerX = startX + sortedGNNFeatures[0][0].length * 6;
 
     // looping through layers
     for(let i=0; i < sortedGNNFeatures.length - 1; i++){
         // compute locations
-        const prevLayerX = layerX;
-        layerX += sortedGNNFeatures[i+1][0].length * 6 + gapSize;
-        const midLayerX = (prevLayerX + layerX) / 2;
+        const sourceRightX = getLayerRightX(i);
+        const targetLeftX = getLayerLeftX(i + 1);
+        const midLayerX = (sourceRightX + targetLeftX) / 2;
         const subgraph = subgraphData[i+1];
         console.log("subgraph inside visualizeLinksBetweenLayers:", i, subgraph.nodes);
         // looping through nodes in layer i
@@ -224,8 +230,8 @@ export function visualizeLinksBetweenLayersPipe(
                 const sourceY = startY + sourceIdx * 20 + 12;
                 const targetY = startY + targetIdx * 20 + 12;
 
-                const pathStart: [number, number] = [prevLayerX, sourceY];
-                const pathEnd: [number, number] = [layerX, targetY];
+                const pathStart: [number, number] = [sourceRightX, sourceY];
+                const pathEnd: [number, number] = [targetLeftX, targetY];
 
                 const mid1: [number, number] = [midLayerX, sourceY];
                 const mid2: [number, number] = [midLayerX, targetY];
@@ -244,9 +250,9 @@ export function visualizeLinksBetweenLayersPipe(
             if (!subgraphSample || subgraph.nodes.includes(n)) {
                 const layerY = startY + n * 20 + 12;
                 svg.append("line")
-                    .attr("x1", layerX)
+                    .attr("x1", sourceRightX)
                     .attr("y1", layerY)
-                    .attr("x2", layerX - 125)
+                    .attr("x2", targetLeftX)
                     .attr("y2", layerY)
                     .attr("stroke", "black")
                     .attr("opacity", 0.1)

@@ -203,6 +203,43 @@ function shouldRenderNode(
   return !subgraphSample || !!subgraph?.nodes.includes(nodeIndex);
 }
 
+function getFeatureStartX(nodeCount: number) {
+  return MATRIX_START_X + nodeCount * MATRIX_CELL_SIZE + MATRIX_CELL_SIZE;
+}
+
+function getLayerWidth(
+  sortedGNNFeatures: number[][][],
+  layerIndex: number,
+  cellWidth: number
+) {
+  return (sortedGNNFeatures[layerIndex]?.[0]?.length ?? 0) * cellWidth;
+}
+
+function getLayerLeftX(
+  sortedGNNFeatures: number[][][],
+  layerIndex: number,
+  cellWidth: number
+) {
+  let layerX = getFeatureStartX(sortedGNNFeatures[0]?.length ?? 0);
+
+  for (let index = 0; index < layerIndex; index += 1) {
+    layerX += getLayerWidth(sortedGNNFeatures, index, cellWidth) + LAYER_GAP;
+  }
+
+  return layerX;
+}
+
+function getLayerRightX(
+  sortedGNNFeatures: number[][][],
+  layerIndex: number,
+  cellWidth: number
+) {
+  return (
+    getLayerLeftX(sortedGNNFeatures, layerIndex, cellWidth) +
+    getLayerWidth(sortedGNNFeatures, layerIndex, cellWidth)
+  );
+}
+
 function addFeatureVector(
   builder: SceneBuilder,
   x: number,
@@ -260,20 +297,11 @@ function addIntermediateFeatures(
   sortedGNNFeatures: number[][][],
   cellWidth: number,
   cellHeight: number,
-  adjacencyMatrix: number[][],
   subgraphData: SubgraphResult[],
   subgraphSample: boolean
 ) {
-  const startX =
-    adjacencyMatrix.length * MATRIX_CELL_SIZE + MATRIX_CELL_SIZE + MATRIX_START_X;
-  let layerX = startX;
-
   for (let layerIndex = 0; layerIndex < sortedGNNFeatures.length; layerIndex += 1) {
-    const previousFeatureDim = sortedGNNFeatures[layerIndex - 1]?.[0]?.length ?? 0;
-    if (layerIndex > 0) {
-      layerX += cellWidth * previousFeatureDim;
-    }
-
+    const layerX = getLayerLeftX(sortedGNNFeatures, layerIndex, cellWidth);
     const subgraph = subgraphData[layerIndex];
     const layerFeatures = sortedGNNFeatures[layerIndex] ?? [];
     for (let nodeIndex = 0; nodeIndex < layerFeatures.length; nodeIndex += 1) {
@@ -291,11 +319,10 @@ function addIntermediateFeatures(
         2
       );
     }
-
-    layerX += LAYER_GAP;
   }
 
-  return layerX;
+  const lastLayerIndex = sortedGNNFeatures.length - 1;
+  return getLayerRightX(sortedGNNFeatures, lastLayerIndex, cellWidth) + LAYER_GAP;
 }
 
 function addBetweenLayerLinks(
@@ -306,16 +333,14 @@ function addBetweenLayerLinks(
   subgraphData: SubgraphResult[],
   subgraphSample: boolean
 ) {
-  const startX =
-    MATRIX_START_X +
-    sortedGNNFeatures[0].length * MATRIX_CELL_SIZE +
-    MATRIX_CELL_SIZE;
-  let layerX = startX + sortedGNNFeatures[0][0].length * cellWidth;
-
   for (let layerIndex = 0; layerIndex < sortedGNNFeatures.length - 1; layerIndex += 1) {
-    const previousLayerX = layerX;
-    layerX += sortedGNNFeatures[layerIndex + 1][0].length * cellWidth + LAYER_GAP;
-    const midLayerX = (previousLayerX + layerX) / 2;
+    const sourceRightX = getLayerRightX(sortedGNNFeatures, layerIndex, cellWidth);
+    const targetLeftX = getLayerLeftX(
+      sortedGNNFeatures,
+      layerIndex + 1,
+      cellWidth
+    );
+    const midLayerX = (sourceRightX + targetLeftX) / 2;
     const subgraph = subgraphData[layerIndex + 1];
 
     for (const link of links) {
@@ -330,10 +355,10 @@ function addBetweenLayerLinks(
       addPolyline(
         builder,
         sampleCubic(
-          [previousLayerX, sourceY],
+          [sourceRightX, sourceY],
           [midLayerX, sourceY],
           [midLayerX, targetY],
-          [layerX, targetY]
+          [targetLeftX, targetY]
         ),
         BLACK_FAINT,
         1
@@ -346,7 +371,12 @@ function addBetweenLayerLinks(
       }
 
       const layerY = MATRIX_START_Y + nodeIndex * NODE_ROW_HEIGHT + 12;
-      addPolyline(builder, [[layerX, layerY], [layerX - 125, layerY]], BLACK_FAINT, 1);
+      addPolyline(
+        builder,
+        [[sourceRightX, layerY], [targetLeftX, layerY]],
+        BLACK_FAINT,
+        1
+      );
     }
   }
 }
@@ -555,7 +585,6 @@ export function buildVisualizationScene(
       sortedGNNFeatures,
       cellWidth,
       cellHeight,
-      adjacencyMatrix,
       subgraphData,
       subgraphSample
     );
@@ -645,8 +674,12 @@ function addLineTriangles(
 
 export function buildStaticVisualizationGeometry(scene: StaticVisualizationScene) {
   const vertices: number[] = [];
+  const primitives = [
+    ...scene.primitives.filter((primitive) => primitive.kind === "polyline"),
+    ...scene.primitives.filter((primitive) => primitive.kind === "rect"),
+  ];
 
-  for (const primitive of scene.primitives) {
+  for (const primitive of primitives) {
     if (primitive.kind === "rect") {
       if (primitive.fill) {
         addRectTriangles(
