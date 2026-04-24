@@ -46,6 +46,10 @@ function isFeatureExpansionTarget(target: EventTarget | null) {
     );
 }
 
+function isSvgVisualizationTarget(target: EventTarget | null) {
+    return target instanceof Element && !!target.closest("svg");
+}
+
 const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     intmData,
     modelInfo, 
@@ -115,6 +119,12 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
             if (isFeatureExpansionTarget(event.target)) {
                 return;
             }
+            if (
+                resolution.effectiveRenderer === "svg" &&
+                isSvgVisualizationTarget(event.target)
+            ) {
+                return;
+            }
 
             dragRef.current = {
                 pointerId: event.pointerId,
@@ -126,7 +136,7 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
             };
             event.currentTarget.setPointerCapture(event.pointerId);
         },
-        [modelPan.x, modelPan.y]
+        [modelPan.x, modelPan.y, resolution.effectiveRenderer]
     );
 
     const onPointerMove = React.useCallback(
