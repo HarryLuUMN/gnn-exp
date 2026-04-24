@@ -136,3 +136,17 @@
 .gnn-static-gpu-canvas {
   display: block;
 }
+
+.gnn-static-gpu-layer {
+  display: block;
+  position: relative;
+}
+
+.gnn-static-hover-overlay {
+  inset: 0;
+  position: absolute;
+}
+
+.gnn-static-hover-marks {
+  pointer-events: none;
+}

@@ -30,7 +30,61 @@ export interface StaticVisualizationScene {
   width: number;
   height: number;
   primitives: StaticPrimitive[];
+  hoverTargets: StaticHoverTarget[];
+  matrixLayout: StaticMatrixLayout;
 }
+
+export type StaticBounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type StaticMatrixLayout = StaticBounds & {
+  cellSize: number;
+  nodeCount: number;
+};
+
+export type StaticHoverTarget =
+  | {
+      kind: "feature-node";
+      layerIndex: number;
+      nodeIndex: number;
+      bounds: StaticBounds;
+    }
+  | {
+      kind: "fc-node";
+      nodeIndex: number;
+      bounds: StaticBounds;
+    }
+  | {
+      kind: "agg-node";
+      bounds: StaticBounds;
+    }
+  | {
+      kind: "layer-link";
+      layerIndex: number;
+      sourceIndex: number;
+      targetIndex: number;
+      points: Array<[number, number]>;
+    }
+  | {
+      kind: "self-link";
+      layerIndex: number;
+      nodeIndex: number;
+      points: Array<[number, number]>;
+    }
+  | {
+      kind: "fc-link";
+      nodeIndex: number;
+      points: Array<[number, number]>;
+    }
+  | {
+      kind: "agg-link";
+      nodeIndex: number;
+      points: Array<[number, number]>;
+    };
 
 const MATRIX_START_X = 50;
 const MATRIX_START_Y = 50;
@@ -47,6 +101,8 @@ const GRAY_HALF: Rgba = [0.5, 0.5, 0.5, 0.5];
 
 type SceneBuilder = {
   primitives: StaticPrimitive[];
+  hoverTargets: StaticHoverTarget[];
+  matrixLayout: StaticMatrixLayout;
   minX: number;
   minY: number;
   maxX: number;
@@ -56,6 +112,15 @@ type SceneBuilder = {
 function createBuilder(): SceneBuilder {
   return {
     primitives: [],
+    hoverTargets: [],
+    matrixLayout: {
+      x: MATRIX_START_X,
+      y: MATRIX_START_Y,
+      width: 0,
+      height: 0,
+      cellSize: MATRIX_CELL_SIZE,
+      nodeCount: 0,
+    },
     minX: Number.POSITIVE_INFINITY,
     minY: Number.POSITIVE_INFINITY,
     maxX: Number.NEGATIVE_INFINITY,
@@ -169,6 +234,10 @@ function featureRgba(value: number): Rgba {
   return parseColor(featureColor(value), 1);
 }
 
+function addHoverTarget(builder: SceneBuilder, target: StaticHoverTarget) {
+  builder.hoverTargets.push(target);
+}
+
 function sampleCubic(
   start: [number, number],
   controlA: [number, number],
@@ -266,6 +335,14 @@ function addFeatureVector(
 function addMatrix(builder: SceneBuilder, adjacencyMatrix: number[][]) {
   const size = adjacencyMatrix.length;
   const matrixSize = size * MATRIX_CELL_SIZE;
+  builder.matrixLayout = {
+    x: MATRIX_START_X,
+    y: MATRIX_START_Y,
+    width: matrixSize,
+    height: matrixSize,
+    cellSize: MATRIX_CELL_SIZE,
+    nodeCount: size,
+  };
   addRect(builder, MATRIX_START_X, MATRIX_START_Y, matrixSize, matrixSize, {
     fill: MATRIX_OFF,
   });
@@ -318,6 +395,17 @@ function addIntermediateFeatures(
         cellHeight,
         2
       );
+      addHoverTarget(builder, {
+        kind: "feature-node",
+        layerIndex,
+        nodeIndex,
+        bounds: {
+          x: layerX,
+          y: MATRIX_START_Y + nodeIndex * NODE_ROW_HEIGHT + cellHeight / 2,
+          width: layerFeatures[nodeIndex].length * cellWidth,
+          height: cellHeight,
+        },
+      });
     }
   }
 
@@ -352,17 +440,25 @@ function addBetweenLayerLinks(
 
       const sourceY = MATRIX_START_Y + sourceIndex * NODE_ROW_HEIGHT + 12;
       const targetY = MATRIX_START_Y + targetIndex * NODE_ROW_HEIGHT + 12;
+      const points = sampleCubic(
+        [sourceRightX, sourceY],
+        [midLayerX, sourceY],
+        [midLayerX, targetY],
+        [targetLeftX, targetY]
+      );
       addPolyline(
         builder,
-        sampleCubic(
-          [sourceRightX, sourceY],
-          [midLayerX, sourceY],
-          [midLayerX, targetY],
-          [targetLeftX, targetY]
-        ),
+        points,
         BLACK_FAINT,
         1
       );
+      addHoverTarget(builder, {
+        kind: "layer-link",
+        layerIndex,
+        sourceIndex,
+        targetIndex,
+        points,
+      });
     }
 
     for (let nodeIndex = 0; nodeIndex < sortedGNNFeatures[layerIndex].length; nodeIndex += 1) {
@@ -371,12 +467,22 @@ function addBetweenLayerLinks(
       }
 
       const layerY = MATRIX_START_Y + nodeIndex * NODE_ROW_HEIGHT + 12;
+      const points: Array<[number, number]> = [
+        [sourceRightX, layerY],
+        [targetLeftX, layerY],
+      ];
       addPolyline(
         builder,
-        [[sourceRightX, layerY], [targetLeftX, layerY]],
+        points,
         BLACK_FAINT,
         1
       );
+      addHoverTarget(builder, {
+        kind: "self-link",
+        layerIndex,
+        nodeIndex,
+        points,
+      });
     }
   }
 }
@@ -391,12 +497,26 @@ function addSingleFC(
 ) {
   const y = layerY + nodeIndex * NODE_ROW_HEIGHT + 6;
   addFeatureVector(builder, layerX, y, feature, cellWidth, 12, 2);
-  addPolyline(
-    builder,
-    [[layerX, layerY + nodeIndex * NODE_ROW_HEIGHT + 12], [layerX - LAYER_GAP, layerY + nodeIndex * NODE_ROW_HEIGHT + 12]],
-    BLACK_FAINT,
-    1
-  );
+  addHoverTarget(builder, {
+    kind: "fc-node",
+    nodeIndex,
+    bounds: {
+      x: layerX,
+      y,
+      width: feature.length * cellWidth,
+      height: 12,
+    },
+  });
+  const points: Array<[number, number]> = [
+    [layerX, layerY + nodeIndex * NODE_ROW_HEIGHT + 12],
+    [layerX - LAYER_GAP, layerY + nodeIndex * NODE_ROW_HEIGHT + 12],
+  ];
+  addPolyline(builder, points, BLACK_FAINT, 1);
+  addHoverTarget(builder, {
+    kind: "fc-link",
+    nodeIndex,
+    points,
+  });
 }
 
 function addNodeTaskFC(
@@ -435,29 +555,41 @@ function addEdgeTaskFC(
     const layerYB = MATRIX_START_Y + nodeB * NODE_ROW_HEIGHT + 12;
     const layerYMid = (layerYA + layerYB) / 2;
     const midX = previousLayerX + 50;
+    const nodeAPoints = sampleCubic(
+      [previousLayerX, layerYA],
+      [midX, layerYA],
+      [midX, layerYMid],
+      [layerX, layerYMid]
+    );
+    const nodeBPoints = sampleCubic(
+      [previousLayerX, layerYB],
+      [midX, layerYB],
+      [midX, layerYMid],
+      [layerX, layerYMid]
+    );
 
     addPolyline(
       builder,
-      sampleCubic(
-        [previousLayerX, layerYA],
-        [midX, layerYA],
-        [midX, layerYMid],
-        [layerX, layerYMid]
-      ),
+      nodeAPoints,
       BLACK_FAINT,
       1
     );
     addPolyline(
       builder,
-      sampleCubic(
-        [previousLayerX, layerYB],
-        [midX, layerYB],
-        [midX, layerYMid],
-        [layerX, layerYMid]
-      ),
+      nodeBPoints,
       BLACK_FAINT,
       1
     );
+    addHoverTarget(builder, {
+      kind: "fc-link",
+      nodeIndex: queryIndex,
+      points: nodeAPoints,
+    });
+    addHoverTarget(builder, {
+      kind: "fc-link",
+      nodeIndex: queryIndex,
+      points: nodeBPoints,
+    });
 
     const probability = Math.random();
     addFeatureVector(
@@ -469,6 +601,16 @@ function addEdgeTaskFC(
       12,
       1
     );
+    addHoverTarget(builder, {
+      kind: "fc-node",
+      nodeIndex: queryIndex,
+      bounds: {
+        x: layerX,
+        y: layerYMid - 6,
+        width: 2 * cellWidth,
+        height: 12,
+      },
+    });
   }
 }
 
@@ -487,17 +629,23 @@ function addGraphTaskFC(
   const midLayerY = MATRIX_START_Y + (fcLayerFeatures.length * NODE_ROW_HEIGHT) / 2;
   for (let nodeIndex = 0; nodeIndex < fcLayerFeatures.length; nodeIndex += 1) {
     const currentY = MATRIX_START_Y + nodeIndex * NODE_ROW_HEIGHT + 12;
+    const points = sampleCubic(
+      [previousLayerX, currentY],
+      [previousLayerX + 50, currentY],
+      [previousLayerX + 50, midLayerY],
+      [layerX, midLayerY]
+    );
     addPolyline(
       builder,
-      sampleCubic(
-        [previousLayerX, currentY],
-        [previousLayerX + 50, currentY],
-        [previousLayerX + 50, midLayerY],
-        [layerX, midLayerY]
-      ),
+      points,
       BLACK_FAINT,
       1
     );
+    addHoverTarget(builder, {
+      kind: "agg-link",
+      nodeIndex,
+      points,
+    });
   }
 
   let averaged = Array(fcLayerFeatures[0].length).fill(0);
@@ -507,6 +655,15 @@ function addGraphTaskFC(
   averaged = divideVector(averaged, fcLayerFeatures.length);
 
   addFeatureVector(builder, layerX, midLayerY - 6, averaged, cellWidth, 12, 1);
+  addHoverTarget(builder, {
+    kind: "agg-node",
+    bounds: {
+      x: layerX,
+      y: midLayerY - 6,
+      width: averaged.length * cellWidth,
+      height: 12,
+    },
+  });
   addSingleFC(builder, layerX + LAYER_GAP, midLayerY - 12, randomVector(4), 0, cellWidth);
 }
 
@@ -535,7 +692,20 @@ function addFCByMode(
 
 function translateScene(builder: SceneBuilder): StaticVisualizationScene {
   if (!Number.isFinite(builder.minX) || !Number.isFinite(builder.minY)) {
-    return { width: 1, height: 1, primitives: [] };
+    return {
+      width: 1,
+      height: 1,
+      primitives: [],
+      hoverTargets: [],
+      matrixLayout: {
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        cellSize: MATRIX_CELL_SIZE,
+        nodeCount: 0,
+      },
+    };
   }
 
   const minX = Math.floor(builder.minX - SCENE_PADDING / 2);
@@ -560,6 +730,28 @@ function translateScene(builder: SceneBuilder): StaticVisualizationScene {
         points: primitive.points.map(([x, y]) => [x - minX, y - minY]),
       };
     }),
+    hoverTargets: builder.hoverTargets.map((target) => {
+      if ("bounds" in target) {
+        return {
+          ...target,
+          bounds: {
+            ...target.bounds,
+            x: target.bounds.x - minX,
+            y: target.bounds.y - minY,
+          },
+        };
+      }
+
+      return {
+        ...target,
+        points: target.points.map(([x, y]) => [x - minX, y - minY]),
+      };
+    }),
+    matrixLayout: {
+      ...builder.matrixLayout,
+      x: builder.matrixLayout.x - minX,
+      y: builder.matrixLayout.y - minY,
+    },
   };
 }
 

@@ -7,6 +7,7 @@ import { renderWebglStaticVisualization } from "./renderers/webglStaticRenderer"
 import {
   renderWebgpuStaticVisualization,
 } from "./renderers/webgpuStaticRenderer";
+import { attachStaticHoverOverlay } from "./renderers/staticHoverOverlay";
 
 export type StaticGpuRenderer = Exclude<ResolvedRenderer, "svg">;
 
@@ -67,11 +68,19 @@ export async function staticVisualizationPipeline(
     return renderResult;
   }
 
+  const hoverOverlay = attachStaticHoverOverlay({
+    canvas,
+    scene,
+    adjacencyMatrix,
+    queries,
+    mode,
+  });
+
   return {
     scene,
     cleanup() {
+      hoverOverlay.destroy();
       renderResult.destroy();
-      canvas.remove();
     },
   };
 }
