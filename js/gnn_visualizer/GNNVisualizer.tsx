@@ -7,6 +7,10 @@ import {
 } from "../renderers/capabilities";
 import { modelPipeline } from "./modelPipeline";
 
+const MIN_MODEL_ZOOM = 0.25;
+const MAX_MODEL_ZOOM = 4;
+const MODEL_ZOOM_STEP = 0.25;
+
 interface GNNVisualizerProps {
     intmData: any;
     modelInfo: any;
@@ -20,6 +24,20 @@ interface GNNVisualizerProps {
     effectiveRenderer: ResolvedRenderer;
     setEffectiveRenderer: (renderer: ResolvedRenderer) => void;
 }
+
+type PanState = {
+    x: number;
+    y: number;
+};
+
+type DragState = {
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    didMove: boolean;
+};
 
 const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     intmData,
@@ -35,6 +53,12 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     setEffectiveRenderer,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
+    const viewportRef = useRef<HTMLDivElement>(null);
+    const dragRef = useRef<DragState | null>(null);
+    const suppressClickRef = useRef(false);
+    const [modelZoom, setModelZoom] = useState(1);
+    const [modelPan, setModelPan] = useState<PanState>({ x: 0, y: 0 });
+    const [isPanning, setIsPanning] = useState(false);
     const [fallbackFailures, setFallbackFailures] = useState<
         Partial<Record<ResolvedRenderer, string>>
     >({});
@@ -59,6 +83,94 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
 
                 return { ...current, [backend]: reason };
             });
+        },
+        []
+    );
+
+    const zoomOut = React.useCallback(() => {
+        setModelZoom((value) => Math.max(MIN_MODEL_ZOOM, value - MODEL_ZOOM_STEP));
+    }, []);
+
+    const zoomIn = React.useCallback(() => {
+        setModelZoom((value) => Math.min(MAX_MODEL_ZOOM, value + MODEL_ZOOM_STEP));
+    }, []);
+
+    const resetView = React.useCallback(() => {
+        setModelZoom(1);
+        setModelPan({ x: 0, y: 0 });
+    }, []);
+
+    const onPointerDown = React.useCallback(
+        (event: React.PointerEvent<HTMLDivElement>) => {
+            if (event.button !== 0) {
+                return;
+            }
+
+            dragRef.current = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                originX: modelPan.x,
+                originY: modelPan.y,
+                didMove: false,
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+        },
+        [modelPan.x, modelPan.y]
+    );
+
+    const onPointerMove = React.useCallback(
+        (event: React.PointerEvent<HTMLDivElement>) => {
+            const drag = dragRef.current;
+            if (!drag || drag.pointerId !== event.pointerId) {
+                return;
+            }
+
+            const dx = event.clientX - drag.startX;
+            const dy = event.clientY - drag.startY;
+            if (!drag.didMove && Math.hypot(dx, dy) < 3) {
+                return;
+            }
+
+            drag.didMove = true;
+            setIsPanning(true);
+            setModelPan({
+                x: drag.originX + dx,
+                y: drag.originY + dy,
+            });
+            event.preventDefault();
+        },
+        []
+    );
+
+    const finishPan = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+        const drag = dragRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) {
+            return;
+        }
+
+        if (drag.didMove) {
+            suppressClickRef.current = true;
+            window.setTimeout(() => {
+                suppressClickRef.current = false;
+            }, 0);
+        }
+
+        dragRef.current = null;
+        setIsPanning(false);
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+    }, []);
+
+    const onClickCapture = React.useCallback(
+        (event: React.MouseEvent<HTMLDivElement>) => {
+            if (!suppressClickRef.current) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
         },
         []
     );
@@ -141,18 +253,76 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     
 
     return (
-        <div
-            ref={containerRef}
-            style={{
-                width: "100%",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "start",
-                height: "auto",
-                overflow: "auto", 
-                overflowX: "auto",
-            }}
-        ></div>
+        <div className="gnn-model-shell">
+            <div className="gnn-model-toolbar">
+                <div className="gnn-model-toolbar__status">
+                    <span>
+                        Requested: <strong>{renderer.toUpperCase()}</strong>
+                    </span>
+                    <span>
+                        Active: <strong>{resolution.effectiveRenderer.toUpperCase()}</strong>
+                    </span>
+                    <span>Zoom: {Math.round(modelZoom * 100)}%</span>
+                    {resolution.reason ? (
+                        <span className="gnn-model-toolbar__reason">
+                            {resolution.reason}
+                        </span>
+                    ) : null}
+                </div>
+                <div className="gnn-model-toolbar__controls">
+                    <span className="gnn-model-toolbar__hint">
+                        Drag the canvas to pan.
+                    </span>
+                    <button
+                        className="gnn-model-button"
+                        type="button"
+                        onClick={zoomOut}
+                        disabled={modelZoom <= MIN_MODEL_ZOOM}
+                    >
+                        Zoom Out
+                    </button>
+                    <button
+                        className="gnn-model-button"
+                        type="button"
+                        onClick={resetView}
+                        disabled={
+                            modelZoom === 1 &&
+                            modelPan.x === 0 &&
+                            modelPan.y === 0
+                        }
+                    >
+                        Reset
+                    </button>
+                    <button
+                        className="gnn-model-button"
+                        type="button"
+                        onClick={zoomIn}
+                        disabled={modelZoom >= MAX_MODEL_ZOOM}
+                    >
+                        Zoom In
+                    </button>
+                </div>
+            </div>
+            <div
+                ref={viewportRef}
+                className={`gnn-model-viewport${
+                    isPanning ? " gnn-model-viewport--panning" : ""
+                }`}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={finishPan}
+                onPointerCancel={finishPan}
+                onClickCapture={onClickCapture}
+            >
+                <div
+                    ref={containerRef}
+                    className="gnn-model-content"
+                    style={{
+                        transform: `translate(${modelPan.x}px, ${modelPan.y}px) scale(${modelZoom})`,
+                    }}
+                />
+            </div>
+        </div>
     );
 };
 
