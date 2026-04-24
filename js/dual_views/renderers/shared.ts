@@ -85,14 +85,16 @@ export function getGraphTransform(
   width: number,
   height: number,
   padding: number,
-  scaleFactor: number
+  scaleFactor: number,
+  panX: number = 0,
+  panY: number = 0
 ): GraphTransform {
   const innerWidth = width - 2 * padding;
   const innerHeight = height - 2 * padding;
 
   return {
-    translateX: padding + (innerWidth / 2) * (1 - scaleFactor),
-    translateY: padding + (innerHeight / 2) * (1 - scaleFactor),
+    translateX: padding + (innerWidth / 2) * (1 - scaleFactor) + panX,
+    translateY: padding + (innerHeight / 2) * (1 - scaleFactor) + panY,
     scale: scaleFactor,
     innerWidth,
     innerHeight,

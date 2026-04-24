@@ -31,6 +31,10 @@
 	font-size: 12px;
 }
 
+.renderer-toolbar__hint {
+	color: #6b817b;
+}
+
 .renderer-button {
 	border: 1px solid #bfd1cb;
 	border-radius: 999px;
@@ -107,4 +111,12 @@
 
 .dual-views-overlay rect {
 	pointer-events: all;
+}
+
+.dual-views-graph-hit-area {
+	cursor: grab;
+}
+
+.dual-views-graph-hit-area--panning {
+	cursor: grabbing;
 }

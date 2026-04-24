@@ -23,6 +23,8 @@ interface GraphViewProps {
   height?: number;
   padding?: number;
   scaleFactor?: number;
+  panOffset: { x: number; y: number };
+  onPanChange: (panOffset: { x: number; y: number }) => void;
   renderer: ResolvedRenderer;
   nodes: SceneNode[];
   links: LinkDatum[];
@@ -187,6 +189,8 @@ const GraphView: React.FC<GraphViewProps> = ({
   height = 600,
   padding = 60,
   scaleFactor = 1.4,
+  panOffset,
+  onPanChange,
   renderer,
   nodes,
   links,
@@ -199,14 +203,29 @@ const GraphView: React.FC<GraphViewProps> = ({
   onRendererFailure,
 }) => {
   const transform = React.useMemo(
-    () => getGraphTransform(width, height, padding, scaleFactor),
-    [height, padding, scaleFactor, width]
+    () =>
+      getGraphTransform(
+        width,
+        height,
+        padding,
+        scaleFactor,
+        panOffset.x,
+        panOffset.y
+      ),
+    [height, padding, panOffset.x, panOffset.y, scaleFactor, width]
   );
   const nodesById = React.useMemo(
     () => new Map(nodes.map((node) => [node.id, node] as const)),
     [nodes, sceneVersion]
   );
   const draggingRef = React.useRef<number | null>(null);
+  const panningRef = React.useRef<{
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
+  } | null>(null);
+  const [isPanning, setIsPanning] = React.useState(false);
 
   const drawArgs = React.useMemo<GraphCanvasDrawArgs>(
     () => ({
@@ -255,11 +274,24 @@ const GraphView: React.FC<GraphViewProps> = ({
 
   const handlePointerDown = React.useCallback(
     (event: React.PointerEvent<SVGRectElement>) => {
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+
       const { x, y } = getPointerPosition(event);
       const graphPoint = screenToGraphPoint(x, y, transform);
       const hitNode = findNodeAtPoint(nodes, graphPoint.x, graphPoint.y);
 
       if (!hitNode) {
+        panningRef.current = {
+          startX: x,
+          startY: y,
+          startPanX: panOffset.x,
+          startPanY: panOffset.y,
+        };
+        setIsPanning(true);
+        onHover?.(null);
+        event.currentTarget.setPointerCapture(event.pointerId);
         return;
       }
 
@@ -271,12 +303,29 @@ const GraphView: React.FC<GraphViewProps> = ({
       onHover?.({ kind: "node", nodeId: hitNode.id });
       event.currentTarget.setPointerCapture(event.pointerId);
     },
-    [beginDrag, getPointerPosition, nodes, onHover, transform]
+    [
+      beginDrag,
+      getPointerPosition,
+      nodes,
+      onHover,
+      panOffset.x,
+      panOffset.y,
+      transform,
+    ]
   );
 
   const handlePointerMove = React.useCallback(
     (event: React.PointerEvent<SVGRectElement>) => {
       const { x, y } = getPointerPosition(event);
+
+      if (panningRef.current !== null) {
+        const panStart = panningRef.current;
+        onPanChange({
+          x: panStart.startPanX + x - panStart.startX,
+          y: panStart.startPanY + y - panStart.startY,
+        });
+        return;
+      }
 
       if (draggingRef.current !== null) {
         const graphPoint = screenToGraphPoint(x, y, transform);
@@ -287,7 +336,14 @@ const GraphView: React.FC<GraphViewProps> = ({
 
       updateHoverFromPoint(x, y);
     },
-    [dragTo, getPointerPosition, onHover, transform, updateHoverFromPoint]
+    [
+      dragTo,
+      getPointerPosition,
+      onHover,
+      onPanChange,
+      transform,
+      updateHoverFromPoint,
+    ]
   );
 
   const handlePointerUp = React.useCallback(
@@ -297,6 +353,12 @@ const GraphView: React.FC<GraphViewProps> = ({
         draggingRef.current = null;
         endDrag();
       }
+
+      if (panningRef.current !== null) {
+        panningRef.current = null;
+        setIsPanning(false);
+      }
+
       updateHoverFromPoint(x, y);
     },
     [endDrag, getPointerPosition, updateHoverFromPoint]
@@ -308,8 +370,17 @@ const GraphView: React.FC<GraphViewProps> = ({
       endDrag();
     }
 
+    if (panningRef.current !== null) {
+      panningRef.current = null;
+      setIsPanning(false);
+    }
+
     onHover?.(null);
   }, [endDrag, onHover]);
+
+  const hitAreaClassName = `dual-views-graph-hit-area${
+    isPanning ? " dual-views-graph-hit-area--panning" : ""
+  }`;
 
   const overlayLabels = (
     <g
@@ -347,6 +418,7 @@ const GraphView: React.FC<GraphViewProps> = ({
           viewBox={`0 0 ${width} ${height}`}
         >
           <rect
+            className={hitAreaClassName}
             width={width}
             height={height}
             fill="transparent"
@@ -377,6 +449,7 @@ const GraphView: React.FC<GraphViewProps> = ({
       >
         {overlayLabels}
         <rect
+          className={hitAreaClassName}
           width={width}
           height={height}
           fill="transparent"

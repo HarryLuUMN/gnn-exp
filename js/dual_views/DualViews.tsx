@@ -17,6 +17,8 @@ const MIN_GRAPH_ZOOM = 0.5;
 const MAX_GRAPH_ZOOM = 4;
 const GRAPH_ZOOM_STEP = 0.25;
 const MATRIX_AXIS_LABEL_LIMIT = 80;
+const VIEW_WIDTH = 1200;
+const VIEW_HEIGHT = 900;
 
 interface Props {
   graphData: any;
@@ -52,13 +54,14 @@ const DualViews: React.FC<Props> = ({
   const [links, setLinks] = useState<LinkDatum[]>([]);
   const [hover, setHover] = useState<HoverState>(null);
   const [graphZoom, setGraphZoom] = useState(1);
+  const [graphPan, setGraphPan] = useState({ x: 0, y: 0 });
   const [fallbackFailures, setFallbackFailures] = useState<
     Partial<Record<ResolvedRenderer, string>>
   >({});
 
   const styles = dualViewVisualizerStyle;
-  const graphWidth = 800;
-  const graphHeight = 600;
+  const graphWidth = VIEW_WIDTH;
+  const graphHeight = VIEW_HEIGHT;
   const padding = 60;
   const capabilities = React.useMemo(() => detectCapabilities(), []);
   const resolution = React.useMemo(
@@ -67,6 +70,8 @@ const DualViews: React.FC<Props> = ({
   );
   const graphScaleFactor = BASE_GRAPH_SCALE * graphZoom;
   const showMatrixAxisLabels = nodes.length <= MATRIX_AXIS_LABEL_LIMIT;
+  const isGraphViewReset =
+    graphZoom === 1 && graphPan.x === 0 && graphPan.y === 0;
 
   // load data
   useEffect(() => {
@@ -128,6 +133,7 @@ const DualViews: React.FC<Props> = ({
 
   const resetZoom = React.useCallback(() => {
     setGraphZoom(1);
+    setGraphPan({ x: 0, y: 0 });
   }, []);
 
   const onGraphPositions = (positions: { id: number; x: number; y: number }[]) => {
@@ -182,6 +188,7 @@ const DualViews: React.FC<Props> = ({
           </div>
           <div className="renderer-toolbar__zoom">
             <span>Graph zoom: {Math.round(graphZoom * 100)}%</span>
+            <span className="renderer-toolbar__hint">Drag empty graph space to pan.</span>
             <button
               className="renderer-button"
               type="button"
@@ -194,7 +201,7 @@ const DualViews: React.FC<Props> = ({
               className="renderer-button"
               type="button"
               onClick={resetZoom}
-              disabled={graphZoom === 1}
+              disabled={isGraphViewReset}
             >
               Reset
             </button>
@@ -224,6 +231,8 @@ const DualViews: React.FC<Props> = ({
             endDrag={scene.endDrag}
             onHover={setHover}
             hover={hover}
+            panOffset={graphPan}
+            onPanChange={setGraphPan}
             onRendererFailure={onBackendFailure}
           />
           </div>
