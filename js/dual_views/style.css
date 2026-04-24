@@ -74,11 +74,22 @@
 
 .dual-views-stage {
 	position: relative;
+	overflow: visible;
+}
+
+.dual-views-layer {
+	position: absolute;
+	inset: 0;
+	display: block;
+	width: 100%;
+	height: 100%;
 }
 
 .dual-views-canvas,
 .dual-views-overlay {
-	position: absolute;
-	inset: 0;
-	display: block;
+	pointer-events: none;
+}
+
+.dual-views-overlay rect {
+	pointer-events: all;
 }

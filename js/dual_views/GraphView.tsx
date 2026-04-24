@@ -113,8 +113,8 @@ const CanvasGraphLayer: React.FC<CanvasGraphLayerProps> = ({
   return (
     <canvas
       ref={canvasRef}
-      className="dual-views-canvas"
-      style={{ width: drawArgs.width, height: drawArgs.height }}
+      className="dual-views-layer dual-views-canvas"
+      style={{ width: "100%", height: "100%" }}
     />
   );
 };
@@ -133,7 +133,12 @@ const SvgGraphRenderer: React.FC<{
   );
 
   return (
-    <svg width={width} height={height} style={{ display: "block" }}>
+    <svg
+      className="dual-views-layer"
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+    >
       <g
         transform={`translate(${transform.translateX},${transform.translateY}) scale(${transform.scale})`}
       >
@@ -238,12 +243,14 @@ const GraphView: React.FC<GraphViewProps> = ({
   const getPointerPosition = React.useCallback(
     (event: React.PointerEvent<SVGRectElement>) => {
       const bounds = event.currentTarget.getBoundingClientRect();
+      const scaleX = bounds.width === 0 ? 1 : width / bounds.width;
+      const scaleY = bounds.height === 0 ? 1 : height / bounds.height;
       return {
-        x: event.clientX - bounds.left,
-        y: event.clientY - bounds.top,
+        x: (event.clientX - bounds.left) * scaleX,
+        y: (event.clientY - bounds.top) * scaleY,
       };
     },
-    []
+    [height, width]
   );
 
   const handlePointerDown = React.useCallback(
@@ -333,7 +340,12 @@ const GraphView: React.FC<GraphViewProps> = ({
           links={links}
           hover={hover}
         />
-        <svg className="dual-views-overlay" width={width} height={height}>
+        <svg
+          className="dual-views-layer dual-views-overlay"
+          width={width}
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
+        >
           <rect
             width={width}
             height={height}
@@ -357,7 +369,12 @@ const GraphView: React.FC<GraphViewProps> = ({
         sceneVersion={sceneVersion}
         onRendererFailure={onRendererFailure}
       />
-      <svg className="dual-views-overlay" width={width} height={height}>
+      <svg
+        className="dual-views-layer dual-views-overlay"
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+      >
         {overlayLabels}
         <rect
           width={width}

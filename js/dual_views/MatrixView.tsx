@@ -105,8 +105,8 @@ const CanvasMatrixLayer: React.FC<CanvasMatrixLayerProps> = ({
   return (
     <canvas
       ref={canvasRef}
-      className="dual-views-canvas"
-      style={{ width: drawArgs.width, height: drawArgs.height }}
+      className="dual-views-layer dual-views-canvas"
+      style={{ width: "100%", height: "100%" }}
     />
   );
 };
@@ -120,7 +120,12 @@ const SvgMatrixRenderer: React.FC<{
   hover?: HoverState;
 }> = ({ width, height, nodes, matrix, layout, hover }) => {
   return (
-    <svg width={width} height={height} style={{ display: "block" }}>
+    <svg
+      className="dual-views-layer"
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+    >
       <g>
         {matrix.map((row, rowIndex) =>
           row.map((value, colIndex) => (
@@ -204,12 +209,14 @@ const MatrixView: React.FC<MatrixViewProps> = ({
   const getPointerPosition = React.useCallback(
     (event: React.PointerEvent<SVGRectElement>) => {
       const bounds = event.currentTarget.getBoundingClientRect();
+      const scaleX = bounds.width === 0 ? 1 : width / bounds.width;
+      const scaleY = bounds.height === 0 ? 1 : height / bounds.height;
       return {
-        x: event.clientX - bounds.left,
-        y: event.clientY - bounds.top,
+        x: (event.clientX - bounds.left) * scaleX,
+        y: (event.clientY - bounds.top) * scaleY,
       };
     },
-    []
+    [height, width]
   );
 
   const updateHoverFromPoint = React.useCallback(
@@ -256,7 +263,12 @@ const MatrixView: React.FC<MatrixViewProps> = ({
   }, [onHover]);
 
   const overlay = (
-    <svg className="dual-views-overlay" width={width} height={height}>
+    <svg
+      className="dual-views-layer dual-views-overlay"
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+    >
       <rect
         width={width}
         height={height}
@@ -292,7 +304,12 @@ const MatrixView: React.FC<MatrixViewProps> = ({
         sceneVersion={sceneVersion}
         onRendererFailure={onRendererFailure}
       />
-      <svg className="dual-views-overlay" width={width} height={height}>
+      <svg
+        className="dual-views-layer dual-views-overlay"
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+      >
         <g pointerEvents="none">
           {nodes.map((node, index) => (
             <text

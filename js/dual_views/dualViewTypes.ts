@@ -8,7 +8,7 @@ export type NodeDatum = {
 };
 
 export type LinkDatum = {
-  source: number; // store ids; d3 will replace with objects during sim
+  source: number;
   target: number;
   attr?: any;
 };

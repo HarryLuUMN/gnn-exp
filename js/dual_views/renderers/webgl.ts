@@ -211,6 +211,27 @@ function deleteBuffer(gl: WebGL2RenderingContext, buffer: WebGLBuffer | null) {
   }
 }
 
+function bindFloatAttribute(
+  gl: WebGL2RenderingContext,
+  location: number,
+  size: number,
+  stride: number,
+  offset: number
+) {
+  if (location < 0) {
+    return;
+  }
+
+  gl.enableVertexAttribArray(location);
+  gl.vertexAttribPointer(location, size, gl.FLOAT, false, stride, offset);
+}
+
+function disableAttribute(gl: WebGL2RenderingContext, location: number) {
+  if (location >= 0) {
+    gl.disableVertexAttribArray(location);
+  }
+}
+
 export function createWebglGraphEngine(
   canvas: HTMLCanvasElement
 ): EngineResult<GraphCanvasEngine> {
@@ -269,18 +290,11 @@ export function createWebglGraphEngine(
         gl.uniform2f(edgeProgram.viewport, args.width, args.height);
         gl.bindBuffer(gl.ARRAY_BUFFER, edgeBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, geometry.edgeVertices, gl.DYNAMIC_DRAW);
-        gl.enableVertexAttribArray(edgeProgram.position);
-        gl.vertexAttribPointer(
-          edgeProgram.position,
-          2,
-          gl.FLOAT,
-          false,
-          24,
-          0
-        );
-        gl.enableVertexAttribArray(edgeProgram.color);
-        gl.vertexAttribPointer(edgeProgram.color, 4, gl.FLOAT, false, 24, 8);
+        bindFloatAttribute(gl, edgeProgram.position, 2, 24, 0);
+        bindFloatAttribute(gl, edgeProgram.color, 4, 24, 8);
         gl.drawArrays(gl.LINES, 0, geometry.edgeVertices.length / 6);
+        disableAttribute(gl, edgeProgram.position);
+        disableAttribute(gl, edgeProgram.color);
       }
 
       if (geometry.nodeVertices.length > 0) {
@@ -288,15 +302,15 @@ export function createWebglGraphEngine(
         gl.uniform2f(nodeProgram.viewport, args.width, args.height);
         gl.bindBuffer(gl.ARRAY_BUFFER, nodeBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, geometry.nodeVertices, gl.DYNAMIC_DRAW);
-        gl.enableVertexAttribArray(nodeProgram.position);
-        gl.vertexAttribPointer(nodeProgram.position, 2, gl.FLOAT, false, 48, 0);
-        gl.enableVertexAttribArray(nodeProgram.local);
-        gl.vertexAttribPointer(nodeProgram.local, 2, gl.FLOAT, false, 48, 8);
-        gl.enableVertexAttribArray(nodeProgram.fill);
-        gl.vertexAttribPointer(nodeProgram.fill, 4, gl.FLOAT, false, 48, 16);
-        gl.enableVertexAttribArray(nodeProgram.stroke);
-        gl.vertexAttribPointer(nodeProgram.stroke, 4, gl.FLOAT, false, 48, 32);
+        bindFloatAttribute(gl, nodeProgram.position, 2, 48, 0);
+        bindFloatAttribute(gl, nodeProgram.local, 2, 48, 8);
+        bindFloatAttribute(gl, nodeProgram.fill, 4, 48, 16);
+        bindFloatAttribute(gl, nodeProgram.stroke, 4, 48, 32);
         gl.drawArrays(gl.TRIANGLES, 0, geometry.nodeVertices.length / 12);
+        disableAttribute(gl, nodeProgram.position);
+        disableAttribute(gl, nodeProgram.local);
+        disableAttribute(gl, nodeProgram.fill);
+        disableAttribute(gl, nodeProgram.stroke);
       }
     },
     destroy() {
@@ -356,11 +370,11 @@ export function createWebglMatrixEngine(
       gl.uniform2f(program.viewport, args.width, args.height);
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
       gl.bufferData(gl.ARRAY_BUFFER, geometry, gl.DYNAMIC_DRAW);
-      gl.enableVertexAttribArray(program.position);
-      gl.vertexAttribPointer(program.position, 2, gl.FLOAT, false, 24, 0);
-      gl.enableVertexAttribArray(program.color);
-      gl.vertexAttribPointer(program.color, 4, gl.FLOAT, false, 24, 8);
+      bindFloatAttribute(gl, program.position, 2, 24, 0);
+      bindFloatAttribute(gl, program.color, 4, 24, 8);
       gl.drawArrays(gl.TRIANGLES, 0, geometry.length / 6);
+      disableAttribute(gl, program.position);
+      disableAttribute(gl, program.color);
     },
     destroy() {
       gl.deleteProgram(program.program);

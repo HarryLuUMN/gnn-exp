@@ -75,6 +75,7 @@ export function useGraphScene({
     });
 
     linksRef.current = links.map((link) => ({ ...link }));
+    const simulationLinks = links.map((link) => ({ ...link }));
 
     simulationRef.current?.stop();
 
@@ -88,7 +89,7 @@ export function useGraphScene({
       .force(
         "link",
         d3
-          .forceLink<SceneNode, LinkDatum>(linksRef.current)
+          .forceLink<SceneNode, LinkDatum>(simulationLinks)
           .id((datum) => datum.id)
           .distance(80)
       )
