@@ -66,6 +66,19 @@ const MATRIX_ON = "#69b3a2";
 const MATRIX_OFF = "#eeeeee";
 const MATRIX_HIGHLIGHT = "#006d5b";
 
+const COMMUNITY_COLORS = [
+  { fill: "#d8f3dc", stroke: "#2d6a4f", rgba: [0.8471, 0.9529, 0.8627, 1], strokeRgba: [0.1765, 0.4157, 0.3098, 1] },
+  { fill: "#ffe8d6", stroke: "#bc6c25", rgba: [1, 0.9098, 0.8392, 1], strokeRgba: [0.7373, 0.4235, 0.1451, 1] },
+  { fill: "#dbeafe", stroke: "#1d4ed8", rgba: [0.8588, 0.9176, 0.9961, 1], strokeRgba: [0.1137, 0.3059, 0.8471, 1] },
+  { fill: "#fde2e4", stroke: "#d62828", rgba: [0.9922, 0.8863, 0.8941, 1], strokeRgba: [0.8392, 0.1569, 0.1569, 1] },
+  { fill: "#e9d8fd", stroke: "#6b21a8", rgba: [0.9137, 0.8471, 0.9922, 1], strokeRgba: [0.4196, 0.1294, 0.6588, 1] },
+  { fill: "#cffafe", stroke: "#0e7490", rgba: [0.8118, 0.9804, 0.9961, 1], strokeRgba: [0.0549, 0.4549, 0.5647, 1] },
+  { fill: "#fef3c7", stroke: "#b45309", rgba: [0.9961, 0.9529, 0.7804, 1], strokeRgba: [0.7059, 0.3255, 0.0353, 1] },
+  { fill: "#dcfce7", stroke: "#15803d", rgba: [0.8627, 0.9882, 0.9059, 1], strokeRgba: [0.0824, 0.502, 0.2392, 1] },
+  { fill: "#fce7f3", stroke: "#be185d", rgba: [0.9882, 0.9059, 0.9529, 1], strokeRgba: [0.7451, 0.0941, 0.3647, 1] },
+  { fill: "#e0f2fe", stroke: "#0369a1", rgba: [0.8784, 0.949, 0.9961, 1], strokeRgba: [0.0118, 0.4118, 0.6314, 1] },
+] as const;
+
 const NODE_FILL_RGBA = new Float32Array([1, 1, 1, 1]);
 const NODE_STROKE_RGBA = new Float32Array([0.4118, 0.7019, 0.6353, 1]);
 const NODE_HIGHLIGHT_FILL_RGBA = new Float32Array([0, 0.4275, 0.3569, 1]);
@@ -79,6 +92,14 @@ const MATRIX_HIGHLIGHT_RGBA = new Float32Array([0, 0.4275, 0.3569, 1]);
 
 function pushColor(target: number[], color: Float32Array) {
   target.push(color[0], color[1], color[2], color[3]);
+}
+
+function getCommunityColor(community: number | undefined) {
+  if (community == null || !Number.isFinite(community)) {
+    return null;
+  }
+
+  return COMMUNITY_COLORS[Math.abs(community) % COMMUNITY_COLORS.length];
 }
 
 export function getGraphTransform(
@@ -260,14 +281,20 @@ export function isLinkHighlighted(hover: HoverState, link: LinkDatum) {
   );
 }
 
-export function getNodeFillColor(hover: HoverState, nodeId: number) {
-  return isNodeHighlighted(hover, nodeId) ? NODE_HIGHLIGHT_FILL : NODE_FILL;
+export function getNodeFillColor(hover: HoverState, node: NodeDatum) {
+  if (isNodeHighlighted(hover, node.id)) {
+    return NODE_HIGHLIGHT_FILL;
+  }
+
+  return getCommunityColor(node.community)?.fill ?? NODE_FILL;
 }
 
-export function getNodeStrokeColor(hover: HoverState, nodeId: number) {
-  return isNodeHighlighted(hover, nodeId)
-    ? NODE_HIGHLIGHT_STROKE
-    : NODE_STROKE;
+export function getNodeStrokeColor(hover: HoverState, node: NodeDatum) {
+  if (isNodeHighlighted(hover, node.id)) {
+    return NODE_HIGHLIGHT_STROKE;
+  }
+
+  return getCommunityColor(node.community)?.stroke ?? NODE_STROKE;
 }
 
 export function getLinkStrokeColor(hover: HoverState, link: LinkDatum) {
@@ -319,16 +346,22 @@ export function getMatrixCellColor(
   return value ? MATRIX_ON : MATRIX_OFF;
 }
 
-function getNodeFillColorVector(hover: HoverState, nodeId: number) {
-  return isNodeHighlighted(hover, nodeId)
-    ? NODE_HIGHLIGHT_FILL_RGBA
-    : NODE_FILL_RGBA;
+function getNodeFillColorVector(hover: HoverState, node: NodeDatum) {
+  if (isNodeHighlighted(hover, node.id)) {
+    return NODE_HIGHLIGHT_FILL_RGBA;
+  }
+
+  const color = getCommunityColor(node.community);
+  return color ? new Float32Array(color.rgba) : NODE_FILL_RGBA;
 }
 
-function getNodeStrokeColorVector(hover: HoverState, nodeId: number) {
-  return isNodeHighlighted(hover, nodeId)
-    ? NODE_HIGHLIGHT_STROKE_RGBA
-    : NODE_STROKE_RGBA;
+function getNodeStrokeColorVector(hover: HoverState, node: NodeDatum) {
+  if (isNodeHighlighted(hover, node.id)) {
+    return NODE_HIGHLIGHT_STROKE_RGBA;
+  }
+
+  const color = getCommunityColor(node.community);
+  return color ? new Float32Array(color.strokeRgba) : NODE_STROKE_RGBA;
 }
 
 function getLinkColorVector(hover: HoverState, link: LinkDatum) {
@@ -463,8 +496,8 @@ export function buildGraphGeometry(
 
   nodes.forEach((node) => {
     const center = graphPointToScreen(node.x ?? 0, node.y ?? 0, transform);
-    const fill = getNodeFillColorVector(hover, node.id);
-    const stroke = getNodeStrokeColorVector(hover, node.id);
+    const fill = getNodeFillColorVector(hover, node);
+    const stroke = getNodeStrokeColorVector(hover, node);
     const quad = [
       [-nodeRadius, -nodeRadius, -1, -1],
       [nodeRadius, -nodeRadius, 1, -1],

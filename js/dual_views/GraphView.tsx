@@ -170,8 +170,8 @@ const SvgGraphRenderer: React.FC<{
             <circle
               className="node"
               r={12}
-              fill={getNodeFillColor(hover ?? null, node.id)}
-              stroke={getNodeStrokeColor(hover ?? null, node.id)}
+              fill={getNodeFillColor(hover ?? null, node)}
+              stroke={getNodeStrokeColor(hover ?? null, node)}
               strokeWidth={isNodeHighlighted(hover ?? null, node.id) ? 2 : 1.5}
             />
             <text className="node-label" dy={4}>

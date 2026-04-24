@@ -1,6 +1,7 @@
 export type NodeDatum = {
   id: number;
   element: string;
+  community?: number;
   x?: number;
   y?: number;
   fx?: number | null;

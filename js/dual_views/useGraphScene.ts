@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as d3 from "d3";
+import { UndirectedGraph } from "graphology";
+import louvain from "graphology-communities-louvain";
+import forceAtlas2 from "graphology-layout-forceatlas2";
+import noverlap from "graphology-layout-noverlap";
 import type { LinkDatum, NodeDatum } from "./dualViewTypes";
 import type { SceneNode } from "./renderers/shared";
 
@@ -13,6 +16,214 @@ interface UseGraphSceneArgs {
   onNodePositionChange?: (positions: { id: number; x: number; y: number }[]) => void;
 }
 
+type LayoutNodeAttributes = {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  community?: number;
+};
+
+type LayoutEdgeAttributes = {
+  weight: number;
+};
+
+const NODE_LAYOUT_SIZE = 24;
+const FIT_MARGIN = 36;
+const MIN_SPAN = 1e-6;
+
+function buildLayoutGraph(
+  nodes: NodeDatum[],
+  links: LinkDatum[],
+  width: number,
+  height: number,
+  padding: number
+) {
+  const graph = new UndirectedGraph<LayoutNodeAttributes, LayoutEdgeAttributes>();
+  const innerWidth = width - 2 * padding;
+  const innerHeight = height - 2 * padding;
+  const radius = Math.max(Math.min(innerWidth, innerHeight) * 0.35, 1);
+  const centerX = innerWidth / 2;
+  const centerY = innerHeight / 2;
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+  nodes.forEach((node, index) => {
+    const angle = index * goldenAngle;
+    const ring = radius * Math.sqrt((index + 0.5) / Math.max(nodes.length, 1));
+
+    graph.addNode(String(node.id), {
+      id: node.id,
+      x: node.x ?? centerX + Math.cos(angle) * ring,
+      y: node.y ?? centerY + Math.sin(angle) * ring,
+      size: NODE_LAYOUT_SIZE,
+    });
+  });
+
+  links.forEach((link) => {
+    if (link.source === link.target) {
+      return;
+    }
+
+    const source = String(link.source);
+    const target = String(link.target);
+
+    if (!graph.hasNode(source) || !graph.hasNode(target)) {
+      return;
+    }
+
+    const [edge, edgeWasAdded] = graph.mergeEdge(source, target, { weight: 1 });
+    if (!edgeWasAdded) {
+      graph.updateEdgeAttribute(edge, "weight", (weight = 0) => weight + 1);
+    }
+  });
+
+  return graph;
+}
+
+function seedCommunities(
+  graph: UndirectedGraph<LayoutNodeAttributes, LayoutEdgeAttributes>,
+  communities: Record<string, number>
+) {
+  const grouped = new Map<number, string[]>();
+
+  graph.forEachNode((key) => {
+    const community = communities[key] ?? 0;
+    const members = grouped.get(community);
+    if (members) {
+      members.push(key);
+    } else {
+      grouped.set(community, [key]);
+    }
+    graph.setNodeAttribute(key, "community", community);
+  });
+
+  const communityIds = Array.from(grouped.keys()).sort((a, b) => a - b);
+  const outerRadius = Math.max(communityIds.length * NODE_LAYOUT_SIZE * 1.5, 120);
+
+  communityIds.forEach((community, communityIndex) => {
+    const members = grouped.get(community) ?? [];
+    const communityAngle = (communityIndex / Math.max(communityIds.length, 1)) * Math.PI * 2;
+    const communityX = Math.cos(communityAngle) * outerRadius;
+    const communityY = Math.sin(communityAngle) * outerRadius;
+    const memberRadius = Math.max(Math.sqrt(members.length) * NODE_LAYOUT_SIZE, NODE_LAYOUT_SIZE);
+
+    members.forEach((key, memberIndex) => {
+      const angle = (memberIndex / Math.max(members.length, 1)) * Math.PI * 2;
+      graph.mergeNodeAttributes(key, {
+        x: communityX + Math.cos(angle) * memberRadius,
+        y: communityY + Math.sin(angle) * memberRadius,
+      });
+    });
+  });
+}
+
+function getForceAtlasIterations(order: number, size: number) {
+  if (order <= 80) {
+    return 160;
+  }
+
+  if (size > order * 80) {
+    return 70;
+  }
+
+  return order > 600 ? 90 : 120;
+}
+
+function fitGraphToViewport(
+  graph: UndirectedGraph<LayoutNodeAttributes, LayoutEdgeAttributes>,
+  nodes: NodeDatum[],
+  width: number,
+  height: number,
+  padding: number
+): SceneNode[] {
+  const innerWidth = width - 2 * padding;
+  const innerHeight = height - 2 * padding;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  graph.forEachNode((_key, attr) => {
+    minX = Math.min(minX, attr.x);
+    maxX = Math.max(maxX, attr.x);
+    minY = Math.min(minY, attr.y);
+    maxY = Math.max(maxY, attr.y);
+  });
+
+  const spanX = Math.max(maxX - minX, MIN_SPAN);
+  const spanY = Math.max(maxY - minY, MIN_SPAN);
+  const fitWidth = Math.max(innerWidth - FIT_MARGIN * 2, 1);
+  const fitHeight = Math.max(innerHeight - FIT_MARGIN * 2, 1);
+  const scale = Math.min(fitWidth / spanX, fitHeight / spanY);
+  const offsetX = FIT_MARGIN + (fitWidth - spanX * scale) / 2;
+  const offsetY = FIT_MARGIN + (fitHeight - spanY * scale) / 2;
+
+  return nodes.map((node) => {
+    const attr = graph.getNodeAttributes(String(node.id));
+    return {
+      ...node,
+      community: attr.community,
+      x: offsetX + (attr.x - minX) * scale,
+      y: offsetY + (attr.y - minY) * scale,
+      fx: null,
+      fy: null,
+    };
+  });
+}
+
+function layoutGraph(
+  nodes: NodeDatum[],
+  links: LinkDatum[],
+  width: number,
+  height: number,
+  padding: number
+): SceneNode[] {
+  const graph = buildLayoutGraph(nodes, links, width, height, padding);
+
+  if (graph.order === 0) {
+    return [];
+  }
+
+  const communities =
+    graph.size > 0
+      ? louvain(graph, {
+          getEdgeWeight: "weight",
+          randomWalk: false,
+        })
+      : Object.fromEntries(graph.nodes().map((key, index) => [key, index]));
+  seedCommunities(graph, communities);
+
+  if (graph.size > 0) {
+    const inferredSettings = forceAtlas2.inferSettings(graph);
+    forceAtlas2.assign(graph, {
+      iterations: getForceAtlasIterations(graph.order, graph.size),
+      getEdgeWeight: "weight",
+      settings: {
+        ...inferredSettings,
+        barnesHutOptimize: graph.order > 120,
+        barnesHutTheta: 0.7,
+        linLogMode: true,
+        outboundAttractionDistribution: true,
+        gravity: graph.order > 400 ? 1.8 : 1.2,
+        scalingRatio: graph.order > 400 ? 12 : 8,
+        slowDown: graph.order > 400 ? 8 : 4,
+      },
+    });
+  }
+
+  noverlap.assign(graph, {
+    maxIterations: graph.order > 400 ? 80 : 60,
+    settings: {
+      gridSize: Math.max(20, Math.ceil(Math.sqrt(graph.order))),
+      margin: 4,
+      ratio: 1.15,
+      speed: 3,
+    },
+  });
+
+  return fitGraphToViewport(graph, nodes, width, height, padding);
+}
+
 export function useGraphScene({
   nodes,
   links,
@@ -24,7 +235,6 @@ export function useGraphScene({
 }: UseGraphSceneArgs) {
   const nodesRef = useRef<SceneNode[]>([]);
   const linksRef = useRef<LinkDatum[]>([]);
-  const simulationRef = useRef<d3.Simulation<SceneNode, LinkDatum> | null>(null);
   const draggingNodeRef = useRef<SceneNode | null>(null);
   const frameRef = useRef<number | null>(null);
   const [sceneVersion, setSceneVersion] = useState(0);
@@ -45,69 +255,13 @@ export function useGraphScene({
       if (frameRef.current !== null) {
         window.cancelAnimationFrame(frameRef.current);
       }
-
-      simulationRef.current?.stop();
     };
   }, []);
 
   useEffect(() => {
-    const previousNodes = new Map(
-      nodesRef.current.map((node) => [node.id, node] as const)
-    );
-    const centerX = (width - 2 * padding) / 2;
-    const centerY = (height - 2 * padding) / 2;
-
-    nodesRef.current = nodes.map((node, index) => {
-      const previous = previousNodes.get(node.id);
-      return {
-        ...node,
-        x:
-          previous?.x ??
-          centerX + Math.cos(index) * 10 + (Math.random() - 0.5) * 10,
-        y:
-          previous?.y ??
-          centerY + Math.sin(index) * 10 + (Math.random() - 0.5) * 10,
-        vx: previous?.vx ?? 0,
-        vy: previous?.vy ?? 0,
-        fx: null,
-        fy: null,
-      };
-    });
-
     linksRef.current = links.map((link) => ({ ...link }));
-    const simulationLinks = links.map((link) => ({ ...link }));
-
-    simulationRef.current?.stop();
-
-    if (nodesRef.current.length === 0) {
-      scheduleUpdate();
-      return;
-    }
-
-    const simulation = d3
-      .forceSimulation(nodesRef.current)
-      .force(
-        "link",
-        d3
-          .forceLink<SceneNode, LinkDatum>(simulationLinks)
-          .id((datum) => datum.id)
-          .distance(80)
-      )
-      .force("charge", d3.forceManyBody().strength(-200))
-      .force("center", d3.forceCenter(centerX, centerY))
-      .force("x", d3.forceX(centerX).strength(0.1))
-      .force("y", d3.forceY(centerY).strength(0.1))
-      .on("tick", scheduleUpdate);
-
-    simulationRef.current = simulation;
+    nodesRef.current = layoutGraph(nodes, links, width, height, padding);
     scheduleUpdate();
-
-    return () => {
-      simulation.stop();
-      if (simulationRef.current === simulation) {
-        simulationRef.current = null;
-      }
-    };
   }, [height, links, nodes, padding, scheduleUpdate, width]);
 
   const emitPositions = useCallback(() => {
@@ -132,9 +286,6 @@ export function useGraphScene({
       }
 
       draggingNodeRef.current = node;
-      node.fx = node.x ?? 0;
-      node.fy = node.y ?? 0;
-      simulationRef.current?.alphaTarget(0.3).restart();
       scheduleUpdate();
       return true;
     },
@@ -148,23 +299,19 @@ export function useGraphScene({
         return;
       }
 
-      node.fx = x;
-      node.fy = y;
+      node.x = x;
+      node.y = y;
       scheduleUpdate();
     },
     [scheduleUpdate]
   );
 
   const endDrag = useCallback(() => {
-    const node = draggingNodeRef.current;
-    if (!node) {
+    if (!draggingNodeRef.current) {
       return;
     }
 
-    node.fx = null;
-    node.fy = null;
     draggingNodeRef.current = null;
-    simulationRef.current?.alphaTarget(0);
     scheduleUpdate();
     emitPositions();
   }, [emitPositions, scheduleUpdate]);
