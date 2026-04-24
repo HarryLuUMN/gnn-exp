@@ -38,6 +38,7 @@ export async function staticVisualizationPipeline(
   cellHeight: number,
   adjacencyMatrix: number[][],
   intmData: any,
+  modelInfo: any,
   linkList: any[],
   queries: number[][],
   subgraphSample: boolean,
@@ -74,6 +75,9 @@ export async function staticVisualizationPipeline(
     adjacencyMatrix,
     queries,
     mode,
+    intmData,
+    modelInfo,
+    cellWidth,
   });
 
   return {

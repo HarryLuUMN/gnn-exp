@@ -49,6 +49,7 @@ export async function modelPipeline(
                 cellHeight,
                 adjacancyMatrix,
                 intmData,
+                modelInfo,
                 linkList,
                 queries,
                 subgraphSample,

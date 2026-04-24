@@ -144,6 +144,7 @@
 
 .gnn-static-hover-overlay {
   inset: 0;
+  overflow: visible;
   position: absolute;
 }
 
