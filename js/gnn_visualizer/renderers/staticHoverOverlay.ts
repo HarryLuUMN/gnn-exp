@@ -421,6 +421,17 @@ function drawWeightMatrix(
   }
 }
 
+function layerRightBoundary(targets: StaticHoverTarget[], layerIndex: number) {
+  let right = Number.NEGATIVE_INFINITY;
+  for (const target of targets) {
+    if (target.kind === "feature-node" && target.layerIndex === layerIndex) {
+      right = Math.max(right, target.bounds.x + target.bounds.width);
+    }
+  }
+
+  return Number.isFinite(right) ? right : null;
+}
+
 function safeAddVector(a: number[], b: number[]) {
   if (a.length !== b.length) {
     return a;
@@ -482,7 +493,9 @@ function drawFeatureExpansion(
   }
 
   const dirCoefficient = target.nodeIndex < scene.matrixLayout.nodeCount / 2 ? 1 : -1;
-  const currentNodeX = target.bounds.x - (expansion?.distance ?? 0);
+  const currentNodeX =
+    layerRightBoundary(scene.hoverTargets, target.layerIndex - 1) ??
+    target.bounds.x - (expansion?.distance ?? 0) - DISTANCE_TO_FEATURE;
   const currentNodeY = target.bounds.y + target.bounds.height / 2;
   const { aggregatedFeature, degreeMultipliers } = buildAggregatedFeature(
     adjacencyMatrix,
@@ -502,25 +515,27 @@ function drawFeatureExpansion(
     }
 
     const sourceY = previous.bounds.y + previous.bounds.height / 2;
+    const sourceX = previous.bounds.x + previous.bounds.width;
+    const controlX = sourceX + (firstIntersect[0] - sourceX) / 2;
     const ctrlPointForTargetNode: [number, number] = [
-      currentNodeX + DISTANCE_TO_FEATURE / 2,
+      controlX,
       sourceY,
     ];
     const ctrlPointForCurrentNode: [number, number] = [
-      currentNodeX + DISTANCE_TO_FEATURE / 2,
+      controlX,
       currentNodeY,
     ];
     appendPath(
       group,
       [
-        [currentNodeX, sourceY],
+        [sourceX, sourceY],
         ctrlPointForTargetNode,
         ctrlPointForCurrentNode,
         firstIntersect,
       ],
       { stroke: HIGHLIGHT, strokeWidth: 1.5 }
     );
-    appendText(group, currentNodeX + 3, sourceY - 6, value.toFixed(2));
+    appendText(group, sourceX + 3, sourceY - 6, value.toFixed(2));
     appendRect(group, previous.bounds, { opacity: 0.85 });
   }
 
@@ -530,35 +545,34 @@ function drawFeatureExpansion(
   appendFeatureVector(group, aggregatedX, aggregatedY, aggregatedFeature, cellWidth);
 
   const weightMatrix = matrixTranspose(layerInfo.weight as number[][]);
+  const aggregatedRight = aggregatedX + aggregatedFeature.length * cellWidth;
+  const multipliedX = aggregatedRight + DISTANCE_TO_FEATURE;
   const matrixX =
-    currentNodeX +
-    DISTANCE_TO_FEATURE * 1.5 +
-    aggregatedFeature.length * cellWidth -
-    DISTANCE_TO_FEATURE * 0.5 -
+    aggregatedRight -
     ((weightMatrix[0]?.length ?? 0) * cellWidth) / 2;
   const matrixY = currentNodeY + dirCoefficient * DISTANCE_TO_FEATURE;
 
   appendLine(
     group,
-    aggregatedX + aggregatedFeature.length * cellWidth,
+    aggregatedRight,
     currentNodeY,
-    aggregatedX + aggregatedFeature.length * cellWidth + DISTANCE_TO_FEATURE,
+    multipliedX,
     currentNodeY
   );
   appendPath(
     group,
     [
-      [currentNodeX + DISTANCE_TO_FEATURE * 1.5 + aggregatedFeature.length * cellWidth, currentNodeY],
+      [aggregatedRight + DISTANCE_TO_FEATURE / 2, currentNodeY],
       [
-        currentNodeX + DISTANCE_TO_FEATURE * 1.5 + aggregatedFeature.length * cellWidth,
+        aggregatedRight + DISTANCE_TO_FEATURE / 2,
         currentNodeY + dirCoefficient * DISTANCE_TO_FEATURE * 0.5,
       ],
       [
-        currentNodeX + DISTANCE_TO_FEATURE + aggregatedFeature.length * cellWidth,
+        aggregatedRight,
         currentNodeY + dirCoefficient * DISTANCE_TO_FEATURE * 0.5,
       ],
       [
-        currentNodeX + DISTANCE_TO_FEATURE + aggregatedFeature.length * cellWidth,
+        aggregatedRight,
         currentNodeY + dirCoefficient * DISTANCE_TO_FEATURE,
       ],
     ],
@@ -575,13 +589,7 @@ function drawFeatureExpansion(
   const bias = Array.isArray(layerInfo.bias)
     ? (layerInfo.bias as number[])
     : Array(multipliedFeature.length).fill(0);
-  const biasedOutput =
-    bias.length === multipliedFeature.length
-      ? addVector(multipliedFeature, bias)
-      : multipliedFeature;
 
-  const multipliedX =
-    currentNodeX + DISTANCE_TO_FEATURE * 2 + aggregatedFeature.length * cellWidth;
   appendFeatureVector(
     group,
     multipliedX,
@@ -600,7 +608,7 @@ function drawFeatureExpansion(
     group,
     multipliedX + multipliedFeature.length * cellWidth,
     currentNodeY,
-    multipliedX + multipliedFeature.length * cellWidth + DISTANCE_TO_FEATURE,
+    target.bounds.x,
     currentNodeY
   );
   appendPath(
@@ -621,13 +629,6 @@ function drawFeatureExpansion(
       [multipliedX + bias.length * cellWidth + DISTANCE_TO_FEATURE, currentNodeY],
     ],
     { stroke: HIGHLIGHT, strokeWidth: 1.4 }
-  );
-  appendFeatureVector(
-    group,
-    multipliedX + DISTANCE_TO_FEATURE * 1.5 + multipliedFeature.length * cellWidth,
-    currentNodeY - FEATURE_HEIGHT / 2,
-    biasedOutput,
-    cellWidth
   );
 }
 

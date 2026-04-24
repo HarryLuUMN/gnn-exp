@@ -39,6 +39,13 @@ type DragState = {
     didMove: boolean;
 };
 
+function isFeatureExpansionTarget(target: EventTarget | null) {
+    return (
+        target instanceof Element &&
+        !!target.closest(".feature-layer, .fc-feature-layer")
+    );
+}
+
 const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     intmData,
     modelInfo, 
@@ -103,6 +110,9 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     const onPointerDown = React.useCallback(
         (event: React.PointerEvent<HTMLDivElement>) => {
             if (event.button !== 0) {
+                return;
+            }
+            if (isFeatureExpansionTarget(event.target)) {
                 return;
             }
 
