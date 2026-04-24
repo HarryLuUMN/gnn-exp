@@ -19,6 +19,7 @@ interface MatrixViewProps {
   height?: number;
   padding?: number;
   renderer: ResolvedRenderer;
+  showAxisLabels?: boolean;
   nodes: NodeDatum[];
   links: LinkDatum[];
   sceneVersion: number;
@@ -118,7 +119,8 @@ const SvgMatrixRenderer: React.FC<{
   matrix: number[][];
   layout: ReturnType<typeof buildMatrixLayout>;
   hover?: HoverState;
-}> = ({ width, height, nodes, matrix, layout, hover }) => {
+  showAxisLabels: boolean;
+}> = ({ width, height, nodes, matrix, layout, hover, showAxisLabels }) => {
   return (
     <svg
       className="dual-views-layer"
@@ -148,29 +150,33 @@ const SvgMatrixRenderer: React.FC<{
             />
           ))
         )}
-        {nodes.map((node, index) => (
-          <text
-            key={`top-${node.id}`}
-            className="axis-label"
-            x={layout.originX + index * layout.cellSize + layout.cellSize / 2}
-            y={layout.originY - 6}
-            textAnchor="middle"
-          >
-            {node.id}
-          </text>
-        ))}
-        {nodes.map((node, index) => (
-          <text
-            key={`left-${node.id}`}
-            className="axis-label"
-            x={layout.originX - 6}
-            y={layout.originY + index * layout.cellSize + layout.cellSize / 2}
-            textAnchor="end"
-            dominantBaseline="middle"
-          >
-            {node.id}
-          </text>
-        ))}
+        {showAxisLabels ? (
+          <>
+            {nodes.map((node, index) => (
+              <text
+                key={`top-${node.id}`}
+                className="axis-label"
+                x={layout.originX + index * layout.cellSize + layout.cellSize / 2}
+                y={layout.originY - 6}
+                textAnchor="middle"
+              >
+                {node.id}
+              </text>
+            ))}
+            {nodes.map((node, index) => (
+              <text
+                key={`left-${node.id}`}
+                className="axis-label"
+                x={layout.originX - 6}
+                y={layout.originY + index * layout.cellSize + layout.cellSize / 2}
+                textAnchor="end"
+                dominantBaseline="middle"
+              >
+                {node.id}
+              </text>
+            ))}
+          </>
+        ) : null}
       </g>
     </svg>
   );
@@ -181,6 +187,7 @@ const MatrixView: React.FC<MatrixViewProps> = ({
   height = 600,
   padding = 60,
   renderer,
+  showAxisLabels = true,
   nodes,
   links,
   sceneVersion,
@@ -221,13 +228,15 @@ const MatrixView: React.FC<MatrixViewProps> = ({
 
   const updateHoverFromPoint = React.useCallback(
     (x: number, y: number) => {
-      const labelHit = getMatrixLabelAtPoint(layout, x, y);
-      if (labelHit) {
-        onHover?.({
-          kind: "node",
-          nodeId: nodes[labelHit.index]?.id ?? -1,
-        });
-        return;
+      if (showAxisLabels) {
+        const labelHit = getMatrixLabelAtPoint(layout, x, y);
+        if (labelHit) {
+          onHover?.({
+            kind: "node",
+            nodeId: nodes[labelHit.index]?.id ?? -1,
+          });
+          return;
+        }
       }
 
       const cell = getMatrixCellAtPoint(layout, x, y);
@@ -247,7 +256,7 @@ const MatrixView: React.FC<MatrixViewProps> = ({
         b: nodes[cell.j]?.id ?? -1,
       });
     },
-    [layout, matrix, nodes, onHover]
+    [layout, matrix, nodes, onHover, showAxisLabels]
   );
 
   const handlePointerMove = React.useCallback(
@@ -290,6 +299,7 @@ const MatrixView: React.FC<MatrixViewProps> = ({
           matrix={matrix}
           layout={layout}
           hover={hover}
+          showAxisLabels={showAxisLabels}
         />
         {overlay}
       </div>
@@ -310,31 +320,33 @@ const MatrixView: React.FC<MatrixViewProps> = ({
         height={height}
         viewBox={`0 0 ${width} ${height}`}
       >
-        <g pointerEvents="none">
-          {nodes.map((node, index) => (
-            <text
-              key={`top-${node.id}`}
-              className="axis-label"
-              x={layout.originX + index * layout.cellSize + layout.cellSize / 2}
-              y={layout.originY - 6}
-              textAnchor="middle"
-            >
-              {node.id}
-            </text>
-          ))}
-          {nodes.map((node, index) => (
-            <text
-              key={`left-${node.id}`}
-              className="axis-label"
-              x={layout.originX - 6}
-              y={layout.originY + index * layout.cellSize + layout.cellSize / 2}
-              textAnchor="end"
-              dominantBaseline="middle"
-            >
-              {node.id}
-            </text>
-          ))}
-        </g>
+        {showAxisLabels ? (
+          <g pointerEvents="none">
+            {nodes.map((node, index) => (
+              <text
+                key={`top-${node.id}`}
+                className="axis-label"
+                x={layout.originX + index * layout.cellSize + layout.cellSize / 2}
+                y={layout.originY - 6}
+                textAnchor="middle"
+              >
+                {node.id}
+              </text>
+            ))}
+            {nodes.map((node, index) => (
+              <text
+                key={`left-${node.id}`}
+                className="axis-label"
+                x={layout.originX - 6}
+                y={layout.originY + index * layout.cellSize + layout.cellSize / 2}
+                textAnchor="end"
+                dominantBaseline="middle"
+              >
+                {node.id}
+              </text>
+            ))}
+          </g>
+        ) : null}
         <rect
           width={width}
           height={height}

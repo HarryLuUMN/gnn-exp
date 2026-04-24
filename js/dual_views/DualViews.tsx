@@ -12,6 +12,12 @@ import {
 } from "./renderers/capabilities";
 import { useGraphScene } from "./useGraphScene";
 
+const BASE_GRAPH_SCALE = 1.4;
+const MIN_GRAPH_ZOOM = 0.5;
+const MAX_GRAPH_ZOOM = 4;
+const GRAPH_ZOOM_STEP = 0.25;
+const MATRIX_AXIS_LABEL_LIMIT = 80;
+
 interface Props {
   graphData: any;
   renderer: RendererMode;
@@ -45,6 +51,7 @@ const DualViews: React.FC<Props> = ({
   const [nodes, setNodes] = useState<NodeDatum[]>([]);
   const [links, setLinks] = useState<LinkDatum[]>([]);
   const [hover, setHover] = useState<HoverState>(null);
+  const [graphZoom, setGraphZoom] = useState(1);
   const [fallbackFailures, setFallbackFailures] = useState<
     Partial<Record<ResolvedRenderer, string>>
   >({});
@@ -58,6 +65,8 @@ const DualViews: React.FC<Props> = ({
     () => resolveRenderer(renderer, capabilities, fallbackFailures),
     [capabilities, fallbackFailures, renderer]
   );
+  const graphScaleFactor = BASE_GRAPH_SCALE * graphZoom;
+  const showMatrixAxisLabels = nodes.length <= MATRIX_AXIS_LABEL_LIMIT;
 
   // load data
   useEffect(() => {
@@ -109,6 +118,18 @@ const DualViews: React.FC<Props> = ({
     []
   );
 
+  const zoomOut = React.useCallback(() => {
+    setGraphZoom((value) => Math.max(MIN_GRAPH_ZOOM, value - GRAPH_ZOOM_STEP));
+  }, []);
+
+  const zoomIn = React.useCallback(() => {
+    setGraphZoom((value) => Math.min(MAX_GRAPH_ZOOM, value + GRAPH_ZOOM_STEP));
+  }, []);
+
+  const resetZoom = React.useCallback(() => {
+    setGraphZoom(1);
+  }, []);
+
   const onGraphPositions = (positions: { id: number; x: number; y: number }[]) => {
     if (!onNodePositionChange) return;
     onNodePositionChange(positions.map((p) => ({ id: String(p.id), x: p.x, y: p.y })));
@@ -153,6 +174,38 @@ const DualViews: React.FC<Props> = ({
             {resolution.reason ? (
               <span className="renderer-toolbar__reason">{resolution.reason}</span>
             ) : null}
+            {!showMatrixAxisLabels ? (
+              <span className="renderer-toolbar__reason">
+                Matrix axis labels hidden for {nodes.length} nodes.
+              </span>
+            ) : null}
+          </div>
+          <div className="renderer-toolbar__zoom">
+            <span>Graph zoom: {Math.round(graphZoom * 100)}%</span>
+            <button
+              className="renderer-button"
+              type="button"
+              onClick={zoomOut}
+              disabled={graphZoom <= MIN_GRAPH_ZOOM}
+            >
+              Zoom Out
+            </button>
+            <button
+              className="renderer-button"
+              type="button"
+              onClick={resetZoom}
+              disabled={graphZoom === 1}
+            >
+              Reset
+            </button>
+            <button
+              className="renderer-button"
+              type="button"
+              onClick={zoomIn}
+              disabled={graphZoom >= MAX_GRAPH_ZOOM}
+            >
+              Zoom In
+            </button>
           </div>
         </div>
         <div className="dual-views-grid">
@@ -161,6 +214,7 @@ const DualViews: React.FC<Props> = ({
             width={graphWidth}
             height={graphHeight}
             padding={padding}
+            scaleFactor={graphScaleFactor}
             renderer={resolution.effectiveRenderer}
             nodes={scene.nodes}
             links={scene.links}
@@ -179,6 +233,7 @@ const DualViews: React.FC<Props> = ({
             height={graphHeight}
             padding={padding}
             renderer={resolution.effectiveRenderer}
+            showAxisLabels={showMatrixAxisLabels}
             nodes={scene.nodes}
             links={scene.links}
             sceneVersion={scene.sceneVersion}

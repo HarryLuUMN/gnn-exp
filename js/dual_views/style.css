@@ -22,6 +22,15 @@
 	gap: 8px;
 }
 
+.renderer-toolbar__zoom {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	color: #395851;
+	font-size: 12px;
+}
+
 .renderer-button {
 	border: 1px solid #bfd1cb;
 	border-radius: 999px;
@@ -39,6 +48,12 @@
 .renderer-button:hover {
 	transform: translateY(-1px);
 	border-color: #69b3a2;
+}
+
+.renderer-button:disabled {
+	cursor: not-allowed;
+	opacity: 0.45;
+	transform: none;
 }
 
 .renderer-button--active {
