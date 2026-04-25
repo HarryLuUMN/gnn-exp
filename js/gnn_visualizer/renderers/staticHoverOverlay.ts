@@ -25,6 +25,7 @@ type HoverOverlayArgs = {
   modelInfo: any;
   cellWidth: number;
   expandedFeature?: StaticExpansionState;
+  showExpansion?: boolean;
   onExpansionChange?: (expansion: StaticExpansionState) => void;
 };
 
@@ -960,6 +961,7 @@ export function attachStaticHoverOverlay({
   modelInfo,
   cellWidth,
   expandedFeature,
+  showExpansion = true,
   onExpansionChange,
 }: HoverOverlayArgs) {
   const wrapper = document.createElement("div");
@@ -995,7 +997,7 @@ export function attachStaticHoverOverlay({
         ? fcTarget(scene.hoverTargets, expandedFeature.nodeIndex) ?? null
         : null;
 
-  if (expandedTarget) {
+  if (expandedTarget && showExpansion) {
     drawExpansion(
       expansionGroup,
       expandedTarget,

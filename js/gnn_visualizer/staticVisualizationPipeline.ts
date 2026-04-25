@@ -69,7 +69,10 @@ export async function staticVisualizationPipeline(
   let animationToken = 0;
   let destroyed = false;
 
-  const renderScene = async (expansion: StaticExpansionState) => {
+  const renderScene = async (
+    expansion: StaticExpansionState,
+    showExpansion = true
+  ) => {
     const token = ++renderToken;
     currentHoverDestroy?.();
     currentRenderDestroy?.();
@@ -116,6 +119,7 @@ export async function staticVisualizationPipeline(
       modelInfo,
       cellWidth,
       expandedFeature: expansion,
+      showExpansion,
       onExpansionChange(nextExpansion) {
         void animateExpansion(nextExpansion);
       },
@@ -143,6 +147,7 @@ export async function staticVisualizationPipeline(
     const fromDistance = fromExpansion?.distance ?? 0;
     const toDistance = nextExpansion?.distance ?? 0;
     const template = nextExpansion ?? fromExpansion;
+    const isOpening = !!nextExpansion;
 
     if (!template || fromDistance === toDistance) {
       currentExpansion = nextExpansion;
@@ -166,7 +171,7 @@ export async function staticVisualizationPipeline(
           : cloneExpansionWithDistance(template, distance);
 
       currentExpansion = frameExpansion;
-      await renderScene(frameExpansion);
+      await renderScene(frameExpansion, false);
 
       if (destroyed || token !== animationToken) {
         return;
@@ -180,9 +185,7 @@ export async function staticVisualizationPipeline(
       }
 
       currentExpansion = nextExpansion;
-      if (!nextExpansion) {
-        await renderScene(null);
-      }
+      await renderScene(nextExpansion, isOpening);
       animationFrame = null;
     };
 
