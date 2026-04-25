@@ -717,12 +717,31 @@ function drawFcExpansion(
     return;
   }
 
-  const currentNodeX = target.bounds.x - (expansion?.kind === "fc" ? expansion.distance : 0);
+  const originalNodeX =
+    target.bounds.x - (expansion?.kind === "fc" ? expansion.distance : 0);
   const currentNodeY = target.bounds.y + target.bounds.height / 2;
   const dirCoefficient =
     target.nodeIndex < Math.max(1, lastLayer.length) / 2 ? 1 : -1;
   const weightMatrix = matrixTranspose(classifier.weight as number[][]);
-  const matrixStartX = currentNodeX + DISTANCE_TO_FEATURE;
+  let multipliedFeature: number[] = [];
+  try {
+    multipliedFeature = vecMatMul(inputFeature, weightMatrix);
+  } catch {
+    multipliedFeature = Array(weightMatrix[0]?.length ?? 0).fill(0);
+  }
+  const bias = Array.isArray(classifier.bias)
+    ? (classifier.bias as number[])
+    : Array(multipliedFeature.length).fill(0);
+  const biasedAddition =
+    bias.length === multipliedFeature.length
+      ? addVector(multipliedFeature, bias)
+      : multipliedFeature;
+
+  const matrixWidth = (weightMatrix[0]?.length ?? 0) * cellWidth;
+  const additionWidth = biasedAddition.length * cellWidth;
+  const additionX = target.bounds.x - DISTANCE_TO_FEATURE - additionWidth;
+  const matrixStartX = additionX - DISTANCE_TO_FEATURE - multipliedFeature.length * cellWidth;
+  const currentNodeX = Math.min(originalNodeX, matrixStartX - DISTANCE_TO_FEATURE);
   const matrixStartY = currentNodeY - dirCoefficient * DISTANCE_TO_FEATURE;
 
   appendRect(group, target.bounds, { strokeWidth: 2.5 });
@@ -742,31 +761,17 @@ function drawFcExpansion(
         currentNodeY - (DISTANCE_TO_FEATURE / 2) * dirCoefficient,
       ],
       [
-        matrixStartX + ((weightMatrix[0]?.length ?? 0) * cellWidth) / 2,
+        matrixStartX + matrixWidth / 2,
         currentNodeY - (DISTANCE_TO_FEATURE / 2) * dirCoefficient,
       ],
       [
-        matrixStartX + ((weightMatrix[0]?.length ?? 0) * cellWidth) / 2,
+        matrixStartX + matrixWidth / 2,
         matrixStartY,
       ],
     ],
     { stroke: HIGHLIGHT, strokeWidth: 1.4 }
   );
   drawTopDownWeightMatrix(group, matrixStartX, matrixStartY, weightMatrix, cellWidth);
-
-  let multipliedFeature: number[] = [];
-  try {
-    multipliedFeature = vecMatMul(inputFeature, weightMatrix);
-  } catch {
-    multipliedFeature = Array(weightMatrix[0]?.length ?? 0).fill(0);
-  }
-  const bias = Array.isArray(classifier.bias)
-    ? (classifier.bias as number[])
-    : Array(multipliedFeature.length).fill(0);
-  const biasedAddition =
-    bias.length === multipliedFeature.length
-      ? addVector(multipliedFeature, bias)
-      : multipliedFeature;
 
   appendFeatureVector(
     group,
@@ -811,7 +816,6 @@ function drawFcExpansion(
     ],
     { stroke: HIGHLIGHT, strokeWidth: 1.4 }
   );
-  const additionX = currentNodeX + DISTANCE_TO_FEATURE * 2 + multipliedFeature.length * cellWidth;
   appendFeatureVector(
     group,
     additionX,
@@ -823,7 +827,7 @@ function drawFcExpansion(
     group,
     additionX + biasedAddition.length * cellWidth,
     currentNodeY,
-    Math.max(target.bounds.x, additionX + biasedAddition.length * cellWidth + DISTANCE_TO_FEATURE),
+    target.bounds.x,
     currentNodeY
   );
 }
