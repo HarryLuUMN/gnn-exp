@@ -421,6 +421,44 @@ function drawWeightMatrix(
   }
 }
 
+function drawTopDownWeightMatrix(
+  group: SVGGElement,
+  x: number,
+  y: number,
+  matrix: number[][],
+  cellWidth: number
+) {
+  if (matrix.length === 0 || matrix[0].length === 0) {
+    return;
+  }
+
+  appendRect(group, {
+    x,
+    y,
+    width: matrix[0].length * cellWidth,
+    height: matrix.length * cellWidth,
+  });
+
+  for (let row = 0; row < matrix.length; row += 1) {
+    for (let col = 0; col < matrix[row].length; col += 1) {
+      appendRect(
+        group,
+        {
+          x: x + col * cellWidth,
+          y: y + row * cellWidth,
+          width: cellWidth,
+          height: cellWidth,
+        },
+        {
+          fill: featureColor(matrix[row][col]),
+          stroke: "rgba(80, 80, 80, 0.35)",
+          strokeWidth: 0.4,
+        }
+      );
+    }
+  }
+}
+
 function layerRightBoundary(targets: StaticHoverTarget[], layerIndex: number) {
   let right = Number.NEGATIVE_INFINITY;
   for (const target of targets) {
@@ -430,6 +468,15 @@ function layerRightBoundary(targets: StaticHoverTarget[], layerIndex: number) {
   }
 
   return Number.isFinite(right) ? right : null;
+}
+
+function fcTarget(
+  targets: StaticHoverTarget[],
+  nodeIndex: number
+) {
+  return targets.find(
+    (target) => target.kind === "fc-node" && target.nodeIndex === nodeIndex
+  ) as Extract<StaticHoverTarget, { kind: "fc-node" }> | undefined;
 }
 
 function safeAddVector(a: number[], b: number[]) {
@@ -495,7 +542,9 @@ function drawFeatureExpansion(
   const dirCoefficient = target.nodeIndex < scene.matrixLayout.nodeCount / 2 ? 1 : -1;
   const currentNodeX =
     layerRightBoundary(scene.hoverTargets, target.layerIndex - 1) ??
-    target.bounds.x - (expansion?.distance ?? 0) - DISTANCE_TO_FEATURE;
+    target.bounds.x -
+      (expansion?.kind === "gnn" ? expansion.distance : 0) -
+      DISTANCE_TO_FEATURE;
   const currentNodeY = target.bounds.y + target.bounds.height / 2;
   const { aggregatedFeature, degreeMultipliers } = buildAggregatedFeature(
     adjacencyMatrix,
@@ -632,18 +681,182 @@ function drawFeatureExpansion(
   );
 }
 
+function averageFeature(features: number[][]) {
+  if (features.length === 0 || features[0].length === 0) {
+    return [];
+  }
+
+  let averaged = Array(features[0].length).fill(0);
+  for (const feature of features) {
+    averaged = addVector(averaged, feature);
+  }
+
+  return averaged.map((value) => value / features.length);
+}
+
+function drawFcExpansion(
+  group: SVGGElement,
+  target: Extract<StaticHoverTarget, { kind: "fc-node" }>,
+  sortedGNNFeatures: number[][][],
+  modelInfo: any,
+  cellWidth: number,
+  mode: string,
+  expansion: StaticExpansionState
+) {
+  const classifier = modelInfo?.classifier;
+  if (!classifier?.weight) {
+    return;
+  }
+
+  const lastLayer = sortedGNNFeatures[sortedGNNFeatures.length - 1] ?? [];
+  const inputFeature =
+    mode === "graph"
+      ? averageFeature(lastLayer)
+      : lastLayer[target.nodeIndex] ?? [];
+  if (inputFeature.length === 0) {
+    return;
+  }
+
+  const currentNodeX = target.bounds.x - (expansion?.kind === "fc" ? expansion.distance : 0);
+  const currentNodeY = target.bounds.y + target.bounds.height / 2;
+  const dirCoefficient =
+    target.nodeIndex < Math.max(1, lastLayer.length) / 2 ? 1 : -1;
+  const weightMatrix = matrixTranspose(classifier.weight as number[][]);
+  const matrixStartX = currentNodeX + DISTANCE_TO_FEATURE;
+  const matrixStartY = currentNodeY - dirCoefficient * DISTANCE_TO_FEATURE;
+
+  appendRect(group, target.bounds, { strokeWidth: 2.5 });
+  appendLine(
+    group,
+    currentNodeX,
+    currentNodeY,
+    currentNodeX + DISTANCE_TO_FEATURE,
+    currentNodeY
+  );
+  appendPath(
+    group,
+    [
+      [currentNodeX + DISTANCE_TO_FEATURE / 2, currentNodeY],
+      [
+        currentNodeX + DISTANCE_TO_FEATURE / 2,
+        currentNodeY - (DISTANCE_TO_FEATURE / 2) * dirCoefficient,
+      ],
+      [
+        matrixStartX + ((weightMatrix[0]?.length ?? 0) * cellWidth) / 2,
+        currentNodeY - (DISTANCE_TO_FEATURE / 2) * dirCoefficient,
+      ],
+      [
+        matrixStartX + ((weightMatrix[0]?.length ?? 0) * cellWidth) / 2,
+        matrixStartY,
+      ],
+    ],
+    { stroke: HIGHLIGHT, strokeWidth: 1.4 }
+  );
+  drawTopDownWeightMatrix(group, matrixStartX, matrixStartY, weightMatrix, cellWidth);
+
+  let multipliedFeature: number[] = [];
+  try {
+    multipliedFeature = vecMatMul(inputFeature, weightMatrix);
+  } catch {
+    multipliedFeature = Array(weightMatrix[0]?.length ?? 0).fill(0);
+  }
+  const bias = Array.isArray(classifier.bias)
+    ? (classifier.bias as number[])
+    : Array(multipliedFeature.length).fill(0);
+  const biasedAddition =
+    bias.length === multipliedFeature.length
+      ? addVector(multipliedFeature, bias)
+      : multipliedFeature;
+
+  appendFeatureVector(
+    group,
+    matrixStartX,
+    currentNodeY - FEATURE_HEIGHT / 2,
+    multipliedFeature,
+    cellWidth
+  );
+  appendLine(
+    group,
+    matrixStartX + multipliedFeature.length * cellWidth,
+    currentNodeY,
+    matrixStartX + DISTANCE_TO_FEATURE + multipliedFeature.length * cellWidth,
+    currentNodeY
+  );
+  appendFeatureVector(
+    group,
+    matrixStartX,
+    currentNodeY + (dirCoefficient * DISTANCE_TO_FEATURE) / 2 - FEATURE_HEIGHT / 2,
+    bias,
+    cellWidth
+  );
+  appendPath(
+    group,
+    [
+      [
+        matrixStartX + multipliedFeature.length * cellWidth,
+        currentNodeY + (dirCoefficient * DISTANCE_TO_FEATURE) / 2,
+      ],
+      [
+        matrixStartX + DISTANCE_TO_FEATURE / 2 + multipliedFeature.length * cellWidth,
+        currentNodeY + (dirCoefficient * DISTANCE_TO_FEATURE) / 2,
+      ],
+      [
+        matrixStartX + DISTANCE_TO_FEATURE / 2 + multipliedFeature.length * cellWidth,
+        currentNodeY,
+      ],
+      [
+        matrixStartX + DISTANCE_TO_FEATURE + multipliedFeature.length * cellWidth,
+        currentNodeY,
+      ],
+    ],
+    { stroke: HIGHLIGHT, strokeWidth: 1.4 }
+  );
+  const additionX = currentNodeX + DISTANCE_TO_FEATURE * 2 + multipliedFeature.length * cellWidth;
+  appendFeatureVector(
+    group,
+    additionX,
+    currentNodeY - FEATURE_HEIGHT / 2,
+    biasedAddition,
+    cellWidth
+  );
+  appendLine(
+    group,
+    additionX + biasedAddition.length * cellWidth,
+    currentNodeY,
+    Math.max(target.bounds.x, additionX + biasedAddition.length * cellWidth + DISTANCE_TO_FEATURE),
+    currentNodeY
+  );
+}
+
 function drawExpansion(
   group: SVGGElement,
-  target: Extract<StaticHoverTarget, { kind: "feature-node" }> | null,
+  target:
+    | Extract<StaticHoverTarget, { kind: "feature-node" }>
+    | Extract<StaticHoverTarget, { kind: "fc-node" }>
+    | null,
   scene: StaticVisualizationScene,
   adjacencyMatrix: number[][],
   sortedGNNFeatures: number[][][],
   modelInfo: any,
   cellWidth: number,
+  mode: string,
   expansion: StaticExpansionState
 ) {
   group.replaceChildren();
   if (!target) {
+    return;
+  }
+
+  if (target.kind === "fc-node") {
+    drawFcExpansion(
+      group,
+      target,
+      sortedGNNFeatures,
+      modelInfo,
+      cellWidth,
+      mode,
+      expansion
+    );
     return;
   }
 
@@ -667,6 +880,18 @@ function getExpansionDistance(
   const previousWidth = (sortedGNNFeatures[layerIndex - 1]?.[0]?.length ?? 0) * cellWidth;
   const currentWidth = (sortedGNNFeatures[layerIndex]?.[0]?.length ?? 0) * cellWidth;
   return DISTANCE_TO_FEATURE * 3 + previousWidth + currentWidth - 100;
+}
+
+function getFcExpansionDistance(
+  sortedGNNFeatures: number[][][],
+  modelInfo: any,
+  cellWidth: number
+) {
+  const lastWidth =
+    (sortedGNNFeatures[sortedGNNFeatures.length - 1]?.[0]?.length ?? 0) *
+    cellWidth;
+  const biasWidth = (modelInfo?.classifier?.bias?.length ?? 4) * cellWidth;
+  return DISTANCE_TO_FEATURE * 3 + lastWidth + biasWidth * 2 - 100;
 }
 
 function drawHover(
@@ -736,10 +961,15 @@ export function attachStaticHoverOverlay({
   svg.append(expansionGroup);
   wrapper.append(svg);
   const sortedGNNFeatures = extractSortedGNNLayerFeatures(intmData);
-  let expandedTarget: Extract<StaticHoverTarget, { kind: "feature-node" }> | null =
-    expandedFeature && expandedFeature.layerIndex > 0
+  let expandedTarget:
+    | Extract<StaticHoverTarget, { kind: "feature-node" }>
+    | Extract<StaticHoverTarget, { kind: "fc-node" }>
+    | null =
+    expandedFeature?.kind === "gnn" && expandedFeature.layerIndex > 0
       ? frameTarget(scene.hoverTargets, expandedFeature.layerIndex, expandedFeature.nodeIndex) ?? null
-      : null;
+      : expandedFeature?.kind === "fc"
+        ? fcTarget(scene.hoverTargets, expandedFeature.nodeIndex) ?? null
+        : null;
 
   if (expandedTarget) {
     drawExpansion(
@@ -750,6 +980,7 @@ export function attachStaticHoverOverlay({
       sortedGNNFeatures,
       modelInfo,
       cellWidth,
+      mode,
       expandedFeature ?? null
     );
   }
@@ -771,12 +1002,14 @@ export function attachStaticHoverOverlay({
     const target = hitTest(scene, point);
     if (target?.kind === "feature-node" && target.layerIndex > 0) {
       const nextTarget =
-        expandedTarget?.layerIndex === target.layerIndex &&
+        expandedTarget?.kind === "feature-node" &&
+        expandedTarget.layerIndex === target.layerIndex &&
         expandedTarget.nodeIndex === target.nodeIndex
           ? null
           : target;
       const nextExpansion = nextTarget
         ? {
+            kind: "gnn" as const,
             layerIndex: nextTarget.layerIndex,
             nodeIndex: nextTarget.nodeIndex,
             distance: getExpansionDistance(sortedGNNFeatures, nextTarget.layerIndex, cellWidth),
@@ -797,6 +1030,41 @@ export function attachStaticHoverOverlay({
         sortedGNNFeatures,
         modelInfo,
         cellWidth,
+        mode,
+        nextExpansion
+      );
+      return;
+    }
+
+    if (target?.kind === "fc-node") {
+      const nextTarget =
+        expandedTarget?.kind === "fc-node" &&
+        expandedTarget.nodeIndex === target.nodeIndex
+          ? null
+          : target;
+      const nextExpansion = nextTarget
+        ? {
+            kind: "fc" as const,
+            nodeIndex: nextTarget.nodeIndex,
+            distance: getFcExpansionDistance(sortedGNNFeatures, modelInfo, cellWidth),
+          }
+        : null;
+
+      if (onExpansionChange) {
+        onExpansionChange(nextExpansion);
+        return;
+      }
+
+      expandedTarget = nextTarget;
+      drawExpansion(
+        expansionGroup,
+        expandedTarget,
+        scene,
+        adjacencyMatrix,
+        sortedGNNFeatures,
+        modelInfo,
+        cellWidth,
+        mode,
         nextExpansion
       );
       return;
