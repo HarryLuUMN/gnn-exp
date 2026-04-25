@@ -239,6 +239,19 @@ function frameTarget(
   ) as Extract<StaticHoverTarget, { kind: "feature-node" }> | undefined;
 }
 
+function highlightFeatureFrame(
+  group: SVGGElement,
+  scene: StaticVisualizationScene,
+  layerIndex: number,
+  nodeIndex: number,
+  opacity: number = 0.8
+) {
+  const target = frameTarget(scene.hoverTargets, layerIndex, nodeIndex);
+  if (target && "bounds" in target) {
+    appendRect(group, target.bounds, { opacity });
+  }
+}
+
 function getScenePoint(svg: SVGSVGElement, scene: StaticVisualizationScene, event: PointerEvent) {
   const rect = svg.getBoundingClientRect();
   return {
@@ -322,6 +335,13 @@ function drawFeatureHover(
   );
   if (selfLink && "points" in selfLink) {
     appendPath(group, selfLink.points);
+    highlightFeatureFrame(
+      group,
+      scene,
+      target.layerIndex - 1,
+      target.nodeIndex,
+      0.8
+    );
   }
 
   const adjacencyRow = adjacencyMatrix[target.nodeIndex] ?? [];
