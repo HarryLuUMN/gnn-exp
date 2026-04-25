@@ -1,0 +1,14 @@
+.graph_editor {
+  min-height: 760px;
+  width: 100%;
+}
+
+.graph_editor__root {
+  min-height: 760px;
+  width: 100%;
+}
+
+.graph_editor__canvas {
+  min-height: 640px;
+  width: 100%;
+}

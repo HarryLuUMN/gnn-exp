@@ -20,6 +20,8 @@ class GraphEditor(anywidget.AnyWidget):
         file_path = dataFile.lstrip("/")  
         browser_url = f"/files/{file_path}"
         print("Exposing file to browser:", browser_url)
+        with open(file_path, "r") as f:
+            self.graphData = json.load(f)
         self.dataFile = browser_url
 
     def export_data(self):
@@ -33,4 +35,3 @@ class GraphEditor(anywidget.AnyWidget):
     @traitlets.observe("graphData")
     def _on_graph_change(self, change):
         print("Python received updated graphData:", change["new"])
-

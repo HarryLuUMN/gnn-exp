@@ -10,12 +10,14 @@ import {
 
 interface GraphEditorProps {
     dataFile: any;
+    initialGraphData?: any;
     handleSimulatedGraphChange?: (value: any) => void;
     onNodePositionsChange?: (nodePositions: { id: string; x: number; y: number }[]) => void;
 }
 
 export default function GraphEditor({
     dataFile, 
+    initialGraphData,
     handleSimulatedGraphChange,
     onNodePositionsChange,
 }: GraphEditorProps): React.ReactElement {
@@ -28,6 +30,7 @@ export default function GraphEditor({
     const linksRef = useRef<any[]>([]);
     const nodesRef = useRef<any[]>([]);
     const selectionState = useRef(false);
+    const loadedDataFileRef = useRef<string | null>(null);
 
     const datasetRef = useRef<any>({});
     const [mode, setMode] = useState("edge");
@@ -87,36 +90,48 @@ export default function GraphEditor({
     };
 
     useEffect(() => {
-        if (!dataFile) return;
+        if (!dataFile && !initialGraphData) return;
+        if (loadedDataFileRef.current === dataFile) return;
 
         console.log("Loading JSON:", dataFile);
 
-        loadSimGraphData(dataFile)
-            .then((data) => {
-                console.log("Loaded JSON:", data);
-                setSimGraphData(data);  
+        const applyGraphData = (data: any) => {
+            loadedDataFileRef.current = dataFile;
+            setSimGraphData(data);
 
-                // determine feature dimension
-        let dim = 34;
-        if (data.x && data.x.length > 0) {
-            const first = data.x[0];
-            if (Array.isArray(first)) {
-                dim = first.length;
+            let dim = 34;
+            if (data.x && data.x.length > 0) {
+                const first = data.x[0];
+                if (Array.isArray(first)) {
+                    dim = first.length;
+                }
             }
+
+            const featureText = randomizeFeatures(dim);
+            setFeature(featureText);
+            setFeatureDim(dim);
+            console.log("Feature dimension:", dim, featureText);
+        };
+
+        if (!dataFile) {
+            applyGraphData(initialGraphData);
+            return;
         }
 
-        // initialize feature values
-        const featureText = randomizeFeatures(dim);
-
-        setFeature(featureText);
-
-        setFeatureDim(dim);
-        console.log("Feature dimension:", dim, featureText);
+        void loadSimGraphData(dataFile)
+            .then((data) => {
+                console.log("Loaded JSON:", data);
+                applyGraphData(data);
             })
-            .catch((err) => console.error("Error loading JSON:", err));
+            .catch((err) => {
+                console.error("Error loading JSON:", err);
+                if (initialGraphData?.x && initialGraphData?.edge_index) {
+                    applyGraphData(initialGraphData);
+                }
+            });
 
         
-    }, [dataFile]);
+    }, [dataFile, initialGraphData]);
 
 
     useEffect(() => {
@@ -538,7 +553,7 @@ export default function GraphEditor({
     };
 
     return (
-            <div>
+            <div className="graph_editor__root">
                 <div style={{ padding: "4px" }}>
                     <button
                         onClick={() => handleModeSwitch("node")}
@@ -589,8 +604,8 @@ export default function GraphEditor({
                 </div>
 
                 <div
+                    className="graph_editor__canvas"
                     ref={svgContainer}
-                    style={{ width: "100%", height: "100%" }}
                 ></div>
             </div>
     );

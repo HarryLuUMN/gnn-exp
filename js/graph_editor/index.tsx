@@ -6,7 +6,7 @@ import GraphEditor from "./GraphEditor";
 const render = createRender(() => {
 
     const [dataFile] = useModelState<string>("dataFile");
-    const [, setGraphData] = useModelState<any>("graphData");  
+    const [graphData, setGraphData] = useModelState<any>("graphData");  
     const [, setNodePositions] = React.useState<any[]>([]);
 
     const handleSimulatedGraphChange = (value: any) => {
@@ -23,6 +23,7 @@ const render = createRender(() => {
 		<div className="graph_editor">
 			<GraphEditor
                 dataFile={dataFile}
+                initialGraphData={graphData}
                 handleSimulatedGraphChange={handleSimulatedGraphChange}
                 onNodePositionsChange={handleNodePositionsChange}
             />
