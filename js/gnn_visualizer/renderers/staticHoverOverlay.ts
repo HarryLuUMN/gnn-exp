@@ -1009,7 +1009,22 @@ export function attachStaticHoverOverlay({
     );
   }
 
+  const clearExpansion = () => {
+    if (onExpansionChange) {
+      onExpansionChange(null);
+      return;
+    }
+
+    expandedTarget = null;
+    expansionGroup.replaceChildren();
+  };
+
   const onPointerMove = (event: PointerEvent) => {
+    if (expandedTarget) {
+      group.replaceChildren();
+      return;
+    }
+
     const point = getScenePoint(svg, scene, event);
     const matrixCell = matrixCellAt(scene.matrixLayout, point);
     if (matrixCell) {
@@ -1022,30 +1037,27 @@ export function attachStaticHoverOverlay({
   };
 
   const onPointerDown = (event: PointerEvent) => {
+    if (expandedTarget) {
+      clearExpansion();
+      return;
+    }
+
     const point = getScenePoint(svg, scene, event);
     const target = hitTest(scene, point);
     if (target?.kind === "feature-node" && target.layerIndex > 0) {
-      const nextTarget =
-        expandedTarget?.kind === "feature-node" &&
-        expandedTarget.layerIndex === target.layerIndex &&
-        expandedTarget.nodeIndex === target.nodeIndex
-          ? null
-          : target;
-      const nextExpansion = nextTarget
-        ? {
-            kind: "gnn" as const,
-            layerIndex: nextTarget.layerIndex,
-            nodeIndex: nextTarget.nodeIndex,
-            distance: getExpansionDistance(sortedGNNFeatures, nextTarget.layerIndex, cellWidth),
-          }
-        : null;
+      const nextExpansion = {
+        kind: "gnn" as const,
+        layerIndex: target.layerIndex,
+        nodeIndex: target.nodeIndex,
+        distance: getExpansionDistance(sortedGNNFeatures, target.layerIndex, cellWidth),
+      };
 
       if (onExpansionChange) {
         onExpansionChange(nextExpansion);
         return;
       }
 
-      expandedTarget = nextTarget;
+      expandedTarget = target;
       drawExpansion(
         expansionGroup,
         expandedTarget,
@@ -1061,25 +1073,18 @@ export function attachStaticHoverOverlay({
     }
 
     if (target?.kind === "fc-node") {
-      const nextTarget =
-        expandedTarget?.kind === "fc-node" &&
-        expandedTarget.nodeIndex === target.nodeIndex
-          ? null
-          : target;
-      const nextExpansion = nextTarget
-        ? {
-            kind: "fc" as const,
-            nodeIndex: nextTarget.nodeIndex,
-            distance: getFcExpansionDistance(sortedGNNFeatures, modelInfo, cellWidth),
-          }
-        : null;
+      const nextExpansion = {
+        kind: "fc" as const,
+        nodeIndex: target.nodeIndex,
+        distance: getFcExpansionDistance(sortedGNNFeatures, modelInfo, cellWidth),
+      };
 
       if (onExpansionChange) {
         onExpansionChange(nextExpansion);
         return;
       }
 
-      expandedTarget = nextTarget;
+      expandedTarget = target;
       drawExpansion(
         expansionGroup,
         expandedTarget,
@@ -1095,12 +1100,7 @@ export function attachStaticHoverOverlay({
     }
 
     if (!target) {
-      if (onExpansionChange) {
-        onExpansionChange(null);
-        return;
-      }
-      expandedTarget = null;
-      expansionGroup.replaceChildren();
+      clearExpansion();
     }
   };
 
