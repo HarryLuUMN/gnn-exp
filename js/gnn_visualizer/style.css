@@ -37,3 +37,117 @@
 .interaction_banned {
     pointer-events: none;
 }
+
+.gnn-model-shell {
+  width: 100%;
+  min-width: 0;
+}
+
+.gnn-model-toolbar {
+  align-items: center;
+  background: linear-gradient(135deg, #f7fbf9 0%, #eef5f1 100%);
+  border: 1px solid rgba(72, 104, 94, 0.18);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(34, 61, 53, 0.08);
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+}
+
+.gnn-model-toolbar__status,
+.gnn-model-toolbar__controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.gnn-model-toolbar__status {
+  color: #425b53;
+  font-size: 14px;
+}
+
+.gnn-model-toolbar__reason {
+  color: #8a5a16;
+}
+
+.gnn-model-toolbar__hint {
+  color: #6d7e78;
+  font-size: 13px;
+}
+
+.gnn-model-button {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(74, 107, 97, 0.24);
+  border-radius: 999px;
+  color: #263d35;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 14px;
+}
+
+.gnn-model-button:hover:not(:disabled) {
+  background: #ffffff;
+  border-color: rgba(43, 112, 92, 0.48);
+}
+
+.gnn-model-button:disabled {
+  color: rgba(38, 61, 53, 0.38);
+  cursor: not-allowed;
+}
+
+.gnn-model-viewport {
+  background:
+    radial-gradient(circle at 24px 24px, rgba(59, 106, 91, 0.06) 0 2px, transparent 2px),
+    #ffffff;
+  border: 1px solid rgba(72, 104, 94, 0.16);
+  border-radius: 16px;
+  box-sizing: border-box;
+  cursor: grab;
+  height: min(78vh, 920px);
+  min-height: 560px;
+  overflow: hidden;
+  position: relative;
+  touch-action: none;
+  width: 100%;
+}
+
+.gnn-model-viewport--panning {
+  cursor: grabbing;
+}
+
+.gnn-model-content {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  position: absolute;
+  top: 0;
+  transform-origin: 0 0;
+  width: max-content;
+  will-change: transform;
+}
+
+.gnn-static-gpu-canvas {
+  display: block;
+}
+
+.gnn-static-gpu-layer {
+  display: block;
+  position: relative;
+}
+
+.gnn-static-hover-overlay {
+  inset: 0;
+  overflow: visible;
+  position: absolute;
+}
+
+.gnn-static-hover-marks {
+  pointer-events: none;
+}

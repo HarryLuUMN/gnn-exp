@@ -1,231 +1,466 @@
-import React, { useEffect, useRef } from "react";
-import * as d3 from "d3";
-import type { NodeDatum, LinkDatum, HoverState } from "./dualViewTypes";
+import React from "react";
+import type { HoverState, LinkDatum } from "./dualViewTypes";
+import type { ResolvedRenderer } from "./renderers/capabilities";
+import {
+  findEdgeAtPoint,
+  findNodeAtPoint,
+  getGraphTransform,
+  getLinkStrokeColor,
+  getNodeFillColor,
+  getNodeStrokeColor,
+  isLinkHighlighted,
+  isNodeHighlighted,
+  screenToGraphPoint,
+  type GraphCanvasDrawArgs,
+  type GraphCanvasEngine,
+  type SceneNode,
+} from "./renderers/shared";
+import { createWebglGraphEngine } from "./renderers/webgl";
+import { createWebgpuGraphEngine } from "./renderers/webgpu";
 
 interface GraphViewProps {
   width?: number;
   height?: number;
   padding?: number;
   scaleFactor?: number;
-  nodes: NodeDatum[];
+  panOffset: { x: number; y: number };
+  onPanChange: (panOffset: { x: number; y: number }) => void;
+  renderer: ResolvedRenderer;
+  nodes: SceneNode[];
   links: LinkDatum[];
-  linkPredictionMode?: boolean;
-  onNodePositionChange?: (positions: { id: number; x: number; y: number }[]) => void;
+  sceneVersion: number;
+  beginDrag: (nodeId: number) => boolean;
+  dragTo: (x: number, y: number) => void;
+  endDrag: () => void;
   onHover?: (h: HoverState) => void;
   hover?: HoverState;
+  onRendererFailure: (
+    backend: Exclude<ResolvedRenderer, "svg">,
+    reason: string
+  ) => void;
 }
+
+interface CanvasGraphLayerProps {
+  backend: Exclude<ResolvedRenderer, "svg">;
+  drawArgs: GraphCanvasDrawArgs;
+  sceneVersion: number;
+  onRendererFailure: (
+    backend: Exclude<ResolvedRenderer, "svg">,
+    reason: string
+  ) => void;
+}
+
+const CanvasGraphLayer: React.FC<CanvasGraphLayerProps> = ({
+  backend,
+  drawArgs,
+  sceneVersion,
+  onRendererFailure,
+}) => {
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  const engineRef = React.useRef<GraphCanvasEngine | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    engineRef.current?.destroy();
+    engineRef.current = null;
+
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    if (backend === "webgl") {
+      const result = createWebglGraphEngine(canvas);
+      if ("error" in result) {
+        onRendererFailure("webgl", result.error);
+        return;
+      }
+
+      engineRef.current = result;
+      result.draw(drawArgs);
+      return () => {
+        result.destroy();
+        engineRef.current = null;
+      };
+    }
+
+    createWebgpuGraphEngine(canvas).then((result) => {
+      if (cancelled) {
+        if (!("error" in result)) {
+          result.destroy();
+        }
+        return;
+      }
+
+      if ("error" in result) {
+        onRendererFailure("webgpu", result.error);
+        return;
+      }
+
+      engineRef.current = result;
+      result.draw(drawArgs);
+    });
+
+    return () => {
+      cancelled = true;
+      engineRef.current?.destroy();
+      engineRef.current = null;
+    };
+  }, [backend, onRendererFailure]);
+
+  React.useEffect(() => {
+    engineRef.current?.draw(drawArgs);
+  }, [drawArgs, sceneVersion]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="dual-views-layer dual-views-canvas"
+      style={{ width: "100%", height: "100%" }}
+    />
+  );
+};
+
+const SvgGraphRenderer: React.FC<{
+  width: number;
+  height: number;
+  transform: ReturnType<typeof getGraphTransform>;
+  nodes: SceneNode[];
+  links: LinkDatum[];
+  hover?: HoverState;
+}> = ({ width, height, transform, nodes, links, hover }) => {
+  const nodesById = React.useMemo(
+    () => new Map(nodes.map((node) => [node.id, node] as const)),
+    [nodes]
+  );
+
+  return (
+    <svg
+      className="dual-views-layer"
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+    >
+      <g
+        transform={`translate(${transform.translateX},${transform.translateY}) scale(${transform.scale})`}
+      >
+        {links.map((link, index) => {
+          const source = nodesById.get(link.source);
+          const target = nodesById.get(link.target);
+          if (!source || !target) {
+            return null;
+          }
+
+          return (
+            <line
+              key={`${link.source}-${link.target}-${index}`}
+              className="link"
+              x1={source.x ?? 0}
+              y1={source.y ?? 0}
+              x2={target.x ?? 0}
+              y2={target.y ?? 0}
+              stroke={getLinkStrokeColor(hover ?? null, link)}
+              strokeWidth={isLinkHighlighted(hover ?? null, link) ? 2 : 1}
+              strokeOpacity={isLinkHighlighted(hover ?? null, link) ? 1 : 0.6}
+            />
+          );
+        })}
+        {nodes.map((node) => (
+          <g key={node.id} transform={`translate(${node.x ?? 0},${node.y ?? 0})`}>
+            <circle
+              className="node"
+              r={12}
+              fill={getNodeFillColor(hover ?? null, node)}
+              stroke={getNodeStrokeColor(hover ?? null, node)}
+              strokeWidth={isNodeHighlighted(hover ?? null, node.id) ? 2 : 1.5}
+            />
+            <text className="node-label" dy={4}>
+              {node.element}
+            </text>
+          </g>
+        ))}
+      </g>
+    </svg>
+  );
+};
 
 const GraphView: React.FC<GraphViewProps> = ({
   width = 800,
   height = 600,
   padding = 60,
   scaleFactor = 1.4,
+  panOffset,
+  onPanChange,
+  renderer,
   nodes,
   links,
-  linkPredictionMode = false,
-  onNodePositionChange,
+  sceneVersion,
+  beginDrag,
+  dragTo,
+  endDrag,
   onHover,
   hover,
+  onRendererFailure,
 }) => {
-  const rootRef = useRef<SVGGElement | null>(null);
-  const simRef = useRef<d3.Simulation<NodeDatum, LinkDatum> | null>(null);
+  const transform = React.useMemo(
+    () =>
+      getGraphTransform(
+        width,
+        height,
+        padding,
+        scaleFactor,
+        panOffset.x,
+        panOffset.y
+      ),
+    [height, padding, panOffset.x, panOffset.y, scaleFactor, width]
+  );
+  const nodesById = React.useMemo(
+    () => new Map(nodes.map((node) => [node.id, node] as const)),
+    [nodes, sceneVersion]
+  );
+  const draggingRef = React.useRef<number | null>(null);
+  const panningRef = React.useRef<{
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
+  } | null>(null);
+  const [isPanning, setIsPanning] = React.useState(false);
 
-  useEffect(() => {
-    const gRoot = d3.select(rootRef.current);
-    gRoot.selectAll("*").remove();
+  const drawArgs = React.useMemo<GraphCanvasDrawArgs>(
+    () => ({
+      width,
+      height,
+      nodes,
+      links,
+      hover: hover ?? null,
+      transform,
+    }),
+    [height, hover, links, nodes, transform, width]
+  );
 
-    const inner = gRoot
-      .append("g")
-      .attr("class", "graph-root")
-      .attr(
-        "transform",
-        `translate(${padding + ((width - 2 * padding) / 2) * (1 - scaleFactor)},${
-          padding + ((height - 2 * padding) / 2) * (1 - scaleFactor)
-        }) scale(${scaleFactor})`
-      );
-
-    // copy arrays (avoid mutating React props)
-    const localNodes: NodeDatum[] = nodes.map((n) => ({ ...n }));
-    const localLinks: any[] = links.map((l) => ({ ...l }));
-
-    // IMPORTANT: ensure no preset fx/fy remain
-    localNodes.forEach((n) => {
-      n.fx = null;
-      n.fy = null;
-    });
-
-    const linkSel = inner
-      .append("g")
-      .attr("class", "links")
-      .selectAll("line")
-      .data(localLinks)
-      .enter()
-      .append("line")
-      .attr("class", "link");
-
-    const nodeG = inner
-      .append("g")
-      .attr("class", "nodes")
-      .selectAll("g.nodeg")
-      .data(localNodes, (d: any) => d.id)
-      .enter()
-      .append("g")
-      .attr("class", "nodeg");
-
-    const nodeSel = nodeG
-      .append("circle")
-      .attr("class", "node")
-      .attr("r", 12);
-
-    nodeG
-      .append("text")
-      .attr("class", "node-label")
-      .attr("text-anchor", "middle")
-      .attr("dy", 4)
-      .text((d) => d.element);
-
-    function applyHover(h: any) {
-      if (!h) {
-        nodeSel.classed("highlighted", false);
-        linkSel.classed("highlighted", false);
+  const updateHoverFromPoint = React.useCallback(
+    (screenX: number, screenY: number) => {
+      const graphPoint = screenToGraphPoint(screenX, screenY, transform);
+      const hitNode = findNodeAtPoint(nodes, graphPoint.x, graphPoint.y);
+      if (hitNode) {
+        onHover?.({ kind: "node", nodeId: hitNode.id });
         return;
       }
-      if (h.kind === "node") {
-        nodeSel.classed("highlighted", (n: any) => n.id === h.nodeId);
-        linkSel.classed("highlighted", (l: any) => {
-          const s = (l.source as any).id ?? l.source;
-          const t = (l.target as any).id ?? l.target;
-          return s === h.nodeId || t === h.nodeId;
-        });
-      } else if (h.kind === "edge") {
-        linkSel.classed("highlighted", (l: any) => {
-          const s = (l.source as any).id ?? l.source;
-          const t = (l.target as any).id ?? l.target;
-          return (s === h.a && t === h.b) || (s === h.b && t === h.a);
-        });
-        nodeSel.classed(
-          "highlighted",
-          (n: any) => n.id === h.a || n.id === h.b
-        );
+
+      const hitEdge = findEdgeAtPoint(nodesById, links, graphPoint.x, graphPoint.y);
+      if (hitEdge) {
+        onHover?.({ kind: "edge", a: hitEdge.source, b: hitEdge.target });
+        return;
       }
+
+      onHover?.(null);
+    },
+    [links, nodes, nodesById, onHover, transform]
+  );
+
+  const getPointerPosition = React.useCallback(
+    (event: React.PointerEvent<SVGRectElement>) => {
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const scaleX = bounds.width === 0 ? 1 : width / bounds.width;
+      const scaleY = bounds.height === 0 ? 1 : height / bounds.height;
+      return {
+        x: (event.clientX - bounds.left) * scaleX,
+        y: (event.clientY - bounds.top) * scaleY,
+      };
+    },
+    [height, width]
+  );
+
+  const handlePointerDown = React.useCallback(
+    (event: React.PointerEvent<SVGRectElement>) => {
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+
+      const { x, y } = getPointerPosition(event);
+      const graphPoint = screenToGraphPoint(x, y, transform);
+      const hitNode = findNodeAtPoint(nodes, graphPoint.x, graphPoint.y);
+
+      if (!hitNode) {
+        panningRef.current = {
+          startX: x,
+          startY: y,
+          startPanX: panOffset.x,
+          startPanY: panOffset.y,
+        };
+        setIsPanning(true);
+        onHover?.(null);
+        event.currentTarget.setPointerCapture(event.pointerId);
+        return;
+      }
+
+      if (!beginDrag(hitNode.id)) {
+        return;
+      }
+
+      draggingRef.current = hitNode.id;
+      onHover?.({ kind: "node", nodeId: hitNode.id });
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [
+      beginDrag,
+      getPointerPosition,
+      nodes,
+      onHover,
+      panOffset.x,
+      panOffset.y,
+      transform,
+    ]
+  );
+
+  const handlePointerMove = React.useCallback(
+    (event: React.PointerEvent<SVGRectElement>) => {
+      const { x, y } = getPointerPosition(event);
+
+      if (panningRef.current !== null) {
+        const panStart = panningRef.current;
+        onPanChange({
+          x: panStart.startPanX + x - panStart.startX,
+          y: panStart.startPanY + y - panStart.startY,
+        });
+        return;
+      }
+
+      if (draggingRef.current !== null) {
+        const graphPoint = screenToGraphPoint(x, y, transform);
+        dragTo(graphPoint.x, graphPoint.y);
+        onHover?.({ kind: "node", nodeId: draggingRef.current });
+        return;
+      }
+
+      updateHoverFromPoint(x, y);
+    },
+    [
+      dragTo,
+      getPointerPosition,
+      onHover,
+      onPanChange,
+      transform,
+      updateHoverFromPoint,
+    ]
+  );
+
+  const handlePointerUp = React.useCallback(
+    (event: React.PointerEvent<SVGRectElement>) => {
+      const { x, y } = getPointerPosition(event);
+      if (draggingRef.current !== null) {
+        draggingRef.current = null;
+        endDrag();
+      }
+
+      if (panningRef.current !== null) {
+        panningRef.current = null;
+        setIsPanning(false);
+      }
+
+      updateHoverFromPoint(x, y);
+    },
+    [endDrag, getPointerPosition, updateHoverFromPoint]
+  );
+
+  const handlePointerLeave = React.useCallback(() => {
+    if (draggingRef.current !== null) {
+      draggingRef.current = null;
+      endDrag();
     }
 
-    // hover interaction
-    nodeSel
-      .on("mouseover", (_evt, d: any) => onHover?.({ kind: "node", nodeId: d.id }))
-      .on("mouseout", () => onHover?.(null));
-
-    linkSel
-      .on("mouseover", (_evt, d: any) => {
-        const s = (d.source as any).id ?? d.source;
-        const t = (d.target as any).id ?? d.target;
-        onHover?.({ kind: "edge", a: s, b: t });
-      })
-      .on("mouseout", () => onHover?.(null));
-
-    // Node drag behavior (force simulation)
-    const drag = d3
-      .drag<SVGGElement, NodeDatum>()
-      .on("start", (event, d) => {
-        if (simRef.current && !event.active) simRef.current.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-      })
-      .on("drag", (event, d) => {
-        d.fx = event.x;
-        d.fy = event.y;
-      })
-      .on("end", (event, d) => {
-        if (simRef.current && !event.active) simRef.current.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-        if (!linkPredictionMode && onNodePositionChange) {
-          const out = localNodes.map((n) => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0 }));
-          onNodePositionChange(out);
-        }
-      });
-
-    nodeG.call(drag as any);
-
-    //
-    // FORCE SIMULATION: ALWAYS RUN (no fixed layout)
-    //
-    const sim = d3
-      .forceSimulation<NodeDatum>(localNodes)
-      .force(
-        "link",
-        d3
-          .forceLink<NodeDatum, any>(localLinks)
-          .id((d: any) => d.id)
-          .distance(80)
-      )
-      .force("charge", d3.forceManyBody().strength(-200))
-      .force(
-        "center",
-        d3.forceCenter((width - 2 * padding) / 2, (height - 2 * padding) / 2)
-      )
-      .force("x", d3.forceX((width - 2 * padding) / 2).strength(0.1))
-      .force("y", d3.forceY((height - 2 * padding) / 2).strength(0.1));
-
-    sim.on("tick", () => {
-      linkSel
-        .attr("x1", (d: any) => ((d.source as any).x ?? 0))
-        .attr("y1", (d: any) => ((d.source as any).y ?? 0))
-        .attr("x2", (d: any) => ((d.target as any).x ?? 0))
-        .attr("y2", (d: any) => ((d.target as any).y ?? 0))
-        .style("stroke", (d: any) => (d.attr?.type === "aromatic" ? "purple" : "#aaa"));
-
-      nodeG.attr(
-        "transform",
-        (d: any) => `translate(${d.x ?? 0},${d.y ?? 0})`
-      );
-    });
-
-    simRef.current = sim;
-
-    applyHover(hover);
-
-    return () => {
-      simRef.current?.stop();
-      simRef.current = null;
-    };
-  }, [nodes, links, width, height, padding, scaleFactor, linkPredictionMode]);
-
-  // respond to external hover changes
-  useEffect(() => {
-    const gRoot = d3.select(rootRef.current);
-    const linkSel = gRoot.selectAll<SVGLineElement, any>("line.link");
-    const nodeSel = gRoot.selectAll<SVGCircleElement, any>("circle.node");
-
-    nodeSel.classed("highlighted", false);
-    linkSel.classed("highlighted", false);
-
-    if (!hover) return;
-
-    if (hover.kind === "node") {
-      nodeSel.classed("highlighted", (n: any) => n.id === hover.nodeId);
-      linkSel.classed("highlighted", (l: any) => {
-        const s = (l.source as any).id ?? l.source;
-        const t = (l.target as any).id ?? l.target;
-        return s === hover.nodeId || t === hover.nodeId;
-      });
-    } else if (hover.kind === "edge") {
-      linkSel.classed("highlighted", (l: any) => {
-        const s = (l.source as any).id ?? l.source;
-        const t = (l.target as any).id ?? l.target;
-        return (s === hover.a && t === hover.b) || (s === hover.b && t === hover.a);
-      });
-      nodeSel.classed(
-        "highlighted",
-        (n: any) => n.id === hover.a || n.id === hover.b
-      );
+    if (panningRef.current !== null) {
+      panningRef.current = null;
+      setIsPanning(false);
     }
-  }, [hover]);
+
+    onHover?.(null);
+  }, [endDrag, onHover]);
+
+  const hitAreaClassName = `dual-views-graph-hit-area${
+    isPanning ? " dual-views-graph-hit-area--panning" : ""
+  }`;
+
+  const overlayLabels = (
+    <g
+      pointerEvents="none"
+      transform={`translate(${transform.translateX},${transform.translateY}) scale(${transform.scale})`}
+    >
+      {nodes.map((node) => (
+        <text
+          key={node.id}
+          className="node-label"
+          x={node.x ?? 0}
+          y={(node.y ?? 0) + 4}
+        >
+          {node.element}
+        </text>
+      ))}
+    </g>
+  );
+
+  if (renderer === "svg") {
+    return (
+      <div className="dual-views-stage" style={{ width, height }}>
+        <SvgGraphRenderer
+          width={width}
+          height={height}
+          transform={transform}
+          nodes={nodes}
+          links={links}
+          hover={hover}
+        />
+        <svg
+          className="dual-views-layer dual-views-overlay"
+          width={width}
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
+        >
+          <rect
+            className={hitAreaClassName}
+            width={width}
+            height={height}
+            fill="transparent"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerLeave}
+            onPointerCancel={handlePointerLeave}
+          />
+        </svg>
+      </div>
+    );
+  }
 
   return (
-    <svg width={width} height={height}>
-      <g ref={rootRef} />
-    </svg>
+    <div className="dual-views-stage" style={{ width, height }}>
+      <CanvasGraphLayer
+        backend={renderer}
+        drawArgs={drawArgs}
+        sceneVersion={sceneVersion}
+        onRendererFailure={onRendererFailure}
+      />
+      <svg
+        className="dual-views-layer dual-views-overlay"
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+      >
+        {overlayLabels}
+        <rect
+          className={hitAreaClassName}
+          width={width}
+          height={height}
+          fill="transparent"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerLeave}
+          onPointerCancel={handlePointerLeave}
+        />
+      </svg>
+    </div>
   );
 };
 

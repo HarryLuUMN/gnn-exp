@@ -2,16 +2,26 @@ import * as React from "react";
 import { createRender, useModelState } from "@anywidget/react";
 import "./style.css";
 import DualViews from "./DualViews";
+import type {
+    RendererMode,
+    ResolvedRenderer,
+} from "./renderers/capabilities";
 
 const render = createRender(() => {
-    // Bind to Python trait `graphData`
-    const [graphData, setGraphData] = useModelState<any>("graphData");
+    const [graphData] = useModelState<any>("graphData");
+    const [renderer, setRenderer] = useModelState<RendererMode>("renderer");
+    const [effectiveRenderer, setEffectiveRenderer] =
+        useModelState<ResolvedRenderer>("effectiveRenderer");
 
 	console.log("DualViews received graphData =", graphData);
 
     return (
         <div className="gnn_vis_widgets">
             <DualViews
+                renderer={renderer}
+                effectiveRenderer={effectiveRenderer}
+                setRenderer={setRenderer}
+                setEffectiveRenderer={setEffectiveRenderer}
                 graphData={graphData}
                 handleSimulatedGraphChange={() => {}}
                 handleNodePositionsChange={() => {}}

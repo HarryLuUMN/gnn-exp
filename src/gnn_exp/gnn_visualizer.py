@@ -16,6 +16,14 @@ class GNNVisualizer(anywidget.AnyWidget):
     intmData = traitlets.Dict().tag(sync=True)
     subgraphSample = traitlets.Bool(False).tag(sync=True)
     mode = traitlets.Unicode("").tag(sync=True)
+    renderer = traitlets.Enum(
+        values=["svg", "auto", "webgl", "webgpu"],
+        default_value="svg",
+    ).tag(sync=True)
+    effectiveRenderer = traitlets.Enum(
+        values=["svg", "webgl", "webgpu"],
+        default_value="svg",
+    ).tag(sync=True)
 
     queries = traitlets.List(default_value=[]).tag(sync=True)
 
