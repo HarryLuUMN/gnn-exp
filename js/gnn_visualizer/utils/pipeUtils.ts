@@ -4,6 +4,8 @@ const INLINE_ICONS: Record<string, string> = {
     matmul: `<svg viewBox="0 0 10 10" width="10" height="10" xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4.5" fill="#fff" stroke="#000" stroke-width=".35"/><g fill="#fff" stroke="#000" stroke-width=".18"><rect x="1.7" y="2.2" width="1" height="1"/><rect x="1.7" y="3.4" width="1" height="1"/><rect x="1.7" y="4.6" width="1" height="1"/><rect x="2.9" y="2.2" width="1" height="1"/><rect x="2.9" y="3.4" width="1" height="1"/><rect x="2.9" y="4.6" width="1" height="1"/></g><text x="6" y="6.2" font-size="2.6" font-family="serif" text-anchor="middle" fill="#000">×</text></svg>`,
     relu: `<svg viewBox="0 0 10 10" width="10" height="10" xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4.5" fill="#fff" stroke="#000" stroke-width=".35"/><path d="M1.5 7h7" stroke="#000" stroke-width=".18" opacity=".25"/><path d="M5 1.4v7" stroke="#000" stroke-width=".18" opacity=".35"/><path d="M1.7 6.8h3.1L8.1 3" fill="none" stroke="#c6501d" stroke-width=".45" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 };
+const ICON_SCALE = 2;
+const ICON_VIEWBOX_SIZE = 10;
 
 function fallbackIconForPath(path: string) {
     const normalized = path.toLowerCase();
@@ -25,9 +27,10 @@ function appendSVGText(g: any, x: number, y: number, svgText: string, svgClass: 
         throw new Error("Failed to parse SVG element");
     }
 
+    const offset = (ICON_VIEWBOX_SIZE * ICON_SCALE) / 2;
     const group = d3.select(g.node()).append("g")
         .attr("class", svgClass)
-        .attr("transform", `translate(${x}, ${y}) scale(2)`);
+        .attr("transform", `translate(${x - offset}, ${y - offset}) scale(${ICON_SCALE})`);
 
     const groupNode = group.node();
     if (!groupNode) {
@@ -103,7 +106,6 @@ export function injectSVG(g:any, x: number, y: number, SVGPath:string, svgClass:
         console.error("Error loading SVG after all attempts:", SVGPath, error);
     });
 }
-
 
 
 
