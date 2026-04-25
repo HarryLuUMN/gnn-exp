@@ -113,7 +113,7 @@ export default function GraphEditor({
             console.log("Feature dimension:", dim, featureText);
         };
 
-        if (!dataFile) {
+        if (initialGraphData?.x && initialGraphData?.edge_index) {
             applyGraphData(initialGraphData);
             return;
         }

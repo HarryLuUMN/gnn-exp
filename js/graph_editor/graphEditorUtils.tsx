@@ -43,7 +43,8 @@ export function processDataFromVisualizerToEditor(input: {
   y: number[],
   batch: number[]
 }) {
-  const { x, edge_index, edge_attr } = input;
+  const { x, edge_index } = input;
+  const edge_attr = input.edge_attr ?? [];
 
   // IMPORTANT: keep original features
   const nodes = x.map((features, index) => ({
