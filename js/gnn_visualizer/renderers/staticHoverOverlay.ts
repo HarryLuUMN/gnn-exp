@@ -162,6 +162,80 @@ function appendText(group: SVGGElement, x: number, y: number, text: string) {
   group.append(node);
 }
 
+function appendIconGroup(
+  group: SVGGElement,
+  x: number,
+  y: number,
+  className: string
+) {
+  const icon = createSvgElement("g");
+  icon.setAttribute("class", className);
+  icon.setAttribute("transform", `translate(${x - 7}, ${y - 7})`);
+  group.append(icon);
+  return icon;
+}
+
+function appendIconCircle(group: SVGGElement) {
+  const circle = createSvgElement("circle");
+  circle.setAttribute("cx", "7");
+  circle.setAttribute("cy", "7");
+  circle.setAttribute("r", "6.5");
+  circle.setAttribute("fill", "#ffffff");
+  circle.setAttribute("stroke", HIGHLIGHT);
+  circle.setAttribute("stroke-width", "0.75");
+  group.append(circle);
+}
+
+function appendMatmulIcon(group: SVGGElement, x: number, y: number) {
+  const icon = appendIconGroup(group, x, y, "matmul-icon layer-inner-works");
+  appendIconCircle(icon);
+
+  for (let row = 0; row < 2; row += 1) {
+    for (let col = 0; col < 3; col += 1) {
+      appendRect(
+        icon,
+        {
+          x: 2.3 + row * 1.6,
+          y: 3.2 + col * 1.6,
+          width: 1.2,
+          height: 1.2,
+        },
+        { stroke: HIGHLIGHT, strokeWidth: 0.35, fill: "#ffffff" }
+      );
+    }
+  }
+
+  const text = createSvgElement("text");
+  text.setAttribute("x", "9.4");
+  text.setAttribute("y", "8.7");
+  text.setAttribute("text-anchor", "middle");
+  text.setAttribute("font-size", "4.2");
+  text.setAttribute("fill", HIGHLIGHT);
+  text.textContent = "x";
+  icon.append(text);
+}
+
+function appendActivationIcon(group: SVGGElement, x: number, y: number) {
+  const icon = appendIconGroup(group, x, y, "activation-icon layer-inner-works");
+  appendIconCircle(icon);
+
+  const axis = createSvgElement("path");
+  axis.setAttribute("d", "M2.2 9.3 H11.8 M7 2.2 V11.8");
+  axis.setAttribute("stroke", "rgba(32, 61, 53, 0.34)");
+  axis.setAttribute("stroke-width", "0.35");
+  axis.setAttribute("fill", "none");
+  icon.append(axis);
+
+  const relu = createSvgElement("path");
+  relu.setAttribute("d", "M2.4 9.2 H6.4 L11.5 4.1");
+  relu.setAttribute("stroke", "#c6501d");
+  relu.setAttribute("stroke-width", "0.9");
+  relu.setAttribute("stroke-linecap", "round");
+  relu.setAttribute("stroke-linejoin", "round");
+  relu.setAttribute("fill", "none");
+  icon.append(relu);
+}
+
 function appendFeatureVector(
   group: SVGGElement,
   x: number,
@@ -629,6 +703,11 @@ function drawFeatureExpansion(
     multipliedX,
     currentNodeY
   );
+  appendMatmulIcon(
+    group,
+    aggregatedRight + DISTANCE_TO_FEATURE / 2,
+    currentNodeY
+  );
   appendPath(
     group,
     [
@@ -679,6 +758,11 @@ function drawFeatureExpansion(
     multipliedX + multipliedFeature.length * cellWidth,
     currentNodeY,
     target.bounds.x,
+    currentNodeY
+  );
+  appendActivationIcon(
+    group,
+    multipliedX + multipliedFeature.length * cellWidth + DISTANCE_TO_FEATURE / 2,
     currentNodeY
   );
   appendPath(
@@ -773,6 +857,11 @@ function drawFcExpansion(
     currentNodeX + DISTANCE_TO_FEATURE,
     currentNodeY
   );
+  appendMatmulIcon(
+    group,
+    currentNodeX + DISTANCE_TO_FEATURE / 2,
+    currentNodeY
+  );
   appendPath(
     group,
     [
@@ -849,6 +938,11 @@ function drawFcExpansion(
     additionX + biasedAddition.length * cellWidth,
     currentNodeY,
     target.bounds.x,
+    currentNodeY
+  );
+  appendActivationIcon(
+    group,
+    additionX + biasedAddition.length * cellWidth + DISTANCE_TO_FEATURE / 2,
     currentNodeY
   );
 }

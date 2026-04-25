@@ -651,7 +651,13 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
         .attr("class", "bias-to-output-path layer-inner-works")
         .lower();
     // add activation function icon
-    
+    injectSVG(
+        inner,
+        currentNodeX + distanceBetweenFeatures*2.5 + aggregatedFeature.length * cellWidth + multipliedFeature.length * cellWidth,
+        currentNodeY,
+        "./assets/relu.svg",
+        "activation-icon layer-inner-works"
+    );
 }
 
 export function visualizeInnerFCLayerSubpipe(container: HTMLDivElement, cellWidth: number, nodeID: number, sortedGNNFeatures: any[][], modelInfo: any, direction: string, mode: string){
@@ -683,6 +689,13 @@ export function visualizeInnerFCLayerSubpipe(container: HTMLDivElement, cellWidt
         .attr("opacity", 1)
         .attr("class", "weight-line layer-inner-works")
         .lower();
+    injectSVG(
+        inner,
+        currentNodeX + distanceToFeature / 2,
+        currentNodeY,
+        "./assets/matmul.svg",
+        "matmul-icon layer-inner-works"
+    );
     // intersect to weight matrix path
     const matrixStartX = currentNodeX + distanceToFeature;
     const matrixStartY = currentNodeY - (dirCoefficient) * distanceToFeature;
@@ -764,4 +777,11 @@ export function visualizeInnerFCLayerSubpipe(container: HTMLDivElement, cellWidt
     inner.append("rect").attr("x", currentNodeX + distanceToFeature * 2 + multipliedFeature.length * cellWidth).attr("y", currentNodeY - 12/2).attr("width", biasedAddition.length * cellWidth).attr("height", 12).attr("fill", "none").attr("class", "biased-addition-frame layer-inner-works").attr("id", `fc-biased-addition-frame-node-${nodeID}`).style("stroke-width", 1).style("stroke", "black").style("opacity", 1);
     // visualize activation function
     inner.append("line").attr("x1", currentNodeX + distanceToFeature * 2 + multipliedFeature.length * cellWidth + biasedAddition.length * cellWidth).attr("y1", currentNodeY).attr("x2", currentNodeX + distanceToFeature * 3 + multipliedFeature.length * cellWidth + biasedAddition.length * cellWidth).attr("y2", currentNodeY).attr("stroke", "black").attr("opacity", 1).attr("class", "activation-line layer-inner-works").lower();
+    injectSVG(
+        inner,
+        currentNodeX + distanceToFeature * 2.5 + multipliedFeature.length * cellWidth + biasedAddition.length * cellWidth,
+        currentNodeY,
+        "./assets/relu.svg",
+        "activation-icon layer-inner-works"
+    );
 }
