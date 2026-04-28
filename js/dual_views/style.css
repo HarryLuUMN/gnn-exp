@@ -16,12 +16,6 @@
 	background: linear-gradient(180deg, #f8fbfa 0%, #eef5f2 100%);
 }
 
-.renderer-toolbar__buttons {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-}
-
 .renderer-toolbar__zoom {
 	display: flex;
 	flex-wrap: wrap;
@@ -58,12 +52,6 @@
 	cursor: not-allowed;
 	opacity: 0.45;
 	transform: none;
-}
-
-.renderer-button--active {
-	background: #0d6b5a;
-	border-color: #0d6b5a;
-	color: #ffffff;
 }
 
 .renderer-toolbar__status {

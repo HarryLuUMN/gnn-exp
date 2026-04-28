@@ -12,9 +12,22 @@ export interface RendererResolution {
 }
 
 type FailureMap = Partial<Record<ResolvedRenderer, string>>;
+type WebGpuNavigator = Navigator & {
+  gpu?: {
+    requestAdapter?: () => Promise<unknown>;
+  };
+};
 
 function joinFallbackReason(prefix: string, target: ResolvedRenderer) {
   return `${prefix} Using ${target.toUpperCase()} instead.`;
+}
+
+function getWebGpuRuntime() {
+  if (typeof navigator === "undefined") {
+    return undefined;
+  }
+
+  return (navigator as WebGpuNavigator).gpu;
 }
 
 export function detectCapabilities(): RenderCapabilities {
@@ -23,16 +36,26 @@ export function detectCapabilities(): RenderCapabilities {
   }
 
   const canvas = document.createElement("canvas");
-  const gpu = (
-    navigator as Navigator & {
-      gpu?: { requestAdapter?: () => Promise<unknown> };
-    }
-  ).gpu;
+  const gpu = getWebGpuRuntime();
 
   return {
     webgl: canvas.getContext("webgl2") !== null,
-    webgpu: typeof gpu !== "undefined",
+    webgpu: typeof gpu?.requestAdapter === "function",
   };
+}
+
+export async function detectWebgpuCapability(): Promise<boolean> {
+  const gpu = getWebGpuRuntime();
+
+  if (typeof gpu?.requestAdapter !== "function") {
+    return false;
+  }
+
+  try {
+    return (await gpu.requestAdapter()) !== null;
+  } catch {
+    return false;
+  }
 }
 
 export function resolveRenderer(

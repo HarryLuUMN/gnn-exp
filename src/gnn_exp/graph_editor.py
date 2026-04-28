@@ -20,6 +20,8 @@ class GraphEditor(anywidget.AnyWidget):
         file_path = dataFile.lstrip("/")  
         browser_url = f"/files/{file_path}"
         print("Exposing file to browser:", browser_url)
+        with open(file_path, "r") as f:
+            self.graphData = json.load(f)
         self.dataFile = browser_url
 
     def export_data(self):
@@ -32,5 +34,8 @@ class GraphEditor(anywidget.AnyWidget):
 
     @traitlets.observe("graphData")
     def _on_graph_change(self, change):
-        print("Python received updated graphData:", change["new"])
-
+        graph = change["new"] or {}
+        node_count = len(graph.get("x", []))
+        edge_index = graph.get("edge_index", [[], []])
+        edge_count = len(edge_index[0]) if edge_index else 0
+        print(f"Python received updated graphData: {node_count} nodes, {edge_count} edges")

@@ -1,6 +1,7 @@
 import { featureColor } from "../utils/const";
 import {
   extractSortedGNNLayerFeatures,
+  getEdgeOutputFeature,
   processSubgraphSequenceDataPipe,
   type SubgraphResult,
 } from "../utils/dataProcessingUtils";
@@ -34,14 +35,24 @@ export interface StaticVisualizationScene {
   matrixLayout: StaticMatrixLayout;
 }
 
-export type StaticExpansionState = {
-  layerIndex: number;
-  nodeIndex: number;
-  distance: number;
-} | null;
+export type StaticExpansionState =
+  | {
+      kind: "gnn";
+      layerIndex: number;
+      nodeIndex: number;
+      distance: number;
+    }
+  | {
+      kind: "fc";
+      nodeIndex: number;
+      distance: number;
+    }
+  | null;
 
 export type StaticVisualizationOptions = {
   expansion?: StaticExpansionState;
+  nodeLabels?: string[];
+  messagePassingDepth?: number;
 };
 
 export type StaticBounds = {
@@ -54,6 +65,7 @@ export type StaticBounds = {
 export type StaticMatrixLayout = StaticBounds & {
   cellSize: number;
   nodeCount: number;
+  nodeLabels: string[];
 };
 
 export type StaticHoverTarget =
@@ -130,6 +142,7 @@ function createBuilder(): SceneBuilder {
       height: 0,
       cellSize: MATRIX_CELL_SIZE,
       nodeCount: 0,
+      nodeLabels: [],
     },
     minX: Number.POSITIVE_INFINITY,
     minY: Number.POSITIVE_INFINITY,
@@ -310,7 +323,12 @@ function getLayerLeftX(
     layerX += getLayerWidth(sortedGNNFeatures, index, cellWidth) + LAYER_GAP;
   }
 
-  return layerX + (expansion && layerIndex >= expansion.layerIndex ? expansion.distance : 0);
+  return (
+    layerX +
+    (expansion?.kind === "gnn" && layerIndex >= expansion.layerIndex
+      ? expansion.distance
+      : 0)
+  );
 }
 
 function getLayerRightX(
@@ -329,10 +347,16 @@ function shouldEmphasizeFeature(
   expansion: StaticExpansionState,
   adjacencyMatrix: number[][],
   layerIndex: number,
-  nodeIndex: number
+  nodeIndex: number,
+  lastLayerIndex: number,
+  mode: string
 ) {
   if (!expansion) {
     return true;
+  }
+
+  if (expansion.kind === "fc") {
+    return mode !== "graph" && layerIndex === lastLayerIndex && nodeIndex === expansion.nodeIndex;
   }
 
   if (layerIndex === expansion.layerIndex && nodeIndex === expansion.nodeIndex) {
@@ -369,7 +393,7 @@ function addFeatureVector(
   }
 }
 
-function addMatrix(builder: SceneBuilder, adjacencyMatrix: number[][]) {
+function addMatrix(builder: SceneBuilder, adjacencyMatrix: number[][], nodeLabels: string[]) {
   const size = adjacencyMatrix.length;
   const matrixSize = size * MATRIX_CELL_SIZE;
   builder.matrixLayout = {
@@ -379,6 +403,7 @@ function addMatrix(builder: SceneBuilder, adjacencyMatrix: number[][]) {
     height: matrixSize,
     cellSize: MATRIX_CELL_SIZE,
     nodeCount: size,
+    nodeLabels,
   };
   addRect(builder, MATRIX_START_X, MATRIX_START_Y, matrixSize, matrixSize, {
     fill: MATRIX_OFF,
@@ -414,8 +439,10 @@ function addIntermediateFeatures(
   subgraphData: SubgraphResult[],
   subgraphSample: boolean,
   adjacencyMatrix: number[][],
-  expansion: StaticExpansionState
+  expansion: StaticExpansionState,
+  mode: string
 ) {
+  const lastLayerIndex = sortedGNNFeatures.length - 1;
   for (let layerIndex = 0; layerIndex < sortedGNNFeatures.length; layerIndex += 1) {
     const layerX = getLayerLeftX(sortedGNNFeatures, layerIndex, cellWidth, expansion);
     const subgraph = subgraphData[layerIndex];
@@ -428,7 +455,9 @@ function addIntermediateFeatures(
         expansion,
         adjacencyMatrix,
         layerIndex,
-        nodeIndex
+        nodeIndex,
+        lastLayerIndex,
+        mode
       )
         ? 1
         : 0.1;
@@ -456,8 +485,6 @@ function addIntermediateFeatures(
       });
     }
   }
-
-  const lastLayerIndex = sortedGNNFeatures.length - 1;
   return getLayerRightX(sortedGNNFeatures, lastLayerIndex, cellWidth, expansion) + LAYER_GAP;
 }
 
@@ -543,15 +570,17 @@ function addSingleFC(
   nodeIndex: number,
   cellWidth: number,
   opacity: number = 1,
-  showLink: boolean = true
+  showLink: boolean = true,
+  xOffset: number = 0
 ) {
   const y = layerY + nodeIndex * NODE_ROW_HEIGHT + 6;
-  addFeatureVector(builder, layerX, y, feature, cellWidth, 12, 2, opacity);
+  const x = layerX + xOffset;
+  addFeatureVector(builder, x, y, feature, cellWidth, 12, 2, opacity);
   addHoverTarget(builder, {
     kind: "fc-node",
     nodeIndex,
     bounds: {
-      x: layerX,
+      x,
       y,
       width: feature.length * cellWidth,
       height: 12,
@@ -562,7 +591,7 @@ function addSingleFC(
   }
 
   const points: Array<[number, number]> = [
-    [layerX, layerY + nodeIndex * NODE_ROW_HEIGHT + 12],
+    [x, layerY + nodeIndex * NODE_ROW_HEIGHT + 12],
     [layerX - LAYER_GAP, layerY + nodeIndex * NODE_ROW_HEIGHT + 12],
   ];
   addPolyline(builder, points, BLACK_FAINT, 1);
@@ -579,7 +608,9 @@ function addNodeTaskFC(
   intmData: any,
   cellWidth: number,
   opacity: number,
-  showLinks: boolean
+  showLinks: boolean,
+  xOffset: number,
+  selectedFcIndex: number | null
 ) {
   const fcLayerFeatures: number[][] | undefined = intmData?.softmax;
   if (!Array.isArray(fcLayerFeatures)) {
@@ -589,7 +620,18 @@ function addNodeTaskFC(
   for (let nodeIndex = 0; nodeIndex < fcLayerFeatures.length; nodeIndex += 1) {
     const feature = fcLayerFeatures[nodeIndex];
     if (Array.isArray(feature)) {
-      addSingleFC(builder, layerX, MATRIX_START_Y, feature, nodeIndex, cellWidth, opacity, showLinks);
+      const nodeOpacity = selectedFcIndex === nodeIndex ? 1 : opacity;
+      addSingleFC(
+        builder,
+        layerX,
+        MATRIX_START_Y,
+        feature,
+        nodeIndex,
+        cellWidth,
+        nodeOpacity,
+        showLinks,
+        xOffset
+      );
     }
   }
 }
@@ -597,12 +639,17 @@ function addNodeTaskFC(
 function addEdgeTaskFC(
   builder: SceneBuilder,
   layerX: number,
+  intmData: any,
+  sortedGNNFeatures: number[][][],
   queries: number[][],
   cellWidth: number,
   opacity: number,
-  showLinks: boolean
+  showLinks: boolean,
+  xOffset: number,
+  selectedFcIndex: number | null
 ) {
   const previousLayerX = layerX - LAYER_GAP;
+  const fcLayerX = layerX + xOffset;
   for (let queryIndex = 0; queryIndex < queries.length; queryIndex += 1) {
     const [nodeA, nodeB] = queries[queryIndex] ?? [];
     if (nodeA == null || nodeB == null) {
@@ -617,13 +664,13 @@ function addEdgeTaskFC(
       [previousLayerX, layerYA],
       [midX, layerYA],
       [midX, layerYMid],
-      [layerX, layerYMid]
+      [fcLayerX, layerYMid]
     );
     const nodeBPoints = sampleCubic(
       [previousLayerX, layerYB],
       [midX, layerYB],
       [midX, layerYMid],
-      [layerX, layerYMid]
+      [fcLayerX, layerYMid]
     );
 
     if (showLinks) {
@@ -641,24 +688,30 @@ function addEdgeTaskFC(
       });
     }
 
-    const probability = Math.random();
+    const outputFeature = getEdgeOutputFeature(
+      intmData,
+      sortedGNNFeatures,
+      queries,
+      queryIndex
+    );
+    const nodeOpacity = selectedFcIndex === queryIndex ? 1 : opacity;
     addFeatureVector(
       builder,
-      layerX,
+      fcLayerX,
       layerYMid - 6,
-      [1 - probability, probability],
+      outputFeature,
       cellWidth,
       12,
       1,
-      opacity
+      nodeOpacity
     );
     addHoverTarget(builder, {
       kind: "fc-node",
       nodeIndex: queryIndex,
       bounds: {
-        x: layerX,
+        x: fcLayerX,
         y: layerYMid - 6,
-        width: 2 * cellWidth,
+        width: outputFeature.length * cellWidth,
         height: 12,
       },
     });
@@ -671,7 +724,9 @@ function addGraphTaskFC(
   intmData: any,
   cellWidth: number,
   opacity: number,
-  showLinks: boolean
+  showLinks: boolean,
+  xOffset: number,
+  selectedFcIndex: number | null
 ) {
   const fcLayerFeatures: number[][] | undefined = intmData?.conv4;
   if (!Array.isArray(fcLayerFeatures) || fcLayerFeatures.length === 0) {
@@ -679,6 +734,8 @@ function addGraphTaskFC(
   }
 
   const previousLayerX = layerX - LAYER_GAP;
+  const aggX = layerX;
+  const fcX = layerX + LAYER_GAP + xOffset;
   const midLayerY = MATRIX_START_Y + (fcLayerFeatures.length * NODE_ROW_HEIGHT) / 2;
   for (let nodeIndex = 0; nodeIndex < fcLayerFeatures.length; nodeIndex += 1) {
     const currentY = MATRIX_START_Y + nodeIndex * NODE_ROW_HEIGHT + 12;
@@ -686,7 +743,7 @@ function addGraphTaskFC(
       [previousLayerX, currentY],
       [previousLayerX + 50, currentY],
       [previousLayerX + 50, midLayerY],
-      [layerX, midLayerY]
+      [aggX, midLayerY]
     );
     if (showLinks) {
       addPolyline(builder, points, BLACK_FAINT, 1);
@@ -704,17 +761,26 @@ function addGraphTaskFC(
   }
   averaged = divideVector(averaged, fcLayerFeatures.length);
 
-  addFeatureVector(builder, layerX, midLayerY - 6, averaged, cellWidth, 12, 1, opacity);
+  addFeatureVector(builder, aggX, midLayerY - 6, averaged, cellWidth, 12, 1, opacity);
   addHoverTarget(builder, {
     kind: "agg-node",
     bounds: {
-      x: layerX,
+      x: aggX,
       y: midLayerY - 6,
       width: averaged.length * cellWidth,
       height: 12,
     },
   });
-  addSingleFC(builder, layerX + LAYER_GAP, midLayerY - 12, randomVector(4), 0, cellWidth, opacity, showLinks);
+  addSingleFC(
+    builder,
+    fcX,
+    midLayerY - 12,
+    randomVector(4),
+    0,
+    cellWidth,
+    selectedFcIndex === 0 ? 1 : opacity,
+    showLinks
+  );
 }
 
 function addFCByMode(
@@ -723,22 +789,58 @@ function addFCByMode(
   layerX: number,
   intmData: any,
   queries: number[][],
+  sortedGNNFeatures: number[][][],
   cellWidth: number,
   opacity: number,
-  showLinks: boolean
+  showLinks: boolean,
+  expansion: StaticExpansionState
 ) {
+  const fcOffset = expansion?.kind === "fc" ? expansion.distance : 0;
+  const fcOpacity = expansion?.kind === "fc" ? 0.1 : opacity;
+  const selectedFcIndex = expansion?.kind === "fc" ? expansion.nodeIndex : null;
+  const showFcLinks = showLinks && expansion?.kind !== "fc";
+
   if (mode === "node") {
-    addNodeTaskFC(builder, layerX, intmData, cellWidth, opacity, showLinks);
+    addNodeTaskFC(
+      builder,
+      layerX,
+      intmData,
+      cellWidth,
+      fcOpacity,
+      showFcLinks,
+      fcOffset,
+      selectedFcIndex
+    );
     return;
   }
 
   if (mode === "edge") {
-    addEdgeTaskFC(builder, layerX, queries, cellWidth, opacity, showLinks);
+    addEdgeTaskFC(
+      builder,
+      layerX,
+      intmData,
+      sortedGNNFeatures,
+      queries,
+      cellWidth,
+      fcOpacity,
+      showFcLinks,
+      fcOffset,
+      selectedFcIndex
+    );
     return;
   }
 
   if (mode === "graph") {
-    addGraphTaskFC(builder, layerX, intmData, cellWidth, opacity, showLinks);
+    addGraphTaskFC(
+      builder,
+      layerX,
+      intmData,
+      cellWidth,
+      fcOpacity,
+      showFcLinks,
+      fcOffset,
+      selectedFcIndex
+    );
   }
 }
 
@@ -756,6 +858,7 @@ function translateScene(builder: SceneBuilder): StaticVisualizationScene {
         height: 0,
         cellSize: MATRIX_CELL_SIZE,
         nodeCount: 0,
+        nodeLabels: [],
       },
     };
   }
@@ -820,10 +923,17 @@ export function buildVisualizationScene(
 ): StaticVisualizationScene {
   const builder = createBuilder();
   const sortedGNNFeatures = extractSortedGNNLayerFeatures(intmData);
-  const subgraphData = processSubgraphSequenceDataPipe(adjacencyMatrix, queries, 4);
+  const subgraphData = processSubgraphSequenceDataPipe(
+    adjacencyMatrix,
+    queries,
+    options.messagePassingDepth ?? 4
+  );
   const expansion = options.expansion ?? null;
+  const nodeLabels = adjacencyMatrix.map(
+    (_, index) => options.nodeLabels?.[index] ?? String(index)
+  );
 
-  addMatrix(builder, adjacencyMatrix);
+  addMatrix(builder, adjacencyMatrix, nodeLabels);
 
   if (sortedGNNFeatures.length > 0 && sortedGNNFeatures[0]?.length > 0) {
     const layerX = addIntermediateFeatures(
@@ -834,7 +944,8 @@ export function buildVisualizationScene(
       subgraphData,
       subgraphSample,
       adjacencyMatrix,
-      expansion
+      expansion,
+      mode
     );
     if (!expansion) {
       addBetweenLayerLinks(
@@ -846,7 +957,18 @@ export function buildVisualizationScene(
         subgraphSample
       );
     }
-    addFCByMode(builder, mode, layerX, intmData, queries, cellWidth, expansion ? 0.1 : 1, !expansion);
+    addFCByMode(
+      builder,
+      mode,
+      layerX,
+      intmData,
+      queries,
+      sortedGNNFeatures,
+      cellWidth,
+      expansion ? 0.1 : 1,
+      !expansion,
+      expansion
+    );
   }
 
   return translateScene(builder);

@@ -2,25 +2,90 @@ import * as d3 from "d3";
 import { injectSVG } from "./utils/pipeUtils";
 import { computeFeatureLayerX, computeFeatureLayerY } from "./utils/geometryUtils";
 import { distanceToFeature } from "../utils/const";
-import { matrixTranspose, randomVector, scaleVector, vecMatMul, addVector, countOnes, divideVector } from "./utils/mathUtils";
+import { matrixTranspose, randomVector, vecMatMul, addVector, divideVector } from "./utils/mathUtils";
 import { curve, featureColor } from "./utils/const";
-import { extractSortedGNNLayerFeatures, processSubgraphSequenceDataPipe, SubgraphResult } from "./utils/dataProcessingUtils";
+import { aggregateNeighborFeatures } from "./utils/aggregationUtils";
+import {
+    extractSortedGNNLayerFeatures,
+    getEdgeOutputFeature,
+    processSubgraphSequenceDataPipe,
+    SubgraphResult,
+} from "./utils/dataProcessingUtils";
 
-export function visualizationPipeline(container: HTMLDivElement, cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any, subgraphSample: any, mode: string) {
+export function visualizationPipeline(container: HTMLDivElement, cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any, subgraphSample: any, mode: string, nodeLabels: string[] = [], messagePassingDepth: number = 4) {
     // define parameters
     const gapSizeBetweenLayers = 100;
 
-    subgraphData = processSubgraphSequenceDataPipe(adjacencyMatrix, queries, 4);
+    subgraphData = subgraphData ?? processSubgraphSequenceDataPipe(adjacencyMatrix, queries, messagePassingDepth);
     console.log("subgraphData inside visualizationPipeline:", subgraphData);
     
     // visualization pipes
-    visualizeMatrixPipe(container, adjacencyMatrix);
+    visualizeMatrixPipe(container, adjacencyMatrix, nodeLabels);
     visualizeIntermediateFeaturePipe(container, cellWidth, cellHeight, gapSizeBetweenLayers, intmData, adjacencyMatrix, queries, subgraphData, subgraphSample, mode);
     visualizeLinksBetweenLayersPipe(container, linkList, gapSizeBetweenLayers, intmData, subgraphData, subgraphSample, cellWidth);
     resizeSvgToContent(container);
 }
 
-export function visualizeMatrixPipe(container: HTMLDivElement, adjacencyMatrix: number[][]) {
+function appendMatrixLabels(svg: any, startX: number, startY: number, cellSize: number, labels: string[]) {
+    labels.forEach((label, index) => {
+        const y = startY + index * cellSize + cellSize / 2 + 3;
+        const x = startX + index * cellSize + cellSize / 2;
+
+        svg.append("text")
+            .attr("x", startX - 14)
+            .attr("y", y)
+            .attr("text-anchor", "end")
+            .attr("font-size", 8)
+            .attr("fill", "#203d35")
+            .text(label);
+
+        svg.append("text")
+            .attr("x", startX - 4)
+            .attr("y", y)
+            .attr("text-anchor", "end")
+            .attr("font-size", 6)
+            .attr("fill", "#6b817b")
+            .text(index);
+
+        svg.append("text")
+            .attr("x", x)
+            .attr("y", startY - 6)
+            .attr("text-anchor", "start")
+            .attr("font-size", 7)
+            .attr("fill", "#203d35")
+            .attr("transform", `rotate(-90 ${x} ${startY - 6})`)
+            .text(label);
+    });
+}
+
+function appendFeatureLegend(svg: any, x: number, y: number) {
+    const width = 120;
+    const height = 7;
+    const steps = 40;
+
+    for (let index = 0; index < steps; index++) {
+        const value = -1.5 + (3 * index) / (steps - 1);
+        svg.append("rect")
+            .attr("x", x + (index * width) / steps)
+            .attr("y", y)
+            .attr("width", width / steps + 0.5)
+            .attr("height", height)
+            .attr("fill", featureColor(value));
+    }
+
+    [[-1.5, "-1.50"], [0, "0.00"], [1.5, "1.50"]].forEach(([value, label]) => {
+        const tickX = x + ((Number(value) + 1.5) / 3) * width;
+        svg.append("text")
+            .attr("x", tickX)
+            .attr("y", y + 20)
+            .attr("text-anchor", "middle")
+            .attr("font-size", 7)
+            .attr("fill", "#6b817b")
+            .text(label);
+    });
+}
+
+export function visualizeMatrixPipe(container: HTMLDivElement, adjacencyMatrix: number[][], nodeLabels: string[] = []) {
     
     console.log("Adjacency Matrix in the Vis Pipe:", adjacencyMatrix);
 
@@ -40,6 +105,7 @@ export function visualizeMatrixPipe(container: HTMLDivElement, adjacencyMatrix: 
     const startX = 50;
     const startY = 50;
     const cellSize = 20;
+    const labels = adjacencyMatrix.map((_, index) => nodeLabels[index] ?? String(index));
 
     for(let i = 0; i < adjacencyMatrix.length; i++) {
         for(let j = 0; j < adjacencyMatrix[i].length; j++) {
@@ -94,6 +160,8 @@ export function visualizeMatrixPipe(container: HTMLDivElement, adjacencyMatrix: 
             .style("opacity", 0);
     }
     svg.selectAll(".adj-matrix-row-border, .adj-matrix-col-border").raise();
+    appendMatrixLabels(svg, startX, startY, cellSize, labels);
+    appendFeatureLegend(svg, startX + adjacencyMatrix.length * cellSize + 60, 20);
     
 }
 
@@ -296,8 +364,7 @@ export function visualizeFCForEdgeTaskSubpipe(container: HTMLDivElement, layerX:
                 [layerX, layerYMid],
             ])).attr("stroke", "black").attr("opacity", 0.1).attr("fill", "none").attr("class", `link-path-fc link-path-fc-${i}`).lower();
         // visualize final probabilities output
-        const prob = Math.random();
-        const probArr = [1 - prob, prob];
+        const probArr = getEdgeOutputFeature(intmData, sortedLayers, queries, i);
         const g = svg.append("g").attr("class", "fc-feature-layer").attr("id", `fc-feature-layer-node-${i}`);
         for(let j=0; j < probArr.length; j++){
             g.append("rect")
@@ -454,32 +521,29 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
     const currentNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
     const currentNodeY = computeFeatureLayerY(nodeID, 50, 20);
 
-    let locations = [];
-
-    let aggregatedFeature: number[] = Array(sortedGNNFeatures[layerID-1][0].length).fill(0);
-    let degreeMultipliers: number[] = [];
-
     let dirCoefficient = 1;
     if (direction === "up") dirCoefficient = -1;
 
-    for(let j = 0; j < adjacencyMatrix[nodeID].length; j++) {
-        if (adjacencyMatrix[nodeID][j] === 1){
-            const targetNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
-            const targetNodeY = computeFeatureLayerY(j, 50, 20);
-            locations.push([targetNodeX, targetNodeY]);
-            const degreeMultiplier = 1 / (Math.sqrt(countOnes(adjacencyMatrix[nodeID]) * countOnes(adjacencyMatrix[j])));
-            aggregatedFeature = addVector(aggregatedFeature, scaleVector(degreeMultiplier, sortedGNNFeatures[layerID-1][j]));
-            degreeMultipliers.push(degreeMultiplier);
-        }
-    }
+    const layerInfo = modelInfo?.[`conv${layerID}`];
+    const aggregationResult = aggregateNeighborFeatures(
+        adjacencyMatrix,
+        sortedGNNFeatures,
+        layerID,
+        nodeID,
+        layerInfo
+    );
+    const aggregatedFeature = aggregationResult.aggregatedFeature;
     console.log("aggregatedFeature", aggregatedFeature);
     const firstIntersect: [number, number] = [currentNodeX + distanceBetweenFeatures, currentNodeY];
     // visualize aggregated links
     const ctrlPointForCurrentNode: [number, number] = [currentNodeX + (distanceBetweenFeatures / 2), currentNodeY];
-    for(let k = 0; k < locations.length; k++){
-        const ctrlPointForTargetNode: [number, number] = [currentNodeX + (distanceBetweenFeatures / 2), locations[k][1]];
+    for(let k = 0; k < aggregationResult.contributions.length; k++){
+        const contribution = aggregationResult.contributions[k];
+        const targetNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
+        const targetNodeY = computeFeatureLayerY(contribution.nodeIndex, 50, 20);
+        const ctrlPointForTargetNode: [number, number] = [currentNodeX + (distanceBetweenFeatures / 2), targetNodeY];
         inner.append("path")
-            .attr("d", curve([[locations[k][0], locations[k][1]], ctrlPointForTargetNode, ctrlPointForCurrentNode, firstIntersect]))
+            .attr("d", curve([[targetNodeX, targetNodeY], ctrlPointForTargetNode, ctrlPointForCurrentNode, firstIntersect]))
             .attr("stroke", "black")
             .attr("opacity", 1)
             .attr("fill", "none")
@@ -487,9 +551,9 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
             .attr("id", `link-path-aggregated-${layerID}-${nodeID}-to-${k}`)
             .lower();
         inner.append("text")
-            .attr("x", locations[k][0] + 3)
-            .attr("y", locations[k][1] - 6)
-            .text(degreeMultipliers[k].toFixed(2))
+            .attr("x", targetNodeX + 3)
+            .attr("y", targetNodeY - 6)
+            .text(contribution.label)
             .attr("class", "degree-multiplier-text layer-inner-works")
             .attr("id", `degree-multiplier-text-${layerID}-${nodeID}-to-${k}`)
             .style("font-size", "6px")
@@ -497,6 +561,14 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
     }
     // visualize aggregated feature
     const aggregatedFeatureGroup = inner.append("g").attr("class", "aggregated-feature-layer layer-inner-works").attr("id", `aggregated-feature-layer-layer-${layerID}-node-${nodeID}`);
+    aggregatedFeatureGroup.append("text")
+        .attr("x", currentNodeX + distanceBetweenFeatures)
+        .attr("y", currentNodeY - 10)
+        .text(`agg: ${aggregationResult.label}`)
+        .attr("class", "aggregation-kind-text layer-inner-works")
+        .attr("id", `aggregation-kind-text-${layerID}-${nodeID}`)
+        .style("font-size", "7px")
+        .style("fill", "#203d35");
     aggregatedFeatureGroup.append("rect")
         .attr("x", currentNodeX + distanceBetweenFeatures)
         .attr("y", currentNodeY - 12/2)
@@ -546,7 +618,7 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
         .attr("fill", "none")
         .attr("class", "weight-matrix-to-intersect-path layer-inner-works")
         .lower();
-    const weightMatrix:number[][] = matrixTranspose(modelInfo[`conv${layerID}`]["weight"]);
+    const weightMatrix:number[][] = matrixTranspose(layerInfo["weight"]);
     console.log("weightMatrix:", weightMatrix);
     const matrixStartX = currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures*0.5 - cellWidth * weightMatrix[0].length / 2;
     const matrixStartY = currentNodeY + (dirCoefficient) * distanceBetweenFeatures * 1;
@@ -651,7 +723,13 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
         .attr("class", "bias-to-output-path layer-inner-works")
         .lower();
     // add activation function icon
-    
+    injectSVG(
+        inner,
+        currentNodeX + distanceBetweenFeatures*2.5 + aggregatedFeature.length * cellWidth + multipliedFeature.length * cellWidth,
+        currentNodeY,
+        "./assets/relu.svg",
+        "activation-icon layer-inner-works"
+    );
 }
 
 export function visualizeInnerFCLayerSubpipe(container: HTMLDivElement, cellWidth: number, nodeID: number, sortedGNNFeatures: any[][], modelInfo: any, direction: string, mode: string){
@@ -683,6 +761,13 @@ export function visualizeInnerFCLayerSubpipe(container: HTMLDivElement, cellWidt
         .attr("opacity", 1)
         .attr("class", "weight-line layer-inner-works")
         .lower();
+    injectSVG(
+        inner,
+        currentNodeX + distanceToFeature / 2,
+        currentNodeY,
+        "./assets/matmul.svg",
+        "matmul-icon layer-inner-works"
+    );
     // intersect to weight matrix path
     const matrixStartX = currentNodeX + distanceToFeature;
     const matrixStartY = currentNodeY - (dirCoefficient) * distanceToFeature;
@@ -764,4 +849,11 @@ export function visualizeInnerFCLayerSubpipe(container: HTMLDivElement, cellWidt
     inner.append("rect").attr("x", currentNodeX + distanceToFeature * 2 + multipliedFeature.length * cellWidth).attr("y", currentNodeY - 12/2).attr("width", biasedAddition.length * cellWidth).attr("height", 12).attr("fill", "none").attr("class", "biased-addition-frame layer-inner-works").attr("id", `fc-biased-addition-frame-node-${nodeID}`).style("stroke-width", 1).style("stroke", "black").style("opacity", 1);
     // visualize activation function
     inner.append("line").attr("x1", currentNodeX + distanceToFeature * 2 + multipliedFeature.length * cellWidth + biasedAddition.length * cellWidth).attr("y1", currentNodeY).attr("x2", currentNodeX + distanceToFeature * 3 + multipliedFeature.length * cellWidth + biasedAddition.length * cellWidth).attr("y2", currentNodeY).attr("stroke", "black").attr("opacity", 1).attr("class", "activation-line layer-inner-works").lower();
+    injectSVG(
+        inner,
+        currentNodeX + distanceToFeature * 2.5 + multipliedFeature.length * cellWidth + biasedAddition.length * cellWidth,
+        currentNodeY,
+        "./assets/relu.svg",
+        "activation-icon layer-inner-works"
+    );
 }

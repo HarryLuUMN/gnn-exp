@@ -6,6 +6,7 @@ import { dualViewVisualizerStyle } from "../utils/const";
 import { preMatrixVisualizationDataProcessingPipe } from "../utils/dataProcessingPipeline";
 import {
   detectCapabilities,
+  detectWebgpuCapability,
   resolveRenderer,
   type RendererMode,
   type ResolvedRenderer,
@@ -24,7 +25,6 @@ interface Props {
   graphData: any;
   renderer: RendererMode;
   effectiveRenderer: ResolvedRenderer;
-  setRenderer: (renderer: RendererMode) => void;
   setEffectiveRenderer: (renderer: ResolvedRenderer) => void;
   hubNodeA?: number;
   hubNodeB?: number;
@@ -41,7 +41,6 @@ const DualViews: React.FC<Props> = ({
   graphData,
   renderer,
   effectiveRenderer,
-  setRenderer,
   setEffectiveRenderer,
   hubNodeA,
   hubNodeB,
@@ -63,7 +62,7 @@ const DualViews: React.FC<Props> = ({
   const graphWidth = VIEW_WIDTH;
   const graphHeight = VIEW_HEIGHT;
   const padding = 60;
-  const capabilities = React.useMemo(() => detectCapabilities(), []);
+  const [capabilities, setCapabilities] = useState(() => detectCapabilities());
   const resolution = React.useMemo(
     () => resolveRenderer(renderer, capabilities, fallbackFailures),
     [capabilities, fallbackFailures, renderer]
@@ -72,6 +71,24 @@ const DualViews: React.FC<Props> = ({
   const showMatrixAxisLabels = nodes.length <= MATRIX_AXIS_LABEL_LIMIT;
   const isGraphViewReset =
     graphZoom === 1 && graphPan.x === 0 && graphPan.y === 0;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    detectWebgpuCapability().then((webgpu) => {
+      if (cancelled) {
+        return;
+      }
+
+      setCapabilities((current) =>
+        current.webgpu === webgpu ? current : { ...current, webgpu }
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // load data
   useEffect(() => {
@@ -156,27 +173,15 @@ const DualViews: React.FC<Props> = ({
       <style>{styles}</style>
       <div className="dual-views-shell">
         <div className="renderer-toolbar">
-          <div className="renderer-toolbar__buttons">
-            {(["svg", "webgl", "webgpu", "auto"] as RendererMode[]).map((mode) => (
-              <button
-                key={mode}
-                className={`renderer-button${
-                  renderer === mode ? " renderer-button--active" : ""
-                }`}
-                type="button"
-                onClick={() => setRenderer(mode)}
-              >
-                {mode.toUpperCase()}
-              </button>
-            ))}
-          </div>
           <div className="renderer-toolbar__status">
             <span>
-              Requested: <strong>{renderer.toUpperCase()}</strong>
+              Renderer: <strong>{resolution.effectiveRenderer.toUpperCase()}</strong>
             </span>
-            <span>
-              Active: <strong>{resolution.effectiveRenderer.toUpperCase()}</strong>
-            </span>
+            {renderer !== "auto" ? (
+              <span>
+                API: <strong>{renderer.toUpperCase()}</strong>
+              </span>
+            ) : null}
             {resolution.reason ? (
               <span className="renderer-toolbar__reason">{resolution.reason}</span>
             ) : null}

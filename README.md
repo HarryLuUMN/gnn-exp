@@ -111,6 +111,13 @@ w.add_data(dataFile="test_data/karate_dataset.json")
 w  # Display in notebook
 ```
 
+By default the widgets use `renderer="auto"`: WebGL is the baseline renderer, and browsers with a usable WebGPU adapter automatically promote to WebGPU. To force a backend from Python, set `renderer` to `"webgl"`, `"webgpu"`, or `"svg"`:
+
+```python
+w = GraphVisualizer(renderer="webgl")
+# GNNVisualizer accepts the same renderer keyword.
+```
+
 ### Visualizing Large Graphs with Subgraphs
 
 ```python

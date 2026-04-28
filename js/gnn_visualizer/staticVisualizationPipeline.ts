@@ -21,6 +21,19 @@ export type StaticPipelineResult =
       error: string;
     };
 
+const EXPANSION_TRANSITION_MS = 500;
+
+function easeCubicOut(t: number) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function cloneExpansionWithDistance(
+  expansion: Exclude<StaticExpansionState, null>,
+  distance: number
+): Exclude<StaticExpansionState, null> {
+  return { ...expansion, distance };
+}
+
 function createCanvas(scene: StaticVisualizationScene) {
   const canvas = document.createElement("canvas");
   canvas.className = "gnn-static-gpu-canvas";
@@ -43,7 +56,9 @@ export async function staticVisualizationPipeline(
   linkList: any[],
   queries: number[][],
   subgraphSample: boolean,
-  mode: string
+  mode: string,
+  nodeLabels: string[] = [],
+  messagePassingDepth: number = 4
 ): Promise<StaticPipelineResult> {
   container.replaceChildren();
 
@@ -52,8 +67,14 @@ export async function staticVisualizationPipeline(
   let currentHoverDestroy: (() => void) | null = null;
   let currentExpansion: StaticExpansionState = null;
   let renderToken = 0;
+  let animationFrame: number | null = null;
+  let animationToken = 0;
+  let destroyed = false;
 
-  const renderScene = async (expansion: StaticExpansionState) => {
+  const renderScene = async (
+    expansion: StaticExpansionState,
+    showExpansion = true
+  ) => {
     const token = ++renderToken;
     currentHoverDestroy?.();
     currentRenderDestroy?.();
@@ -68,7 +89,11 @@ export async function staticVisualizationPipeline(
       queries,
       !!subgraphSample,
       mode,
-      { expansion }
+      {
+        expansion,
+        nodeLabels,
+        messagePassingDepth,
+      }
     );
     const canvas = createCanvas(scene);
     container.append(canvas);
@@ -100,9 +125,9 @@ export async function staticVisualizationPipeline(
       modelInfo,
       cellWidth,
       expandedFeature: expansion,
+      showExpansion,
       onExpansionChange(nextExpansion) {
-        currentExpansion = nextExpansion;
-        void renderScene(nextExpansion);
+        void animateExpansion(nextExpansion);
       },
     });
 
@@ -110,6 +135,69 @@ export async function staticVisualizationPipeline(
     currentRenderDestroy = renderResult.destroy;
     currentHoverDestroy = hoverOverlay.destroy;
     return { scene };
+  };
+
+  const cancelAnimation = () => {
+    animationToken += 1;
+    if (animationFrame != null) {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = null;
+    }
+  };
+
+  const animateExpansion = async (nextExpansion: StaticExpansionState) => {
+    cancelAnimation();
+
+    const token = animationToken;
+    const fromExpansion = currentExpansion;
+    const fromDistance = fromExpansion?.distance ?? 0;
+    const toDistance = nextExpansion?.distance ?? 0;
+    const template = nextExpansion ?? fromExpansion;
+    const isOpening = !!nextExpansion;
+
+    if (!template || fromDistance === toDistance) {
+      currentExpansion = nextExpansion;
+      await renderScene(nextExpansion);
+      return;
+    }
+
+    const startedAt = performance.now();
+
+    const step = async (time: number) => {
+      if (destroyed || token !== animationToken) {
+        return;
+      }
+
+      const progress = Math.min(1, (time - startedAt) / EXPANSION_TRANSITION_MS);
+      const eased = easeCubicOut(progress);
+      const distance = fromDistance + (toDistance - fromDistance) * eased;
+      const frameExpansion =
+        progress >= 1 && !nextExpansion
+          ? null
+          : cloneExpansionWithDistance(template, distance);
+
+      currentExpansion = frameExpansion;
+      await renderScene(frameExpansion, false);
+
+      if (destroyed || token !== animationToken) {
+        return;
+      }
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame((nextTime) => {
+          void step(nextTime);
+        });
+        return;
+      }
+
+      currentExpansion = nextExpansion;
+      await renderScene(nextExpansion, isOpening);
+      animationFrame = null;
+    };
+
+    animationFrame = requestAnimationFrame((time) => {
+      void step(time);
+    });
   };
 
   const initialRender = await renderScene(currentExpansion);
@@ -123,6 +211,8 @@ export async function staticVisualizationPipeline(
   return {
     scene: currentScene ?? initialRender.scene,
     cleanup() {
+      destroyed = true;
+      cancelAnimation();
       renderToken += 1;
       currentHoverDestroy?.();
       currentRenderDestroy?.();

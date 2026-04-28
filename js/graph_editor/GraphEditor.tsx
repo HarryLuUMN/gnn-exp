@@ -10,12 +10,14 @@ import {
 
 interface GraphEditorProps {
     dataFile: any;
+    initialGraphData?: any;
     handleSimulatedGraphChange?: (value: any) => void;
     onNodePositionsChange?: (nodePositions: { id: string; x: number; y: number }[]) => void;
 }
 
 export default function GraphEditor({
     dataFile, 
+    initialGraphData,
     handleSimulatedGraphChange,
     onNodePositionsChange,
 }: GraphEditorProps): React.ReactElement {
@@ -28,9 +30,11 @@ export default function GraphEditor({
     const linksRef = useRef<any[]>([]);
     const nodesRef = useRef<any[]>([]);
     const selectionState = useRef(false);
+    const loadedDataFileRef = useRef<string | null>(null);
 
     const datasetRef = useRef<any>({});
     const [mode, setMode] = useState("edge");
+    const modeRef = useRef("edge");
 
     // Sync state
     const selectedNodeRef = useRef<string | null>(null);
@@ -48,10 +52,32 @@ export default function GraphEditor({
 
     const selectedLinkRef = useRef<SVGLineElement | null>(null);
 
+    const clearEditorSelection = () => {
+        if (svgContainer.current) {
+            d3.select(svgContainer.current)
+                .selectAll("circle")
+                .attr("stroke", "#aaa");
+            d3.select(svgContainer.current)
+                .selectAll("line")
+                .attr("stroke", "#aaa");
+        }
+        selectedNodeRef.current = null;
+        secondSelectedNodeRef.current = null;
+        selectedLinkRef.current = null;
+        setSelectedNodeId(null);
+        setSecondSelectedNodeId(null);
+        selectionState.current = false;
+    };
+
     const getCurrentDataset = () => ({
         nodes: nodesRef.current,
         links: linksRef.current,
     });
+
+    const getEndpointId = (endpoint: any) => {
+        if (typeof endpoint === "string") return endpoint;
+        return endpoint?.id;
+    };
 
     const getNextNodeId = () => {
         let maxNodeIndex = -1;
@@ -64,36 +90,48 @@ export default function GraphEditor({
     };
 
     useEffect(() => {
-        if (!dataFile) return;
+        if (!dataFile && !initialGraphData) return;
+        if (loadedDataFileRef.current === dataFile) return;
 
         console.log("Loading JSON:", dataFile);
 
-        loadSimGraphData(dataFile)
-            .then((data) => {
-                console.log("Loaded JSON:", data);
-                setSimGraphData(data);  
+        const applyGraphData = (data: any) => {
+            loadedDataFileRef.current = dataFile;
+            setSimGraphData(data);
 
-                // determine feature dimension
-        let dim = 34;
-        if (data.x && data.x.length > 0) {
-            const first = data.x[0];
-            if (Array.isArray(first)) {
-                dim = first.length;
+            let dim = 34;
+            if (data.x && data.x.length > 0) {
+                const first = data.x[0];
+                if (Array.isArray(first)) {
+                    dim = first.length;
+                }
             }
+
+            const featureText = randomizeFeatures(dim);
+            setFeature(featureText);
+            setFeatureDim(dim);
+            console.log("Feature dimension:", dim, featureText);
+        };
+
+        if (initialGraphData?.x && initialGraphData?.edge_index) {
+            applyGraphData(initialGraphData);
+            return;
         }
 
-        // initialize feature values
-        const featureText = randomizeFeatures(dim);
-
-        setFeature(featureText);
-
-        setFeatureDim(dim);
-        console.log("Feature dimension:", dim, featureText);
+        void loadSimGraphData(dataFile)
+            .then((data) => {
+                console.log("Loaded JSON:", data);
+                applyGraphData(data);
             })
-            .catch((err) => console.error("Error loading JSON:", err));
+            .catch((err) => {
+                console.error("Error loading JSON:", err);
+                if (initialGraphData?.x && initialGraphData?.edge_index) {
+                    applyGraphData(initialGraphData);
+                }
+            });
 
         
-    }, [dataFile]);
+    }, [dataFile, initialGraphData]);
 
 
     useEffect(() => {
@@ -138,7 +176,7 @@ export default function GraphEditor({
                     .attr("viewBox", [0, 0, width, height])
                     .attr("style", "max-width: 100%; height: auto;")
                     .on("click", (event: MouseEvent) => {
-                        if (!isRunningRef.current) {
+                        if (!isRunningRef.current && modeRef.current === "node") {
                             if (selectedLinkRef.current) {
                                 d3.select(selectedLinkRef.current).attr(
                                     "stroke",
@@ -151,13 +189,13 @@ export default function GraphEditor({
                                 const point = d3.pointer(event);
                                 addNodeAt(point[0], point[1]);
                             } else {
-                                d3.selectAll("circle").attr("stroke", "none");
-                                selectedNodeRef.current = null;
-                                secondSelectedNodeRef.current = null;
-                                setSelectedNodeId(null);
-                                setSecondSelectedNodeId(null);
-                                selectionState.current = false;
+                                clearEditorSelection();
                             }
+                            return;
+                        }
+
+                        if (selectionState.current || selectedLinkRef.current) {
+                            clearEditorSelection();
                         }
                     });
 
@@ -200,6 +238,7 @@ export default function GraphEditor({
                         .attr("y2", (d: any) => d.target.y)
                         .on("click", function (event: MouseEvent) {
                             event.stopPropagation();
+                            if (modeRef.current !== "edge") return;
 
                             if (selectedLinkRef.current) {
                                 d3.select(selectedLinkRef.current).attr(
@@ -235,16 +274,22 @@ export default function GraphEditor({
                             const isFirstSelected =
                                 selectedNodeRef.current === clickedId;
 
+                            if (modeRef.current === "node") {
+                                clearEditorSelection();
+                                if (!isFirstSelected) {
+                                    d3.select(this).attr("stroke", "black");
+                                    selectedNodeRef.current = clickedId;
+                                    setSelectedNodeId(clickedId);
+                                    selectionState.current = true;
+                                }
+                                return;
+                            }
+
                             if (
                                 selectedNodeRef.current &&
                                 secondSelectedNodeRef.current
                             ) {
-                                d3.selectAll("circle").attr("stroke", "none");
-                                selectedNodeRef.current = null;
-                                secondSelectedNodeRef.current = null;
-                                setSelectedNodeId(null);
-                                setSecondSelectedNodeId(null);
-                                selectionState.current = false;
+                                clearEditorSelection();
                                 return;
                             }
 
@@ -261,7 +306,7 @@ export default function GraphEditor({
                                 !secondSelectedNodeRef.current &&
                                 isFirstSelected
                             ) {
-                                d3.select(this).attr("stroke", "none");
+                                d3.select(this).attr("stroke", "#aaa");
                                 selectedNodeRef.current = null;
                                 setSelectedNodeId(null);
                                 selectionState.current = false;
@@ -289,15 +334,7 @@ export default function GraphEditor({
                                 );
 
                                 if (alreadyLinked) {
-                                    d3.selectAll("circle").attr(
-                                        "stroke",
-                                        "none"
-                                    );
-                                    selectedNodeRef.current = null;
-                                    secondSelectedNodeRef.current = null;
-                                    setSelectedNodeId(null);
-                                    setSecondSelectedNodeId(null);
-                                    selectionState.current = false;
+                                    clearEditorSelection();
                                 } else {
                                     linksRef.current.push({
                                         source: sourceId,
@@ -310,15 +347,7 @@ export default function GraphEditor({
                                         ) as d3.ForceLink<any, any>;
                                     linkForce?.links(linksRef.current);
                                     simulationRef.current?.alpha(0.5).restart();
-                                    d3.selectAll("circle").attr(
-                                        "stroke",
-                                        "none"
-                                    );
-                                    selectedNodeRef.current = null;
-                                    secondSelectedNodeRef.current = null;
-                                    setSelectedNodeId(null);
-                                    setSecondSelectedNodeId(null);
-                                    selectionState.current = false;
+                                    clearEditorSelection();
                                     handleTransmitToMainVisualizer();
                                 }
 
@@ -425,11 +454,11 @@ export default function GraphEditor({
                             linksRef.current = linksRef.current.filter(
                                 (l) =>
                                     !(
-                                        (l.source.id === linkDatum.source.id &&
-                                            l.target.id ===
-                                                linkDatum.target.id) ||
-                                        (l.source.id === linkDatum.target.id &&
-                                            l.target.id === linkDatum.source.id)
+                                        (getEndpointId(l.source) === getEndpointId(linkDatum.source) &&
+                                            getEndpointId(l.target) ===
+                                                getEndpointId(linkDatum.target)) ||
+                                        (getEndpointId(l.source) === getEndpointId(linkDatum.target) &&
+                                            getEndpointId(l.target) === getEndpointId(linkDatum.source))
                                     )
                             );
 
@@ -445,16 +474,11 @@ export default function GraphEditor({
 
                             linksRef.current = linksRef.current.filter(
                                 (l) =>
-                                    l.source.id !== nodeIdToDelete &&
-                                    l.target.id !== nodeIdToDelete
+                                    getEndpointId(l.source) !== nodeIdToDelete &&
+                                    getEndpointId(l.target) !== nodeIdToDelete
                             );
 
-                            d3.selectAll("circle").attr("stroke", "none");
-                            selectedNodeRef.current = null;
-                            secondSelectedNodeRef.current = null;
-                            setSelectedNodeId(null);
-                            setSecondSelectedNodeId(null);
-                            selectionState.current = false;
+                            clearEditorSelection();
                         }
 
                         const linkForce = simulationRef.current?.force(
@@ -466,43 +490,54 @@ export default function GraphEditor({
                         if (onNodePositionsChange) {
                             onNodePositionsChange(nodesRef.current.map(node => ({ id: node.id, x: node.x, y: node.y })));
                         }
+                        handleTransmitToMainVisualizer();
                     }
-                    handleTransmitToMainVisualizer();
                 };
 
                 window.addEventListener("keydown", handleKeyDown);
 
                 return () => {
                     window.removeEventListener("keydown", handleKeyDown);
+                    simulation.stop();
                 };
     }, [simGraphData]);
 
-    const handleToggleSimulation = () => {
+    const stopSimulation = () => {
         const sim = simulationRef.current;
         if (!sim) return;
 
-        if (isRunningRef.current) {
-            sim.force("link", null);
-            sim.force("charge", null);
-        } else {
-            sim.force(
-                "link",
-                d3.forceLink(linksRef.current).id((d: any) => d.id)
-                   
-                            .id((d: any) => d.id)
-                            .distance(100)
-                    
-            ).force("charge", d3.forceManyBody().strength(-100));
-        }
-
-        isRunningRef.current = !isRunningRef.current;
-        setIsRunning(isRunningRef.current);
+        sim.force("link", null);
+        sim.force("charge", null);
+        isRunningRef.current = false;
+        setIsRunning(false);
         sim.alpha(0.5).restart();
     };
 
-    const handleModeSwitch=()=>{
-        handleToggleSimulation();
-        setMode(mode === "edge" ? "node" : "edge");
+    const startSimulation = () => {
+        const sim = simulationRef.current;
+        if (!sim) return;
+
+        sim.force(
+            "link",
+            d3.forceLink(linksRef.current)
+                .id((d: any) => d.id)
+                .distance(100)
+        ).force("charge", d3.forceManyBody().strength(-100));
+        isRunningRef.current = true;
+        setIsRunning(true);
+        sim.alpha(0.5).restart();
+    };
+
+    const handleModeSwitch = (nextMode: "node" | "edge") => {
+        modeRef.current = nextMode;
+        setMode(nextMode);
+        clearEditorSelection();
+
+        if (nextMode === "node") {
+            stopSimulation();
+        } else {
+            startSimulation();
+        }
     }
 
     const handleTransmitToMainVisualizer = () => {
@@ -518,10 +553,10 @@ export default function GraphEditor({
     };
 
     return (
-            <div>
+            <div className="graph_editor__root">
                 <div style={{ padding: "4px" }}>
                     <button
-                        onClick={handleModeSwitch}
+                        onClick={() => handleModeSwitch("node")}
                         style={{
                             padding: "10px 20px",
                             borderRadius: "30px",
@@ -535,7 +570,7 @@ export default function GraphEditor({
                         Node Edit
                     </button>
                     <button
-                        onClick={handleModeSwitch}
+                        onClick={() => handleModeSwitch("edge")}
                         style={{
                             padding: "10px 20px",
                             borderRadius: "30px",
@@ -569,8 +604,8 @@ export default function GraphEditor({
                 </div>
 
                 <div
+                    className="graph_editor__canvas"
                     ref={svgContainer}
-                    style={{ width: "100%", height: "100%" }}
                 ></div>
             </div>
     );

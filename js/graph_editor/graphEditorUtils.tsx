@@ -43,7 +43,8 @@ export function processDataFromVisualizerToEditor(input: {
   y: number[],
   batch: number[]
 }) {
-  const { x, edge_index, edge_attr } = input;
+  const { x, edge_index } = input;
+  const edge_attr = input.edge_attr ?? [];
 
   // IMPORTANT: keep original features
   const nodes = x.map((features, index) => ({
@@ -73,12 +74,25 @@ export function processDataFromEditorToVisualizer(input: {
   const edgeIndexPair2: number[] = [];
   const pairSet = new Set<string>();
   const edgeAttr: number[][] = [];
+  const nodeIndexById = new Map(input.nodes.map((node, index) => [node.id, index]));
+
+  const resolveNodeIndex = (endpoint: any) => {
+    if (typeof endpoint === "number") return endpoint;
+    if (typeof endpoint === "string") return nodeIndexById.get(endpoint);
+    if (endpoint && typeof endpoint.index === "number") return endpoint.index;
+    if (endpoint && typeof endpoint.id === "string") return nodeIndexById.get(endpoint.id);
+    return undefined;
+  };
 
   // === Build edge_index & edge_attr ===
   for (let i = 0; i < input.links.length; i++) {
     const link = input.links[i];
-    const source = link.source.index;
-    const target = link.target.index;
+    const source = resolveNodeIndex(link.source);
+    const target = resolveNodeIndex(link.target);
+
+    if (source == null || target == null) {
+      continue;
+    }
 
     const key1 = `${source},${target}`;
     const key2 = `${target},${source}`;
@@ -126,4 +140,3 @@ export function processDataFromEditorToVisualizer(input: {
     batch,
   };
 }
-

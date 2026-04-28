@@ -22,6 +22,31 @@ export function transformDataToMatrixVisFormat(nodes: any, links: any) {
     return adjacancyMatrix;
 }
 
+export type ModelVisualizationData = {
+    adjacencyMatrix: number[][];
+    linkList: any[];
+    queries: number[][];
+    nodeLabels: string[];
+    nodeOrder: number[];
+    intmData: Record<string, any>;
+    messagePassingDepth: number;
+    isLocalEdgeView: boolean;
+};
+
+const messagePassingLayerTypes = new Set(["GCNConv", "GATConv", "SAGEConv", "GraphSAGEConv"]);
+
+export function getMessagePassingDepth(modelInfo: any, intmData: Record<string, number[][]>): number {
+    const modelDepth = Object.values(modelInfo ?? {}).filter((layer: any) =>
+        messagePassingLayerTypes.has(layer?.type)
+    ).length;
+
+    if (modelDepth > 0) {
+        return modelDepth;
+    }
+
+    return Math.max(0, extractSortedGNNLayerFeatures(intmData).length - 1);
+}
+
 export function extractSortedGNNLayerFeatures(intmData: Record<string, number[][]>): number[][][] {
 
     console.log("intmData in extractSortedGNNLayerFeatures:", intmData);
@@ -58,6 +83,10 @@ export function removeRepeatLinks(links: any[]) {
     return result;
 }
 
+function hasConnection(G: number[][], a: number, b: number) {
+    return G[a]?.[b] !== 0 || G[b]?.[a] !== 0;
+}
+
 export function extractFeatureId(id: any) {
     return id.match(/^feature-layer-(\d+)-node-(\d+)$/);
 }
@@ -91,7 +120,7 @@ export function extractKHopSubgraph(
         if (dist >= d) continue;
 
         for (let v = 0; v < N; v++) {
-            if (G[node][v] !== 0 && !visited.has(v)) {
+            if (hasConnection(G, node, v) && !visited.has(v)) {
                 visited.add(v);
                 queue.push({ node: v, dist: dist + 1 });
             }
@@ -195,4 +224,150 @@ export function processSubgraphSequenceDataPipe(
         subgraphs.push(subgraph);
     }
     return subgraphs;   
+}
+
+function validQueriesForNodeCount(queries: number[][], nodeCount: number) {
+    return queries.filter(([source, target]) =>
+        Number.isInteger(source) &&
+        Number.isInteger(target) &&
+        source >= 0 &&
+        target >= 0 &&
+        source < nodeCount &&
+        target < nodeCount
+    );
+}
+
+function remapIntermediateData(intmData: Record<string, any>, nodeOrder: number[]) {
+    const remapped: Record<string, any> = { ...intmData };
+
+    for (const key of Object.keys(intmData ?? {})) {
+        const layer = intmData[key];
+        if (!key.startsWith("act") || !Array.isArray(layer)) {
+            continue;
+        }
+
+        remapped[key] = nodeOrder.map((originalIndex) => {
+            const feature = layer[originalIndex];
+            return Array.isArray(feature) ? [...feature] : [];
+        });
+    }
+
+    return remapped;
+}
+
+function remapLinks(linkList: any[], indexMap: Map<number, number>) {
+    return linkList.reduce((result: any[], link) => {
+        const source = indexMap.get(link.source);
+        const target = indexMap.get(link.target);
+        if (source == null || target == null) {
+            return result;
+        }
+
+        result.push({ ...link, source, target });
+        return result;
+    }, []);
+}
+
+function remapQueries(queries: number[][], indexMap: Map<number, number>) {
+    return queries.reduce((result: number[][], [source, target]) => {
+        const localSource = indexMap.get(source);
+        const localTarget = indexMap.get(target);
+        if (localSource == null || localTarget == null) {
+            return result;
+        }
+
+        result.push([localSource, localTarget]);
+        return result;
+    }, []);
+}
+
+export function getEdgeOutputFeature(
+    intmData: Record<string, any>,
+    sortedGNNFeatures: number[][][],
+    queries: number[][],
+    queryIndex: number
+) {
+    const decoderOutput = intmData?.decoder?.[queryIndex];
+    if (Array.isArray(decoderOutput) && decoderOutput.length >= 2) {
+        return decoderOutput.slice(0, 2);
+    }
+
+    const decoderProbability =
+        Array.isArray(decoderOutput) && decoderOutput.length === 1
+            ? decoderOutput[0]
+            : typeof decoderOutput === "number"
+                ? decoderOutput
+                : null;
+
+    if (typeof decoderProbability === "number" && Number.isFinite(decoderProbability)) {
+        const probability = Math.max(0, Math.min(1, decoderProbability));
+        return [1 - probability, probability];
+    }
+
+    const [source, target] = queries[queryIndex] ?? [];
+    if (source == null || target == null) {
+        return [0.5, 0.5];
+    }
+
+    const lastLayer = sortedGNNFeatures[sortedGNNFeatures.length - 1] ?? [];
+    const sourceFeature = lastLayer[source];
+    const targetFeature = lastLayer[target];
+    if (!Array.isArray(sourceFeature) || !Array.isArray(targetFeature)) {
+        return [0.5, 0.5];
+    }
+
+    const dot = sourceFeature.reduce(
+        (sum, value, index) => sum + value * (targetFeature[index] ?? 0),
+        0
+    );
+    const probability = 1 / (1 + Math.exp(-dot));
+    return [1 - probability, probability];
+}
+
+export function buildModelVisualizationData(
+    adjacencyMatrix: number[][],
+    linkList: any[],
+    intmData: Record<string, any>,
+    modelInfo: any,
+    queries: number[][],
+    mode: string
+): ModelVisualizationData {
+    const messagePassingDepth = getMessagePassingDepth(modelInfo, intmData);
+    const nodeCount = adjacencyMatrix.length;
+    const fullNodeOrder = Array.from({ length: nodeCount }, (_, index) => index);
+    const fullData: ModelVisualizationData = {
+        adjacencyMatrix,
+        linkList,
+        queries,
+        nodeLabels: fullNodeOrder.map(String),
+        nodeOrder: fullNodeOrder,
+        intmData,
+        messagePassingDepth,
+        isLocalEdgeView: false,
+    };
+
+    const edgeQueries = validQueriesForNodeCount(queries, nodeCount);
+    if (mode !== "edge" || edgeQueries.length === 0) {
+        return fullData;
+    }
+
+    const subgraph = processSubgraphDataPipe(
+        adjacencyMatrix,
+        edgeQueries,
+        messagePassingDepth
+    );
+    if (subgraph.nodes.length === 0) {
+        return fullData;
+    }
+
+    return {
+        adjacencyMatrix: subgraph.subG,
+        linkList: remapLinks(linkList, subgraph.indexMap),
+        queries: remapQueries(edgeQueries, subgraph.indexMap),
+        nodeLabels: subgraph.nodes.map(String),
+        nodeOrder: subgraph.nodes,
+        intmData: remapIntermediateData(intmData, subgraph.nodes),
+        messagePassingDepth,
+        isLocalEdgeView: true,
+    };
 }

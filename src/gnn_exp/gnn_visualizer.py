@@ -18,11 +18,11 @@ class GNNVisualizer(anywidget.AnyWidget):
     mode = traitlets.Unicode("").tag(sync=True)
     renderer = traitlets.Enum(
         values=["svg", "auto", "webgl", "webgpu"],
-        default_value="svg",
+        default_value="auto",
     ).tag(sync=True)
     effectiveRenderer = traitlets.Enum(
         values=["svg", "webgl", "webgpu"],
-        default_value="svg",
+        default_value="webgl",
     ).tag(sync=True)
 
     queries = traitlets.List(default_value=[]).tag(sync=True)
@@ -80,6 +80,7 @@ class GNNVisualizer(anywidget.AnyWidget):
                     "type": "GCNConv",
                     "weight": self.tensor_to_json(module.lin.weight),
                     "bias": self.tensor_to_json(module.bias),
+                    "aggregation": self._get_layer_aggregation(module),
                 }
             elif isinstance(module, torch.nn.Linear):
                 model_info[name] = {
@@ -191,6 +192,54 @@ class GNNVisualizer(anywidget.AnyWidget):
         if module_type.__name__ == "Swish":
             return "Swish"
         return activation_map.get(module_type, module_type.__name__)
+
+    @staticmethod
+    def _normalize_aggregation_name(value):
+        if value is None:
+            return None
+
+        if isinstance(value, (list, tuple)):
+            return [GNNVisualizer._normalize_aggregation_name(item) for item in value]
+
+        raw = value if isinstance(value, str) else type(value).__name__
+        normalized = raw.strip().lower().replace("_", "-").replace(" ", "")
+        if normalized.endswith("()"):
+            normalized = normalized[:-2]
+        if normalized.endswith("aggregation"):
+            normalized = normalized[:-len("aggregation")]
+
+        aliases = {
+            "gcn": "gcn-normalized",
+            "gcnconv": "gcn-normalized",
+            "gcn-normalized": "gcn-normalized",
+            "gcn-normalised": "gcn-normalized",
+            "normalized-gcn": "gcn-normalized",
+            "normalised-gcn": "gcn-normalized",
+            "add": "sum",
+            "sum": "sum",
+            "avg": "mean",
+            "average": "mean",
+            "mean": "mean",
+            "maximum": "max",
+            "max": "max",
+            "minimum": "min",
+            "min": "min",
+            "median": "median",
+            "stdev": "std",
+            "std": "std",
+            "variance": "var",
+            "var": "var",
+        }
+        return aliases.get(normalized, raw)
+
+    @staticmethod
+    def _get_layer_aggregation(module):
+        module_type = type(module).__name__
+        if module_type == "GCNConv":
+            return "gcn-normalized"
+
+        aggregation = getattr(module, "aggr", None)
+        return GNNVisualizer._normalize_aggregation_name(aggregation) or "gcn-normalized"
 
     @staticmethod
     def tensor_to_json(x):

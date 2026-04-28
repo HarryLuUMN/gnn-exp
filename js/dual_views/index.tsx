@@ -9,7 +9,7 @@ import type {
 
 const render = createRender(() => {
     const [graphData] = useModelState<any>("graphData");
-    const [renderer, setRenderer] = useModelState<RendererMode>("renderer");
+    const [renderer] = useModelState<RendererMode>("renderer");
     const [effectiveRenderer, setEffectiveRenderer] =
         useModelState<ResolvedRenderer>("effectiveRenderer");
 
@@ -20,7 +20,6 @@ const render = createRender(() => {
             <DualViews
                 renderer={renderer}
                 effectiveRenderer={effectiveRenderer}
-                setRenderer={setRenderer}
                 setEffectiveRenderer={setEffectiveRenderer}
                 graphData={graphData}
                 handleSimulatedGraphChange={() => {}}
