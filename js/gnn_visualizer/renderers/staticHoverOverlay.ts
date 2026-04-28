@@ -6,12 +6,11 @@ import type {
   StaticVisualizationScene,
 } from "./staticScene";
 import { curve, featureColor } from "../utils/const";
+import { aggregateNeighborFeatures } from "../utils/aggregationUtils";
 import { extractSortedGNNLayerFeatures } from "../utils/dataProcessingUtils";
 import {
   addVector,
-  countOnes,
   matrixTranspose,
-  scaleVector,
   vecMatMul,
 } from "../utils/mathUtils";
 
@@ -152,14 +151,101 @@ function appendPath(
   group.append(path);
 }
 
-function appendText(group: SVGGElement, x: number, y: number, text: string) {
+function appendText(
+  group: SVGGElement,
+  x: number,
+  y: number,
+  text: string,
+  options: {
+    fontSize?: number;
+    fill?: string;
+    textAnchor?: string;
+    transform?: string;
+  } = {}
+) {
   const node = createSvgElement("text");
   node.setAttribute("x", String(x));
   node.setAttribute("y", String(y));
-  node.setAttribute("font-size", "6");
-  node.setAttribute("fill", HIGHLIGHT);
+  node.setAttribute("font-size", String(options.fontSize ?? 6));
+  node.setAttribute("fill", options.fill ?? HIGHLIGHT);
+  node.setAttribute("text-anchor", options.textAnchor ?? "start");
+  if (options.transform) {
+    node.setAttribute("transform", options.transform);
+  }
   node.textContent = text;
   group.append(node);
+}
+
+function appendFeatureLegend(group: SVGGElement, scene: StaticVisualizationScene) {
+  const width = 120;
+  const height = 7;
+  const steps = 40;
+  const preferredX = Math.max(
+    scene.matrixLayout.x + scene.matrixLayout.width + 60,
+    scene.width - width - 40
+  );
+  const x = Math.max(
+    8,
+    Math.min(preferredX, Math.max(8, scene.width - width - 8))
+  );
+  const y = Math.max(12, scene.matrixLayout.y - 30);
+
+  for (let index = 0; index < steps; index += 1) {
+    const value = -1.5 + (3 * index) / (steps - 1);
+    const rect = createSvgElement("rect");
+    rect.setAttribute("x", String(x + (index * width) / steps));
+    rect.setAttribute("y", String(y));
+    rect.setAttribute("width", String(width / steps + 0.5));
+    rect.setAttribute("height", String(height));
+    rect.setAttribute("fill", featureColor(value));
+    group.append(rect);
+  }
+
+  [
+    [-1.5, "-1.50"],
+    [0, "0.00"],
+    [1.5, "1.50"],
+  ].forEach(([value, label]) => {
+    appendText(
+      group,
+      x + ((Number(value) + 1.5) / 3) * width,
+      y + 20,
+      String(label),
+      { fontSize: 7, fill: "#6b817b", textAnchor: "middle" }
+    );
+  });
+}
+
+function appendMatrixLabels(group: SVGGElement, layout: StaticMatrixLayout) {
+  layout.nodeLabels.forEach((label, index) => {
+    const centerY = layout.y + index * layout.cellSize + layout.cellSize / 2 + 3;
+    const centerX = layout.x + index * layout.cellSize + layout.cellSize / 2;
+
+    appendText(group, layout.x - 14, centerY, label, {
+      fontSize: 8,
+      fill: "#203d35",
+      textAnchor: "end",
+    });
+    appendText(group, layout.x - 4, centerY, String(index), {
+      fontSize: 6,
+      fill: "#6b817b",
+      textAnchor: "end",
+    });
+    appendText(group, centerX, layout.y - 6, label, {
+      fontSize: 7,
+      fill: "#203d35",
+      transform: `rotate(-90 ${centerX} ${layout.y - 6})`,
+    });
+  });
+}
+
+function appendStaticAnnotations(svg: SVGSVGElement, scene: StaticVisualizationScene) {
+  const annotations = createSvgElement("g");
+  annotations.classList.add("gnn-static-annotations");
+  annotations.setAttribute("pointer-events", "none");
+  appendMatrixLabels(annotations, scene.matrixLayout);
+  appendFeatureLegend(annotations, scene);
+  svg.append(annotations);
 }
 
 function appendIconGroup(
@@ -574,47 +660,6 @@ function fcTarget(
   ) as Extract<StaticHoverTarget, { kind: "fc-node" }> | undefined;
 }
 
-function safeAddVector(a: number[], b: number[]) {
-  if (a.length !== b.length) {
-    return a;
-  }
-
-  return addVector(a, b);
-}
-
-function buildAggregatedFeature(
-  adjacencyMatrix: number[][],
-  sortedGNNFeatures: number[][][],
-  layerIndex: number,
-  nodeIndex: number
-) {
-  const previousLayer = sortedGNNFeatures[layerIndex - 1] ?? [];
-  const featureLength = previousLayer[0]?.length ?? 0;
-  let aggregatedFeature = Array(featureLength).fill(0);
-  const degreeMultipliers: Array<{ nodeIndex: number; value: number }> = [];
-
-  const adjacencyRow = adjacencyMatrix[nodeIndex] ?? [];
-  for (let index = 0; index < adjacencyRow.length; index += 1) {
-    if (adjacencyRow[index] !== 1 || !previousLayer[index]) {
-      continue;
-    }
-
-    const degreeMultiplier =
-      1 /
-      Math.sqrt(
-        Math.max(1, countOnes(adjacencyMatrix[nodeIndex])) *
-          Math.max(1, countOnes(adjacencyMatrix[index] ?? []))
-      );
-    aggregatedFeature = safeAddVector(
-      aggregatedFeature,
-      scaleVector(degreeMultiplier, previousLayer[index])
-    );
-    degreeMultipliers.push({ nodeIndex: index, value: degreeMultiplier });
-  }
-
-  return { aggregatedFeature, degreeMultipliers };
-}
-
 function drawFeatureExpansion(
   group: SVGGElement,
   target: Extract<StaticHoverTarget, { kind: "feature-node" }>,
@@ -641,18 +686,20 @@ function drawFeatureExpansion(
       (expansion?.kind === "gnn" ? expansion.distance : 0) -
       DISTANCE_TO_FEATURE;
   const currentNodeY = target.bounds.y + target.bounds.height / 2;
-  const { aggregatedFeature, degreeMultipliers } = buildAggregatedFeature(
+  const aggregationResult = aggregateNeighborFeatures(
     adjacencyMatrix,
     sortedGNNFeatures,
     target.layerIndex,
-    target.nodeIndex
+    target.nodeIndex,
+    layerInfo
   );
+  const aggregatedFeature = aggregationResult.aggregatedFeature;
   const firstIntersect: [number, number] = [
     currentNodeX + DISTANCE_TO_FEATURE,
     currentNodeY,
   ];
 
-  for (const { nodeIndex, value } of degreeMultipliers) {
+  for (const { nodeIndex, label } of aggregationResult.contributions) {
     const previous = frameTarget(scene.hoverTargets, target.layerIndex - 1, nodeIndex);
     if (!previous || !("bounds" in previous)) {
       continue;
@@ -679,13 +726,16 @@ function drawFeatureExpansion(
       ],
       { stroke: HIGHLIGHT, strokeWidth: 1.5 }
     );
-    appendText(group, sourceX + 3, sourceY - 6, value.toFixed(2));
+    appendText(group, sourceX + 3, sourceY - 6, label);
     appendRect(group, previous.bounds, { opacity: 0.85 });
   }
 
   appendRect(group, target.bounds, { strokeWidth: 2.5 });
   const aggregatedX = currentNodeX + DISTANCE_TO_FEATURE;
   const aggregatedY = currentNodeY - FEATURE_HEIGHT / 2;
+  appendText(group, aggregatedX, aggregatedY - 4, `agg: ${aggregationResult.label}`, {
+    fontSize: 7,
+  });
   appendFeatureVector(group, aggregatedX, aggregatedY, aggregatedFeature, cellWidth);
 
   const weightMatrix = matrixTranspose(layerInfo.weight as number[][]);
@@ -1072,6 +1122,7 @@ export function attachStaticHoverOverlay({
   svg.setAttribute("width", String(Math.max(1, Math.ceil(scene.width))));
   svg.setAttribute("height", String(Math.max(1, Math.ceil(scene.height))));
   svg.setAttribute("viewBox", `0 0 ${scene.width} ${scene.height}`);
+  appendStaticAnnotations(svg, scene);
 
   const group = createSvgElement("g");
   group.classList.add("gnn-static-hover-marks");

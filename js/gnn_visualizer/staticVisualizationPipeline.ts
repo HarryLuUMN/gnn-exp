@@ -56,7 +56,9 @@ export async function staticVisualizationPipeline(
   linkList: any[],
   queries: number[][],
   subgraphSample: boolean,
-  mode: string
+  mode: string,
+  nodeLabels: string[] = [],
+  messagePassingDepth: number = 4
 ): Promise<StaticPipelineResult> {
   container.replaceChildren();
 
@@ -87,7 +89,11 @@ export async function staticVisualizationPipeline(
       queries,
       !!subgraphSample,
       mode,
-      { expansion }
+      {
+        expansion,
+        nodeLabels,
+        messagePassingDepth,
+      }
     );
     const canvas = createCanvas(scene);
     container.append(canvas);

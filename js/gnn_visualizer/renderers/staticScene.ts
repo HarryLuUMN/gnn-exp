@@ -1,6 +1,7 @@
 import { featureColor } from "../utils/const";
 import {
   extractSortedGNNLayerFeatures,
+  getEdgeOutputFeature,
   processSubgraphSequenceDataPipe,
   type SubgraphResult,
 } from "../utils/dataProcessingUtils";
@@ -50,6 +51,8 @@ export type StaticExpansionState =
 
 export type StaticVisualizationOptions = {
   expansion?: StaticExpansionState;
+  nodeLabels?: string[];
+  messagePassingDepth?: number;
 };
 
 export type StaticBounds = {
@@ -62,6 +65,7 @@ export type StaticBounds = {
 export type StaticMatrixLayout = StaticBounds & {
   cellSize: number;
   nodeCount: number;
+  nodeLabels: string[];
 };
 
 export type StaticHoverTarget =
@@ -138,6 +142,7 @@ function createBuilder(): SceneBuilder {
       height: 0,
       cellSize: MATRIX_CELL_SIZE,
       nodeCount: 0,
+      nodeLabels: [],
     },
     minX: Number.POSITIVE_INFINITY,
     minY: Number.POSITIVE_INFINITY,
@@ -388,7 +393,7 @@ function addFeatureVector(
   }
 }
 
-function addMatrix(builder: SceneBuilder, adjacencyMatrix: number[][]) {
+function addMatrix(builder: SceneBuilder, adjacencyMatrix: number[][], nodeLabels: string[]) {
   const size = adjacencyMatrix.length;
   const matrixSize = size * MATRIX_CELL_SIZE;
   builder.matrixLayout = {
@@ -398,6 +403,7 @@ function addMatrix(builder: SceneBuilder, adjacencyMatrix: number[][]) {
     height: matrixSize,
     cellSize: MATRIX_CELL_SIZE,
     nodeCount: size,
+    nodeLabels,
   };
   addRect(builder, MATRIX_START_X, MATRIX_START_Y, matrixSize, matrixSize, {
     fill: MATRIX_OFF,
@@ -633,6 +639,8 @@ function addNodeTaskFC(
 function addEdgeTaskFC(
   builder: SceneBuilder,
   layerX: number,
+  intmData: any,
+  sortedGNNFeatures: number[][][],
   queries: number[][],
   cellWidth: number,
   opacity: number,
@@ -680,13 +688,18 @@ function addEdgeTaskFC(
       });
     }
 
-    const probability = Math.random();
+    const outputFeature = getEdgeOutputFeature(
+      intmData,
+      sortedGNNFeatures,
+      queries,
+      queryIndex
+    );
     const nodeOpacity = selectedFcIndex === queryIndex ? 1 : opacity;
     addFeatureVector(
       builder,
       fcLayerX,
       layerYMid - 6,
-      [1 - probability, probability],
+      outputFeature,
       cellWidth,
       12,
       1,
@@ -698,7 +711,7 @@ function addEdgeTaskFC(
       bounds: {
         x: fcLayerX,
         y: layerYMid - 6,
-        width: 2 * cellWidth,
+        width: outputFeature.length * cellWidth,
         height: 12,
       },
     });
@@ -776,6 +789,7 @@ function addFCByMode(
   layerX: number,
   intmData: any,
   queries: number[][],
+  sortedGNNFeatures: number[][][],
   cellWidth: number,
   opacity: number,
   showLinks: boolean,
@@ -804,6 +818,8 @@ function addFCByMode(
     addEdgeTaskFC(
       builder,
       layerX,
+      intmData,
+      sortedGNNFeatures,
       queries,
       cellWidth,
       fcOpacity,
@@ -842,6 +858,7 @@ function translateScene(builder: SceneBuilder): StaticVisualizationScene {
         height: 0,
         cellSize: MATRIX_CELL_SIZE,
         nodeCount: 0,
+        nodeLabels: [],
       },
     };
   }
@@ -906,10 +923,17 @@ export function buildVisualizationScene(
 ): StaticVisualizationScene {
   const builder = createBuilder();
   const sortedGNNFeatures = extractSortedGNNLayerFeatures(intmData);
-  const subgraphData = processSubgraphSequenceDataPipe(adjacencyMatrix, queries, 4);
+  const subgraphData = processSubgraphSequenceDataPipe(
+    adjacencyMatrix,
+    queries,
+    options.messagePassingDepth ?? 4
+  );
   const expansion = options.expansion ?? null;
+  const nodeLabels = adjacencyMatrix.map(
+    (_, index) => options.nodeLabels?.[index] ?? String(index)
+  );
 
-  addMatrix(builder, adjacencyMatrix);
+  addMatrix(builder, adjacencyMatrix, nodeLabels);
 
   if (sortedGNNFeatures.length > 0 && sortedGNNFeatures[0]?.length > 0) {
     const layerX = addIntermediateFeatures(
@@ -939,6 +963,7 @@ export function buildVisualizationScene(
       layerX,
       intmData,
       queries,
+      sortedGNNFeatures,
       cellWidth,
       expansion ? 0.1 : 1,
       !expansion,
