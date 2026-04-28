@@ -12,11 +12,11 @@ class GraphVisualizer(anywidget.AnyWidget):
     graphData = traitlets.Dict().tag(sync=True)  
     renderer = traitlets.Enum(
         values=["svg", "auto", "webgl", "webgpu"],
-        default_value="svg",
+        default_value="auto",
     ).tag(sync=True)
     effectiveRenderer = traitlets.Enum(
         values=["svg", "webgl", "webgpu"],
-        default_value="svg",
+        default_value="webgl",
     ).tag(sync=True)
 
     _esm = DIST / "dual_views" / "index.js"

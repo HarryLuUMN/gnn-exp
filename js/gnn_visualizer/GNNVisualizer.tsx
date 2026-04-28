@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
     detectCapabilities,
+    detectWebgpuCapability,
     resolveRenderer,
     type RendererMode,
     type ResolvedRenderer,
@@ -73,11 +74,29 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     const [fallbackFailures, setFallbackFailures] = useState<
         Partial<Record<ResolvedRenderer, string>>
     >({});
-    const capabilities = React.useMemo(() => detectCapabilities(), []);
+    const [capabilities, setCapabilities] = useState(() => detectCapabilities());
     const resolution = React.useMemo(
         () => resolveRenderer(renderer, capabilities, fallbackFailures),
         [capabilities, fallbackFailures, renderer]
     );
+
+    useEffect(() => {
+        let cancelled = false;
+
+        detectWebgpuCapability().then((webgpu) => {
+            if (cancelled) {
+                return;
+            }
+
+            setCapabilities((current) =>
+                current.webgpu === webgpu ? current : { ...current, webgpu }
+            );
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     useEffect(() => {
         if (effectiveRenderer !== resolution.effectiveRenderer) {
@@ -277,11 +296,13 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
             <div className="gnn-model-toolbar">
                 <div className="gnn-model-toolbar__status">
                     <span>
-                        Requested: <strong>{renderer.toUpperCase()}</strong>
+                        Renderer: <strong>{resolution.effectiveRenderer.toUpperCase()}</strong>
                     </span>
-                    <span>
-                        Active: <strong>{resolution.effectiveRenderer.toUpperCase()}</strong>
-                    </span>
+                    {renderer !== "auto" ? (
+                        <span>
+                            API: <strong>{renderer.toUpperCase()}</strong>
+                        </span>
+                    ) : null}
                     <span>Zoom: {Math.round(modelZoom * 100)}%</span>
                     {resolution.reason ? (
                         <span className="gnn-model-toolbar__reason">
