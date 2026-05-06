@@ -33,6 +33,11 @@ export type ModelVisualizationData = {
     isLocalEdgeView: boolean;
 };
 
+export type GraphAggregationInfo = {
+    feature: number[];
+    label: string;
+};
+
 const messagePassingLayerTypes = new Set(["GCNConv", "GATConv", "SAGEConv", "GraphSAGEConv"]);
 
 export function getMessagePassingDepth(modelInfo: any, intmData: Record<string, number[][]>): number {
@@ -62,6 +67,156 @@ export function extractSortedGNNLayerFeatures(intmData: Record<string, number[][
     console.log("sortedGNNLayerFeatures:", sortedGNNLayerFeatures);
 
     return sortedGNNLayerFeatures;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+    return typeof value === "number" && Number.isFinite(value);
+}
+
+function normalizeNumberVector(value: unknown): number[] | null {
+    if (!Array.isArray(value) || value.length === 0 || !value.every(isFiniteNumber)) {
+        return null;
+    }
+
+    return [...value];
+}
+
+function firstNumberVector(value: unknown, allowMultiRow: boolean = true): number[] | null {
+    const vector = normalizeNumberVector(value);
+    if (vector) {
+        return vector;
+    }
+
+    if (!Array.isArray(value) || value.length === 0) {
+        return null;
+    }
+
+    if (!allowMultiRow && value.length !== 1) {
+        return null;
+    }
+
+    return normalizeNumberVector(value[0]);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeGraphAggregationLabel(value: unknown): string {
+    if (typeof value !== "string" || value.trim() === "") {
+        return "Pooling";
+    }
+
+    const normalized = value.trim().toLowerCase().replace(/[_-]/g, " ");
+    if (normalized.includes("mean")) {
+        return "Mean Pooling";
+    }
+    if (normalized.includes("add") || normalized.includes("sum")) {
+        return "Sum Pooling";
+    }
+    if (normalized.includes("max")) {
+        return "Max Pooling";
+    }
+
+    return value.trim().endsWith("Pooling") ? value.trim() : `${value.trim()} Pooling`;
+}
+
+function averageFeatures(features: number[][]): number[] | null {
+    const validFeatures = features.filter((feature) => normalizeNumberVector(feature));
+    const first = validFeatures[0];
+    if (!first) {
+        return null;
+    }
+
+    const result = Array(first.length).fill(0) as number[];
+    for (const feature of validFeatures) {
+        for (let index = 0; index < first.length; index += 1) {
+            result[index] += feature[index] ?? 0;
+        }
+    }
+
+    return result.map((value) => value / validFeatures.length);
+}
+
+function graphAggregationFromCandidate(
+    candidate: unknown,
+    fallbackLabel: unknown
+): GraphAggregationInfo | null {
+    if (isRecord(candidate)) {
+        const feature =
+            firstNumberVector(candidate.feature) ??
+            firstNumberVector(candidate.vector) ??
+            firstNumberVector(candidate.output) ??
+            firstNumberVector(candidate.features);
+        if (!feature) {
+            return null;
+        }
+
+        return {
+            feature,
+            label: normalizeGraphAggregationLabel(
+                candidate.type ?? candidate.aggregation ?? candidate.aggr ?? candidate.name ?? fallbackLabel
+            ),
+        };
+    }
+
+    const feature = firstNumberVector(candidate);
+    if (!feature) {
+        return null;
+    }
+
+    return {
+        feature,
+        label: normalizeGraphAggregationLabel(fallbackLabel),
+    };
+}
+
+export function getGraphAggregationInfo(
+    intmData: Record<string, unknown>,
+    fallbackFeatures: number[][] = []
+): GraphAggregationInfo | null {
+    const candidates: Array<[string, unknown]> = [
+        ["Pooling", intmData?.graphAggregation],
+        ["Pooling", intmData?.graphPooling],
+        ["Pooling", intmData?.pooling],
+        ["Readout", intmData?.readout],
+        ["Graph Embedding", intmData?.graphEmbedding],
+        ["Graph Feature", intmData?.graphFeature],
+        ["Graph Feature", intmData?.graph_feature],
+        ["Graph Representation", intmData?.graph_repr],
+    ];
+
+    for (const [label, candidate] of candidates) {
+        const aggregation = graphAggregationFromCandidate(candidate, label);
+        if (aggregation) {
+            return aggregation;
+        }
+    }
+
+    const fallback = averageFeatures(fallbackFeatures);
+    return fallback ? { feature: fallback, label: "Mean Pooling" } : null;
+}
+
+export function getGraphOutputFeature(intmData: Record<string, unknown>): number[] | null {
+    const candidates = [
+        intmData?.graphOutput,
+        intmData?.graphPrediction,
+        intmData?.graphLogits,
+        intmData?.final,
+        intmData?.softmax,
+        intmData?.logits,
+        intmData?.classifier,
+        intmData?.modelOutput,
+    ];
+
+    for (const candidate of candidates) {
+        const feature = firstNumberVector(candidate, false);
+        if (feature) {
+            return feature;
+        }
+    }
+
+    return null;
 }
 
 export function removeRepeatLinks(links: any[]) {

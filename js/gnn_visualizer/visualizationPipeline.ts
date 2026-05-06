@@ -2,12 +2,14 @@ import * as d3 from "d3";
 import { injectSVG } from "./utils/pipeUtils";
 import { computeFeatureLayerX, computeFeatureLayerY } from "./utils/geometryUtils";
 import { distanceToFeature } from "../utils/const";
-import { matrixTranspose, randomVector, vecMatMul, addVector, divideVector } from "./utils/mathUtils";
+import { matrixTranspose, vecMatMul, addVector } from "./utils/mathUtils";
 import { curve, featureColor } from "./utils/const";
 import { aggregateNeighborFeatures } from "./utils/aggregationUtils";
 import {
     extractSortedGNNLayerFeatures,
     getEdgeOutputFeature,
+    getGraphAggregationInfo,
+    getGraphOutputFeature,
     processSubgraphSequenceDataPipe,
     SubgraphResult,
 } from "./utils/dataProcessingUtils";
@@ -397,13 +399,16 @@ export function visualizeFCForEdgeTaskSubpipe(container: HTMLDivElement, layerX:
 
 export function visualizeFCForGraphTaskSubpipe(container: HTMLDivElement, layerX: any, intmData: any){
     const sortedLayers = extractSortedGNNLayerFeatures(intmData);
-    const lastLayerNum = sortedLayers[sortedLayers.length - 1].length;
-    const fcLayerFeatures: any[][] = intmData[`conv4`];
-    console.log("fc data", fcLayerFeatures, lastLayerNum);
+    const fcLayerFeatures = sortedLayers[sortedLayers.length - 1] ?? [];
+    const graphAggregation = getGraphAggregationInfo(intmData, fcLayerFeatures);
+    if (!graphAggregation) {
+        return;
+    }
+    console.log("graph aggregation data", graphAggregation, fcLayerFeatures.length);
     const prevLayerX = layerX - 100;
     const layerY = 50;
     const svg = d3.select(container).select("svg");
-    const midLayerY = layerY + (fcLayerFeatures.length * 20) / 2;
+    const midLayerY = layerY + (Math.max(1, fcLayerFeatures.length) * 20) / 2;
     for (let i=0; i < fcLayerFeatures.length; i++){
         const curLayerY = layerY + i * 20 + 12;
         svg.append("path")
@@ -414,11 +419,8 @@ export function visualizeFCForGraphTaskSubpipe(container: HTMLDivElement, layerX
                 [layerX, midLayerY],
             ])).attr("stroke", "black").attr("opacity", 0.1).attr("fill", "none").attr("class", "agg-link-path-fc").attr("id", `agg-link-path-fc-${i}`).lower();
     }
-    let vec = Array(fcLayerFeatures[0].length).fill(0);
-    for (let i=0; i < fcLayerFeatures.length; i++)
-        vec = addVector(vec, fcLayerFeatures[i]);
-    vec = divideVector(vec, fcLayerFeatures.length);
-    console.log("averaged graph feature vector:", vec);
+    const vec = graphAggregation.feature;
+    console.log("graph aggregation feature vector:", vec);
     const g = svg.append("g").attr("class", "agg-feature-layer").attr("id", `agg-feature-layer-node-graph`);
     for(let j=0; j < vec.length; j++){
         g.append("rect")
@@ -445,9 +447,20 @@ export function visualizeFCForGraphTaskSubpipe(container: HTMLDivElement, layerX
         .style("stroke-width", 1)
         .style("stroke", "black")
         .style("opacity", 0.5);
+    g.append("text")
+        .attr("x", layerX)
+        .attr("y", midLayerY + 34)
+        .text(graphAggregation.label)
+        .attr("class", "graph-aggregation-label")
+        .attr("id", "graph-aggregation-label")
+        .style("font-size", "14px")
+        .style("font-weight", 700)
+        .style("fill", "#7f7f7f");
 
-    const resultVec = randomVector(4);
-    visualizeSingleFCSubpipe(layerX + 100, midLayerY - 12, resultVec, 0, svg);
+    const resultVec = getGraphOutputFeature(intmData);
+    if (resultVec) {
+        visualizeSingleFCSubpipe(layerX + 100, midLayerY - 12, resultVec, 0, svg);
+    }
 }
 
 export function visualizeFCForNodeTaskSubpipe(container: HTMLDivElement, layerX: number, intmData: any){

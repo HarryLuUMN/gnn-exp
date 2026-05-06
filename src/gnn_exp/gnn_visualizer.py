@@ -2,6 +2,8 @@ import pathlib
 import anywidget
 import traitlets
 import torch
+import inspect
+import functools
 from .utils.data_loader import load_json
 from .utils.subgraph_sampling import subgraph_hoop_sampling, multiple_subgraph_hoop_sampling
 
@@ -50,7 +52,7 @@ class GNNVisualizer(anywidget.AnyWidget):
         self.subgraphSample = subgraphSample    
         self.mode = mode
         print(f"mode: {self.mode}")
-        intermedia_output = self.fetch_model_intermedia(data, model, forward_fn)
+        intermedia_output = self.fetch_model_intermedia(data, model, forward_fn, mode)
         
         # deduplicate while preserving order and ensure queries are JSON-serializable
         seen = []
@@ -118,9 +120,10 @@ class GNNVisualizer(anywidget.AnyWidget):
         self.value += 1  # trigger re-render in frontend
         return 
 
-    def fetch_model_intermedia(self, data, model, forward_fn=None):
+    def fetch_model_intermedia(self, data, model, forward_fn=None, mode='node'):
         hooks = []
         buffer = {}
+        pooling_calls = []
 
         for name, module in model.named_children():
             h = module.register_forward_hook(
@@ -128,26 +131,231 @@ class GNNVisualizer(anywidget.AnyWidget):
             )
             hooks.append(h)
 
-        with torch.no_grad():
-            if forward_fn:
-                _ = forward_fn(model, data)
-            else:
-                _ = model(data.x, data.edge_index)
+        restore_pooling_hooks = self._install_pooling_capture(model, forward_fn, pooling_calls)
 
-        for h in hooks:
-            h.remove()
+        try:
+            with torch.no_grad():
+                if forward_fn:
+                    model_output = forward_fn(model, data)
+                else:
+                    model_output = self._call_model(model, data, mode)
+            self._record_model_output(buffer, model_output)
+        finally:
+            restore_pooling_hooks()
+            for h in hooks:
+                h.remove()
+
+        self._record_graph_aggregation(buffer, pooling_calls)
 
         json_safe_output = {
-            name: self.tensor_to_json(tensor)
-            for name, tensor in buffer.items()
+            name: self.tensor_to_json(value)
+            for name, value in buffer.items()
         }
 
         return json_safe_output
 
     def fetch_output_hook(self, name, buffer):
         def hook(module, input, output):
-            buffer[name] = output.detach()
+            self._record_intermediate_value(buffer, name, output)
         return hook
+
+    @staticmethod
+    def _call_model(model, data, mode):
+        args = [data.x, data.edge_index]
+        batch = GNNVisualizer._get_batch_vector(data)
+
+        try:
+            parameters = list(inspect.signature(model.forward).parameters.values())
+        except (TypeError, ValueError):
+            parameters = []
+
+        positional_names = [
+            parameter.name
+            for parameter in parameters
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            )
+        ]
+
+        if len(positional_names) == 1 and positional_names[0] == "data":
+            return model(data)
+
+        wants_batch = (
+            batch is not None
+            and (
+                "batch" in positional_names
+                or (mode == "graph" and len(positional_names) >= 3)
+            )
+        )
+        if wants_batch:
+            args.append(batch)
+
+        return model(*args)
+
+    @staticmethod
+    def _get_batch_vector(data):
+        batch = getattr(data, "batch", None)
+        if batch is not None:
+            return batch
+
+        x = getattr(data, "x", None)
+        if isinstance(x, torch.Tensor):
+            return torch.zeros(x.size(0), dtype=torch.long, device=x.device)
+
+        return None
+
+    @staticmethod
+    def _record_intermediate_value(buffer, name, value):
+        if isinstance(value, torch.Tensor):
+            buffer[name] = value.detach()
+            return
+
+        if isinstance(value, dict):
+            for key, nested in value.items():
+                GNNVisualizer._record_intermediate_value(buffer, str(key), nested)
+            return
+
+        if isinstance(value, (list, tuple)):
+            tensor_values = [
+                item.detach()
+                for item in value
+                if isinstance(item, torch.Tensor)
+            ]
+            if len(tensor_values) == 1:
+                buffer[name] = tensor_values[0]
+            elif len(tensor_values) > 1:
+                for index, tensor in enumerate(tensor_values):
+                    buffer[f"{name}_{index}"] = tensor
+
+    @staticmethod
+    def _record_model_output(buffer, output):
+        if isinstance(output, dict):
+            for key, value in output.items():
+                GNNVisualizer._record_intermediate_value(buffer, str(key), value)
+        elif isinstance(output, torch.Tensor):
+            buffer["modelOutput"] = output.detach()
+
+    @staticmethod
+    def _pooling_label(function_name):
+        labels = {
+            "global_mean_pool": "Mean Pooling",
+            "global_add_pool": "Sum Pooling",
+            "global_max_pool": "Max Pooling",
+        }
+        return labels.get(function_name, "Pooling")
+
+    @staticmethod
+    def _install_pooling_capture(model, forward_fn, pooling_calls):
+        patches = []
+        function_names = ("global_mean_pool", "global_add_pool", "global_max_pool")
+
+        def make_wrapper(function_name, original):
+            @functools.wraps(original)
+            def wrapper(*args, **kwargs):
+                result = original(*args, **kwargs)
+                if isinstance(result, torch.Tensor):
+                    pooling_calls.append({
+                        "name": function_name,
+                        "label": GNNVisualizer._pooling_label(function_name),
+                        "output": result.detach(),
+                    })
+                return result
+
+            return wrapper
+
+        def patch_mapping(mapping, function_name):
+            if not isinstance(mapping, dict) or function_name not in mapping:
+                return
+            original = mapping[function_name]
+            if not callable(original):
+                return
+            mapping[function_name] = make_wrapper(function_name, original)
+            patches.append(("mapping", mapping, function_name, original))
+
+        def patch_attribute(owner, function_name):
+            original = getattr(owner, function_name, None)
+            if not callable(original):
+                return
+            setattr(owner, function_name, make_wrapper(function_name, original))
+            patches.append(("attribute", owner, function_name, original))
+
+        globals_to_patch = []
+        forward_globals = getattr(getattr(model, "forward", None), "__globals__", None)
+        if forward_globals is not None:
+            globals_to_patch.append(forward_globals)
+        forward_fn_globals = getattr(forward_fn, "__globals__", None)
+        if forward_fn_globals is not None:
+            globals_to_patch.append(forward_fn_globals)
+
+        for function_name in function_names:
+            for mapping in globals_to_patch:
+                patch_mapping(mapping, function_name)
+
+        try:
+            import torch_geometric.nn as pyg_nn
+            import torch_geometric.nn.pool as pyg_pool
+            import torch_geometric.nn.pool.glob as pyg_pool_glob
+        except Exception:
+            pyg_nn = pyg_pool = pyg_pool_glob = None
+
+        for owner in (pyg_nn, pyg_pool, pyg_pool_glob):
+            if owner is None:
+                continue
+            for function_name in function_names:
+                patch_attribute(owner, function_name)
+
+        def restore():
+            for patch_type, target, function_name, original in reversed(patches):
+                if patch_type == "mapping":
+                    target[function_name] = original
+                else:
+                    setattr(target, function_name, original)
+
+        return restore
+
+    @staticmethod
+    def _normalize_graph_feature(value):
+        if not isinstance(value, torch.Tensor):
+            return None
+
+        feature = value.detach()
+        if feature.ndim == 0:
+            return None
+        if feature.ndim == 1:
+            return feature
+        if feature.ndim >= 2 and feature.shape[0] > 0:
+            return feature.reshape(feature.shape[0], -1)[0]
+        return None
+
+    @staticmethod
+    def _record_graph_aggregation(buffer, pooling_calls):
+        if pooling_calls:
+            latest = pooling_calls[-1]
+            feature = GNNVisualizer._normalize_graph_feature(latest["output"])
+            if feature is not None:
+                buffer["graphAggregation"] = {
+                    "type": latest["label"],
+                    "name": latest["name"],
+                    "feature": feature,
+                    "features": latest["output"],
+                }
+                return
+
+        for key, value in buffer.items():
+            normalized_key = key.lower().replace("_", "").replace("-", "")
+            if not any(token in normalized_key for token in ("pool", "readout", "graphembedding", "graphfeature", "graphrepr")):
+                continue
+            feature = GNNVisualizer._normalize_graph_feature(value)
+            if feature is None:
+                continue
+            buffer["graphAggregation"] = {
+                "type": "Pooling",
+                "name": key,
+                "feature": feature,
+                "features": value,
+            }
+            return
 
     @staticmethod
     def _is_activation_module(module):
@@ -245,4 +453,8 @@ class GNNVisualizer(anywidget.AnyWidget):
     def tensor_to_json(x):
         if isinstance(x, torch.Tensor):
             return x.detach().cpu().numpy().tolist()
+        if isinstance(x, dict):
+            return {key: GNNVisualizer.tensor_to_json(value) for key, value in x.items()}
+        if isinstance(x, (list, tuple)):
+            return [GNNVisualizer.tensor_to_json(value) for value in x]
         return x

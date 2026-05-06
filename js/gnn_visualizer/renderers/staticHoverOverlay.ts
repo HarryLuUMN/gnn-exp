@@ -7,7 +7,10 @@ import type {
 } from "./staticScene";
 import { curve, featureColor } from "../utils/const";
 import { aggregateNeighborFeatures } from "../utils/aggregationUtils";
-import { extractSortedGNNLayerFeatures } from "../utils/dataProcessingUtils";
+import {
+  extractSortedGNNLayerFeatures,
+  getGraphAggregationInfo,
+} from "../utils/dataProcessingUtils";
 import {
   addVector,
   matrixTranspose,
@@ -245,6 +248,19 @@ function appendStaticAnnotations(svg: SVGSVGElement, scene: StaticVisualizationS
   annotations.setAttribute("pointer-events", "none");
   appendMatrixLabels(annotations, scene.matrixLayout);
   appendFeatureLegend(annotations, scene);
+  for (const target of scene.hoverTargets) {
+    if (target.kind !== "agg-node") {
+      continue;
+    }
+
+    appendText(
+      annotations,
+      target.bounds.x,
+      target.bounds.y + target.bounds.height + 28,
+      target.label,
+      { fontSize: 14, fill: "#7f7f7f" }
+    );
+  }
   svg.append(annotations);
 }
 
@@ -836,24 +852,12 @@ function drawFeatureExpansion(
   );
 }
 
-function averageFeature(features: number[][]) {
-  if (features.length === 0 || features[0].length === 0) {
-    return [];
-  }
-
-  let averaged = Array(features[0].length).fill(0);
-  for (const feature of features) {
-    averaged = addVector(averaged, feature);
-  }
-
-  return averaged.map((value) => value / features.length);
-}
-
 function drawFcExpansion(
   group: SVGGElement,
   target: Extract<StaticHoverTarget, { kind: "fc-node" }>,
   sortedGNNFeatures: number[][][],
   modelInfo: any,
+  intmData: any,
   cellWidth: number,
   mode: string,
   expansion: StaticExpansionState
@@ -864,9 +868,10 @@ function drawFcExpansion(
   }
 
   const lastLayer = sortedGNNFeatures[sortedGNNFeatures.length - 1] ?? [];
+  const graphAggregation = getGraphAggregationInfo(intmData, lastLayer);
   const inputFeature =
     mode === "graph"
-      ? averageFeature(lastLayer)
+      ? graphAggregation?.feature ?? []
       : lastLayer[target.nodeIndex] ?? [];
   if (inputFeature.length === 0) {
     return;
@@ -1007,6 +1012,7 @@ function drawExpansion(
   adjacencyMatrix: number[][],
   sortedGNNFeatures: number[][][],
   modelInfo: any,
+  intmData: any,
   cellWidth: number,
   mode: string,
   expansion: StaticExpansionState
@@ -1022,6 +1028,7 @@ function drawExpansion(
       target,
       sortedGNNFeatures,
       modelInfo,
+      intmData,
       cellWidth,
       mode,
       expansion
@@ -1150,6 +1157,7 @@ export function attachStaticHoverOverlay({
       adjacencyMatrix,
       sortedGNNFeatures,
       modelInfo,
+      intmData,
       cellWidth,
       mode,
       expandedFeature ?? null
@@ -1212,6 +1220,7 @@ export function attachStaticHoverOverlay({
         adjacencyMatrix,
         sortedGNNFeatures,
         modelInfo,
+        intmData,
         cellWidth,
         mode,
         nextExpansion
@@ -1239,6 +1248,7 @@ export function attachStaticHoverOverlay({
         adjacencyMatrix,
         sortedGNNFeatures,
         modelInfo,
+        intmData,
         cellWidth,
         mode,
         nextExpansion
