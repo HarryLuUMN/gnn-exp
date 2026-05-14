@@ -77,13 +77,9 @@ class GNNVisualizer(anywidget.AnyWidget):
         model_info = {}
 
         for name, module in model.named_modules():
-            if hasattr(module, "lin"):  # GCNConv
-                model_info[name] = {
-                    "type": "GCNConv",
-                    "weight": self.tensor_to_json(module.lin.weight),
-                    "bias": self.tensor_to_json(module.bias),
-                    "aggregation": self._get_layer_aggregation(module),
-                }
+            layer_info = self._extract_message_passing_layer_info(module)
+            if layer_info is not None:
+                model_info[name] = layer_info
             elif isinstance(module, torch.nn.Linear):
                 model_info[name] = {
                     "type": "Linear",
@@ -445,9 +441,135 @@ class GNNVisualizer(anywidget.AnyWidget):
         module_type = type(module).__name__
         if module_type == "GCNConv":
             return "gcn-normalized"
+        if module_type == "GINConv":
+            return "sum"
+        if module_type == "GATConv":
+            return "sum"
+        if module_type in ("SAGEConv", "GraphSAGEConv"):
+            aggregation = getattr(module, "aggr", None)
+            return GNNVisualizer._normalize_aggregation_name(aggregation) or "mean"
 
         aggregation = getattr(module, "aggr", None)
         return GNNVisualizer._normalize_aggregation_name(aggregation) or "gcn-normalized"
+
+    @staticmethod
+    def _extract_message_passing_layer_info(module):
+        module_type = type(module).__name__
+        if module_type == "GCNConv":
+            linear = getattr(module, "lin", None)
+            return GNNVisualizer._layer_info_from_linear(
+                module_type,
+                linear,
+                module=module,
+                aggregation=GNNVisualizer._get_layer_aggregation(module),
+            )
+
+        if module_type in ("SAGEConv", "GraphSAGEConv"):
+            linear = getattr(module, "lin_l", None) or getattr(module, "lin", None)
+            info = GNNVisualizer._layer_info_from_linear(
+                module_type,
+                linear,
+                aggregation=GNNVisualizer._get_layer_aggregation(module),
+            )
+            root_linear = getattr(module, "lin_r", None)
+            root_weight = GNNVisualizer._linear_weight(root_linear)
+            if info is not None and root_weight is not None:
+                info["root_weight"] = GNNVisualizer.tensor_to_json(root_weight)
+            return info
+
+        if module_type == "GATConv":
+            linear = (
+                getattr(module, "lin", None)
+                or getattr(module, "lin_src", None)
+                or getattr(module, "lin_dst", None)
+            )
+            info = GNNVisualizer._layer_info_from_linear(
+                module_type,
+                linear,
+                module=module,
+                aggregation=GNNVisualizer._get_layer_aggregation(module),
+            )
+            if info is not None:
+                info["heads"] = getattr(module, "heads", None)
+                info["concat"] = getattr(module, "concat", None)
+                for attr in ("att_src", "att_dst", "att_edge"):
+                    value = getattr(module, attr, None)
+                    if isinstance(value, torch.Tensor):
+                        info[attr] = GNNVisualizer.tensor_to_json(value)
+            return info
+
+        if module_type == "GINConv":
+            linear = GNNVisualizer._first_torch_linear(module)
+            info = GNNVisualizer._layer_info_from_linear(
+                module_type,
+                linear,
+                aggregation=GNNVisualizer._get_layer_aggregation(module),
+            )
+            if info is None:
+                info = {
+                    "type": module_type,
+                    "aggregation": GNNVisualizer._get_layer_aggregation(module),
+                }
+            eps = getattr(module, "eps", None)
+            if isinstance(eps, torch.Tensor):
+                info["eps"] = GNNVisualizer.tensor_to_json(eps)
+            return info
+
+        if hasattr(module, "lin"):
+            linear = getattr(module, "lin", None)
+            return GNNVisualizer._layer_info_from_linear(
+                module_type,
+                linear,
+                module=module,
+                aggregation=GNNVisualizer._get_layer_aggregation(module),
+            )
+
+        return None
+
+    @staticmethod
+    def _layer_info_from_linear(layer_type, linear, module=None, aggregation=None):
+        weight = GNNVisualizer._linear_weight(linear)
+        if weight is None:
+            return None
+
+        bias = GNNVisualizer._module_or_linear_bias(module, linear)
+        info = {
+            "type": layer_type,
+            "weight": GNNVisualizer.tensor_to_json(weight),
+            "bias": GNNVisualizer.tensor_to_json(
+                bias if bias is not None else GNNVisualizer._zero_bias_for_weight(weight)
+            ),
+            "aggregation": aggregation or "gcn-normalized",
+        }
+        return info
+
+    @staticmethod
+    def _linear_weight(linear):
+        weight = getattr(linear, "weight", None)
+        return weight if isinstance(weight, torch.Tensor) else None
+
+    @staticmethod
+    def _module_or_linear_bias(module, linear):
+        for owner in (module, linear):
+            bias = getattr(owner, "bias", None)
+            if isinstance(bias, torch.Tensor):
+                return bias
+        return None
+
+    @staticmethod
+    def _zero_bias_for_weight(weight):
+        if isinstance(weight, torch.Tensor) and weight.ndim >= 1:
+            return torch.zeros(weight.shape[0], dtype=weight.dtype, device=weight.device)
+        return None
+
+    @staticmethod
+    def _first_torch_linear(module):
+        for nested in module.modules():
+            if nested is module:
+                continue
+            if isinstance(nested, torch.nn.Linear):
+                return nested
+        return None
 
     @staticmethod
     def tensor_to_json(x):

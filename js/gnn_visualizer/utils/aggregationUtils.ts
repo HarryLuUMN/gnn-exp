@@ -82,7 +82,19 @@ export function normalizeAggregationKind(value: unknown): AggregationKind | null
             return "gcn-normalized";
         case "add":
         case "sum":
+        case "gat":
+        case "gatconv":
+        case "attention":
+        case "attention-basic":
             return "sum";
+        case "gin":
+        case "ginconv":
+            return "sum";
+        case "sage":
+        case "sageconv":
+        case "graphsage":
+        case "graphsageconv":
+            return "mean";
         case "avg":
         case "average":
         case "mean":

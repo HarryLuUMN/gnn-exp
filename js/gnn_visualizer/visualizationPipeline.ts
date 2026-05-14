@@ -6,6 +6,10 @@ import { matrixTranspose, vecMatMul, addVector } from "./utils/mathUtils";
 import { curve, featureColor } from "./utils/const";
 import { aggregateNeighborFeatures } from "./utils/aggregationUtils";
 import {
+    normalizeLayerBias,
+    normalizeLayerWeightMatrix,
+} from "./utils/layerRenderingUtils";
+import {
     extractSortedGNNLayerFeatures,
     getEdgeOutputFeature,
     getGraphAggregationInfo,
@@ -631,7 +635,10 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
         .attr("fill", "none")
         .attr("class", "weight-matrix-to-intersect-path layer-inner-works")
         .lower();
-    const weightMatrix:number[][] = matrixTranspose(layerInfo["weight"]);
+    const weightMatrix = normalizeLayerWeightMatrix(layerInfo, aggregatedFeature.length);
+    if (!weightMatrix) {
+        return;
+    }
     console.log("weightMatrix:", weightMatrix);
     const matrixStartX = currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures*0.5 - cellWidth * weightMatrix[0].length / 2;
     const matrixStartY = currentNodeY + (dirCoefficient) * distanceBetweenFeatures * 1;
@@ -664,7 +671,7 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
     }
     // visualize bias and actiivation function
     const multipliedFeature = vecMatMul(aggregatedFeature, weightMatrix);
-    const bias = modelInfo[`conv${layerID}`]["bias"];;
+    const bias = normalizeLayerBias(layerInfo, multipliedFeature.length);
     inner.append("rect")
         .attr("x", currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth)
         .attr("y", currentNodeY - 12/2)

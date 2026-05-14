@@ -38,7 +38,7 @@ export type GraphAggregationInfo = {
     label: string;
 };
 
-const messagePassingLayerTypes = new Set(["GCNConv", "GATConv", "SAGEConv", "GraphSAGEConv"]);
+const messagePassingLayerTypes = new Set(["GCNConv", "GATConv", "SAGEConv", "GraphSAGEConv", "GINConv"]);
 
 export function getMessagePassingDepth(modelInfo: any, intmData: Record<string, number[][]>): number {
     const modelDepth = Object.values(modelInfo ?? {}).filter((layer: any) =>

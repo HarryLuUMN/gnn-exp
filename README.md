@@ -253,8 +253,13 @@ Changes made to files in `js/` will be automatically reflected in the notebook w
 ## Supported GNN Layers
 
 - **GCNConv**: Graph Convolutional Network layers
+- **GATConv**: Graph Attention Network layers with basic rendering support
+- **SAGEConv / GraphSAGEConv**: GraphSAGE layers with supported aggregation labels
+- **GINConv**: Graph Isomorphism Network layers with sum aggregation and first linear projection rendering
 - **Linear**: Fully connected layers
 - **Activation Functions**: ReLU, Tanh, Sigmoid, Softmax, and more
+
+GATConv support currently renders the layer structure and learned projection weights, but does not display exact per-edge or per-head attention coefficients.
 
 ## License
 

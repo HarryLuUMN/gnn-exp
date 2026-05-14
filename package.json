@@ -1,8 +1,10 @@
 {
   "scripts": {
     "build": "esbuild js/*/index.tsx --bundle --format=esm --minify --sourcemap --outdir=src/gnn_exp/static --outbase=js",
+    "build:playwright-harness": "esbuild tests/playwright/gnn-layer-harness.tsx --bundle --format=esm --sourcemap --outdir=tests/playwright/.cache",
     "dev": "npm run build -- --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:playwright": "npm run build && npm run build:playwright-harness && playwright test"
   },
   "dependencies": {
     "@anywidget/react": "^0.2.0",
@@ -15,6 +17,7 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/d3": "^7.4.3",
     "@types/node": "^24.10.1",
     "@types/react": "^19.1.3",

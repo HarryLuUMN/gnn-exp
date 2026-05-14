@@ -12,6 +12,10 @@ import {
   getGraphAggregationInfo,
 } from "../utils/dataProcessingUtils";
 import {
+  normalizeLayerBias,
+  normalizeLayerWeightMatrix,
+} from "../utils/layerRenderingUtils";
+import {
   addVector,
   matrixTranspose,
   vecMatMul,
@@ -691,7 +695,7 @@ function drawFeatureExpansion(
   }
 
   const layerInfo = modelInfo?.[`conv${target.layerIndex}`];
-  if (!layerInfo?.weight) {
+  if (!layerInfo) {
     return;
   }
 
@@ -754,7 +758,10 @@ function drawFeatureExpansion(
   });
   appendFeatureVector(group, aggregatedX, aggregatedY, aggregatedFeature, cellWidth);
 
-  const weightMatrix = matrixTranspose(layerInfo.weight as number[][]);
+  const weightMatrix = normalizeLayerWeightMatrix(layerInfo, aggregatedFeature.length);
+  if (!weightMatrix) {
+    return;
+  }
   const aggregatedRight = aggregatedX + aggregatedFeature.length * cellWidth;
   const multipliedX = aggregatedRight + DISTANCE_TO_FEATURE;
   const matrixX =
@@ -801,9 +808,7 @@ function drawFeatureExpansion(
   } catch {
     multipliedFeature = Array(weightMatrix[0]?.length ?? 0).fill(0);
   }
-  const bias = Array.isArray(layerInfo.bias)
-    ? (layerInfo.bias as number[])
-    : Array(multipliedFeature.length).fill(0);
+  const bias = normalizeLayerBias(layerInfo, multipliedFeature.length);
 
   appendFeatureVector(
     group,
