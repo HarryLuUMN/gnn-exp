@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import torch
+from torch_geometric.nn import GATConv, GINConv, SAGEConv
 
 from gnn_exp import GNNVisualizer
 
@@ -23,41 +24,6 @@ class Data:
             ]
         )
         self.y = torch.tensor([0, 1, 0, 1])
-
-
-class GATConv(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.lin = torch.nn.Linear(3, 4)
-        self.bias = torch.nn.Parameter(torch.zeros(4))
-        self.heads = 2
-        self.concat = True
-        self.att_src = torch.nn.Parameter(torch.zeros(1, 2, 2))
-        self.att_dst = torch.nn.Parameter(torch.zeros(1, 2, 2))
-
-    def forward(self, x, edge_index):
-        return self.lin(x) + self.bias
-
-
-class SAGEConv(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.lin_l = torch.nn.Linear(3, 2)
-        self.lin_r = torch.nn.Linear(3, 2, bias=False)
-        self.aggr = "mean"
-
-    def forward(self, x, edge_index):
-        return self.lin_l(x)
-
-
-class GINConv(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.nn = torch.nn.Sequential(torch.nn.Linear(3, 2), torch.nn.Tanh())
-        self.eps = torch.nn.Parameter(torch.tensor(0.1))
-
-    def forward(self, x, edge_index):
-        return self.nn(x)
 
 
 class Model(torch.nn.Module):
@@ -85,7 +51,7 @@ def initialize_linear(linear, offset):
 
 def initialize_model(model):
     for index, module in enumerate(model.modules()):
-        if isinstance(module, torch.nn.Linear):
+        if hasattr(module, "weight") and isinstance(module.weight, torch.Tensor):
             initialize_linear(module, offset=0.05 + index * 0.01)
 
 
@@ -119,9 +85,9 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     fixtures = {
-        "gat": fixture_for(GATConv()),
-        "graphsage": fixture_for(SAGEConv()),
-        "gin": fixture_for(GINConv()),
+        "gat": fixture_for(GATConv(3, 2, heads=2, concat=True)),
+        "graphsage": fixture_for(SAGEConv(3, 2)),
+        "gin": fixture_for(GINConv(torch.nn.Sequential(torch.nn.Linear(3, 2), torch.nn.Tanh()))),
     }
 
     for name, fixture in fixtures.items():
