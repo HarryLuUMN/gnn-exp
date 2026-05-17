@@ -27,6 +27,8 @@ for (const { model, aggregation } of cases) {
 
     await expect(page.getByText(`agg: ${aggregation}`)).toBeVisible();
     await expect(page.locator(".weight-matrix-frame")).toBeVisible();
+    await expect(page.locator(".weight-matrix-cell").first()).toHaveCSS("stroke", "rgb(216, 222, 219)");
+    await expect(page.locator(".weight-matrix-cell").first()).toHaveCSS("stroke-width", "0.35px");
     await expect(page.locator(".bias-frame")).toBeVisible();
     expect(failures).toEqual([]);
   });

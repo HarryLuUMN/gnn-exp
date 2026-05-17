@@ -47,6 +47,8 @@ const LINK_HIGHLIGHT = "rgba(32, 61, 53, 0.72)";
 const HIT_TOLERANCE = 7;
 const FEATURE_HEIGHT = 12;
 const DISTANCE_TO_FEATURE = 50;
+const WEIGHT_MATRIX_CELL_STROKE = "#d8dedb";
+const WEIGHT_MATRIX_CELL_STROKE_WIDTH = 0.35;
 
 function contains(bounds: StaticBounds, point: ScenePoint) {
   return (
@@ -614,8 +616,8 @@ function drawWeightMatrix(
         },
         {
           fill: featureColor(matrix[row][col]),
-          stroke: "rgba(80, 80, 80, 0.35)",
-          strokeWidth: 0.4,
+          stroke: WEIGHT_MATRIX_CELL_STROKE,
+          strokeWidth: WEIGHT_MATRIX_CELL_STROKE_WIDTH,
         }
       );
     }
@@ -652,8 +654,8 @@ function drawTopDownWeightMatrix(
         },
         {
           fill: featureColor(matrix[row][col]),
-          stroke: "rgba(80, 80, 80, 0.35)",
-          strokeWidth: 0.4,
+          stroke: WEIGHT_MATRIX_CELL_STROKE,
+          strokeWidth: WEIGHT_MATRIX_CELL_STROKE_WIDTH,
         }
       );
     }

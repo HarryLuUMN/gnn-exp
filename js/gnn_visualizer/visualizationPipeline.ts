@@ -18,6 +18,9 @@ import {
     SubgraphResult,
 } from "./utils/dataProcessingUtils";
 
+const weightMatrixCellStroke = "#d8dedb";
+const weightMatrixCellStrokeWidth = 0.35;
+
 export function visualizationPipeline(container: HTMLDivElement, cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any, subgraphSample: any, mode: string, nodeLabels: string[] = [], messagePassingDepth: number = 4) {
     // define parameters
     const gapSizeBetweenLayers = 100;
@@ -666,6 +669,8 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
                 .attr("fill", featureColor(weightMatrix[m][n]))
                 .attr("class", "weight-matrix-cell layer-inner-works")
                 .attr("id", `weight-matrix-cell-${layerID}-${nodeID}-dim-${m}-${n}`)
+                .style("stroke", weightMatrixCellStroke)
+                .style("stroke-width", weightMatrixCellStrokeWidth)
                 .style("opacity", 1);
         }
     }
@@ -826,6 +831,8 @@ export function visualizeInnerFCLayerSubpipe(container: HTMLDivElement, cellWidt
                 .attr("fill", featureColor(weightMatrix[m][n]))
                 .attr("class", "weight-matrix-cell layer-inner-works")
                 .attr("id", `fc-weight-matrix-cell-node-${nodeID}-dim-${m}-${n}`)
+                .style("stroke", weightMatrixCellStroke)
+                .style("stroke-width", weightMatrixCellStrokeWidth)
                 .style("opacity", 1);
         }
     }
