@@ -748,7 +748,10 @@ function drawFeatureExpansion(
       ],
       { stroke: HIGHLIGHT, strokeWidth: 1.5 }
     );
-    appendText(group, sourceX + 3, sourceY - 6, label);
+    appendText(group, sourceX + 3, sourceY - 6, label, {
+      fill: aggregationResult.kind === "attention" ? "#6e09cd" : undefined,
+      fontSize: aggregationResult.kind === "attention" ? 7 : undefined,
+    });
     appendRect(group, previous.bounds, { opacity: 0.85 });
   }
 

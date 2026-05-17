@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 const cases = [
-  { model: "gat", aggregation: "sum" },
-  { model: "graphsage", aggregation: "mean" },
-  { model: "gin", aggregation: "sum" },
+  { model: "gat", aggregation: "attention", expectsAttention: true },
+  { model: "graphsage", aggregation: "mean", expectsAttention: false },
+  { model: "gin", aggregation: "sum", expectsAttention: false },
 ] as const;
 
-for (const { model, aggregation } of cases) {
+for (const { model, aggregation, expectsAttention } of cases) {
   test(`${model} renders and expands`, async ({ page }) => {
     const failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
@@ -29,6 +29,17 @@ for (const { model, aggregation } of cases) {
     await expect(page.locator(".weight-matrix-frame")).toBeVisible();
     await expect(page.locator(".weight-matrix-cell").first()).toHaveCSS("stroke", "rgb(216, 222, 219)");
     await expect(page.locator(".weight-matrix-cell").first()).toHaveCSS("stroke-width", "0.35px");
+    if (expectsAttention) {
+      const fixture = await page.evaluate(async () => {
+        const model = new URLSearchParams(window.location.search).get("model");
+        const response = await fetch(`../.cache/fixtures/${model}.json`);
+        return response.json();
+      });
+      expect(fixture.modelInfo.conv1.attention.edges.length).toBeGreaterThan(0);
+      await expect(page.locator(".attention-coefficient-text").first()).toBeVisible();
+      const coefficients = await page.locator(".attention-coefficient-text").allTextContents();
+      expect(coefficients.some((value) => /^\d+\.\d{2}$/.test(value.trim()))).toBe(true);
+    }
     await expect(page.locator(".bias-frame")).toBeVisible();
     expect(failures).toEqual([]);
   });

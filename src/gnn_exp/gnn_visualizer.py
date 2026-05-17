@@ -53,6 +53,7 @@ class GNNVisualizer(anywidget.AnyWidget):
         self.mode = mode
         print(f"mode: {self.mode}")
         intermedia_output = self.fetch_model_intermedia(data, model, forward_fn, mode)
+        layer_attention = intermedia_output.pop("__layer_attention__", {})
         
         # deduplicate while preserving order and ensure queries are JSON-serializable
         seen = []
@@ -79,6 +80,8 @@ class GNNVisualizer(anywidget.AnyWidget):
         for name, module in model.named_modules():
             layer_info = self._extract_message_passing_layer_info(module)
             if layer_info is not None:
+                if name in layer_attention:
+                    layer_info["attention"] = layer_attention[name]
                 model_info[name] = layer_info
             elif isinstance(module, torch.nn.Linear):
                 model_info[name] = {
@@ -120,10 +123,11 @@ class GNNVisualizer(anywidget.AnyWidget):
         hooks = []
         buffer = {}
         pooling_calls = []
+        gat_attention_inputs = {}
 
         for name, module in model.named_children():
             h = module.register_forward_hook(
-                self.fetch_output_hook(name, buffer)
+                self.fetch_output_hook(name, buffer, gat_attention_inputs)
             )
             hooks.append(h)
 
@@ -141,6 +145,9 @@ class GNNVisualizer(anywidget.AnyWidget):
             for h in hooks:
                 h.remove()
 
+        with torch.no_grad():
+            self._record_gat_attention(buffer, gat_attention_inputs)
+
         self._record_graph_aggregation(buffer, pooling_calls)
 
         json_safe_output = {
@@ -150,10 +157,105 @@ class GNNVisualizer(anywidget.AnyWidget):
 
         return json_safe_output
 
-    def fetch_output_hook(self, name, buffer):
+    def fetch_output_hook(self, name, buffer, gat_attention_inputs=None):
         def hook(module, input, output):
             self._record_intermediate_value(buffer, name, output)
+            if gat_attention_inputs is not None and type(module).__name__ == "GATConv":
+                gat_attention_inputs[name] = {
+                    "module": module,
+                    "args": GNNVisualizer._detach_nested(input),
+                }
         return hook
+
+    @staticmethod
+    def _detach_nested(value):
+        if isinstance(value, torch.Tensor):
+            return value.detach()
+        if isinstance(value, tuple):
+            return tuple(GNNVisualizer._detach_nested(item) for item in value)
+        if isinstance(value, list):
+            return [GNNVisualizer._detach_nested(item) for item in value]
+        if isinstance(value, dict):
+            return {
+                key: GNNVisualizer._detach_nested(item)
+                for key, item in value.items()
+            }
+        return value
+
+    @staticmethod
+    def _record_gat_attention(buffer, gat_attention_inputs):
+        layer_attention = {}
+
+        for name, capture in gat_attention_inputs.items():
+            module = capture.get("module")
+            args = capture.get("args")
+            if module is None or not isinstance(args, tuple):
+                continue
+
+            attention = GNNVisualizer._compute_gat_attention(module, args)
+            if attention is not None:
+                layer_attention[name] = attention
+
+        if layer_attention:
+            buffer["__layer_attention__"] = layer_attention
+
+    @staticmethod
+    def _compute_gat_attention(module, args):
+        try:
+            output = module(*args, return_attention_weights=True)
+        except TypeError:
+            if len(args) < 2:
+                return None
+            try:
+                output = module(args[0], args[1], return_attention_weights=True)
+            except Exception:
+                return None
+        except Exception:
+            return None
+
+        if not isinstance(output, tuple) or len(output) < 2:
+            return None
+
+        payload = output[1]
+        if not isinstance(payload, tuple) or len(payload) < 2:
+            return None
+
+        edge_index, alpha = payload[0], payload[1]
+        if not isinstance(edge_index, torch.Tensor) or not isinstance(alpha, torch.Tensor):
+            return None
+        if edge_index.ndim != 2 or edge_index.shape[0] != 2:
+            return None
+
+        alpha_tensor = alpha.detach().cpu()
+        if alpha_tensor.ndim == 1:
+            alpha_tensor = alpha_tensor.unsqueeze(1)
+        if alpha_tensor.ndim != 2:
+            return None
+
+        edge_tensor = edge_index.detach().cpu()
+        edge_count = min(edge_tensor.shape[1], alpha_tensor.shape[0])
+        records = []
+        for index in range(edge_count):
+            coefficients = [
+                float(value)
+                for value in alpha_tensor[index].tolist()
+            ]
+            coefficient = (
+                sum(coefficients) / len(coefficients)
+                if coefficients
+                else 0.0
+            )
+            records.append({
+                "source": int(edge_tensor[0, index].item()),
+                "target": int(edge_tensor[1, index].item()),
+                "coefficients": coefficients,
+                "coefficient": coefficient,
+            })
+
+        return {
+            "heads": int(alpha_tensor.shape[1]),
+            "edges": records,
+        }
 
     @staticmethod
     def _call_model(model, data, mode):
@@ -444,7 +546,7 @@ class GNNVisualizer(anywidget.AnyWidget):
         if module_type == "GINConv":
             return "sum"
         if module_type == "GATConv":
-            return "sum"
+            return "attention"
         if module_type in ("SAGEConv", "GraphSAGEConv"):
             aggregation = getattr(module, "aggr", None)
             return GNNVisualizer._normalize_aggregation_name(aggregation) or "mean"

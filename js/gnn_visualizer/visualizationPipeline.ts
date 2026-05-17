@@ -574,9 +574,14 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
             .attr("x", targetNodeX + 3)
             .attr("y", targetNodeY - 6)
             .text(contribution.label)
-            .attr("class", "degree-multiplier-text layer-inner-works")
+            .attr(
+                "class",
+                `degree-multiplier-text layer-inner-works${aggregationResult.kind === "attention" ? " attention-coefficient-text" : ""}`
+            )
             .attr("id", `degree-multiplier-text-${layerID}-${nodeID}-to-${k}`)
             .style("font-size", "6px")
+            .style("fill", aggregationResult.kind === "attention" ? "#6e09cd" : null)
+            .style("font-weight", aggregationResult.kind === "attention" ? 700 : null)
             .lower();
     }
     // visualize aggregated feature

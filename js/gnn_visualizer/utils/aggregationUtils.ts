@@ -1,6 +1,7 @@
 import { countOnes } from "./mathUtils";
 
 export type AggregationKind =
+    | "attention"
     | "gcn-normalized"
     | "sum"
     | "mean"
@@ -26,6 +27,13 @@ export type AggregationResult = {
 type NeighborFeature = {
     nodeIndex: number;
     feature: number[];
+};
+
+type AttentionEdge = {
+    source: number;
+    target: number;
+    coefficient: number;
+    coefficients?: number[];
 };
 
 const warnedUnsupportedAggregations = new Set<string>();
@@ -82,11 +90,12 @@ export function normalizeAggregationKind(value: unknown): AggregationKind | null
             return "gcn-normalized";
         case "add":
         case "sum":
+            return "sum";
         case "gat":
         case "gatconv":
         case "attention":
         case "attention-basic":
-            return "sum";
+            return "attention";
         case "gin":
         case "ginconv":
             return "sum";
@@ -162,6 +171,10 @@ function firstFeatureLength(features: number[][]) {
     return firstFeature?.length ?? 0;
 }
 
+function isFiniteNumber(value: unknown): value is number {
+    return typeof value === "number" && Number.isFinite(value);
+}
+
 function zeroFeature(length: number) {
     return Array(Math.max(0, length)).fill(0) as number[];
 }
@@ -214,7 +227,7 @@ function featureWiseMedian(values: number[]) {
 function aggregateFeatureWise(
     neighbors: NeighborFeature[],
     featureLength: number,
-    kind: Exclude<AggregationKind, "gcn-normalized">
+    kind: Exclude<AggregationKind, "attention" | "gcn-normalized">
 ) {
     if (neighbors.length === 0) {
         return zeroFeature(featureLength);
@@ -247,6 +260,10 @@ function aggregateFeatureWise(
 }
 
 function contributionLabel(kind: AggregationKind, count: number, value?: number) {
+    if (kind === "attention") {
+        return typeof value === "number" ? value.toFixed(2) : "attn";
+    }
+
     if (kind === "gcn-normalized") {
         return typeof value === "number" ? value.toFixed(2) : "gcn";
     }
@@ -256,6 +273,91 @@ function contributionLabel(kind: AggregationKind, count: number, value?: number)
     }
 
     return kind;
+}
+
+function getAttentionEdges(layerInfo: unknown): AttentionEdge[] {
+    if (!isRecord(layerInfo) || !isRecord(layerInfo.attention)) {
+        return [];
+    }
+
+    const edges = layerInfo.attention.edges;
+    if (!Array.isArray(edges)) {
+        return [];
+    }
+
+    return edges.flatMap((edge) => {
+        if (!isRecord(edge)) {
+            return [];
+        }
+
+        const source = edge.source;
+        const target = edge.target;
+        if (
+            typeof source !== "number" ||
+            !Number.isInteger(source) ||
+            typeof target !== "number" ||
+            !Number.isInteger(target)
+        ) {
+            return [];
+        }
+
+        let coefficient: number | null = null;
+        if (typeof edge.coefficient === "number" && Number.isFinite(edge.coefficient)) {
+            coefficient = edge.coefficient;
+        } else if (Array.isArray(edge.coefficients)) {
+            const values = edge.coefficients.filter(isFiniteNumber);
+            if (values.length > 0) {
+                coefficient = values.reduce((sum, value) => sum + value, 0) / values.length;
+            }
+        }
+
+        if (coefficient === null) {
+            return [];
+        }
+
+        return [{
+            source,
+            target,
+            coefficient,
+            coefficients: Array.isArray(edge.coefficients)
+                ? edge.coefficients.filter(isFiniteNumber)
+                : undefined,
+        }];
+    });
+}
+
+function aggregateAttentionFeatures(
+    layerInfo: unknown,
+    previousLayer: number[][],
+    featureLength: number,
+    nodeIndex: number
+) {
+    const attentionEdges = getAttentionEdges(layerInfo).filter(
+        (edge) => edge.target === nodeIndex
+    );
+    const aggregatedFeature = zeroFeature(featureLength);
+    const contributions: AggregationContribution[] = [];
+
+    for (const edge of attentionEdges) {
+        const feature = normalizeFeature(previousLayer[edge.source], featureLength);
+        if (!feature) {
+            continue;
+        }
+
+        for (let dim = 0; dim < featureLength; dim += 1) {
+            aggregatedFeature[dim] += edge.coefficient * feature[dim];
+        }
+        contributions.push({
+            nodeIndex: edge.source,
+            value: edge.coefficient,
+            label: contributionLabel("attention", attentionEdges.length, edge.coefficient),
+        });
+    }
+
+    return {
+        aggregatedFeature,
+        contributions,
+    };
 }
 
 export function aggregateNeighborFeatures(
@@ -273,14 +375,32 @@ export function aggregateNeighborFeatures(
     );
     const kind = resolveLayerAggregation(layerInfo);
 
-    if (kind !== "gcn-normalized") {
+    if (kind === "attention") {
+        const attentionAggregation = aggregateAttentionFeatures(
+            layerInfo,
+            previousLayer,
+            featureLength,
+            nodeIndex
+        );
+        if (attentionAggregation.contributions.length > 0) {
+            return {
+                kind,
+                label: aggregationDisplayLabel(kind),
+                aggregatedFeature: attentionAggregation.aggregatedFeature,
+                contributions: attentionAggregation.contributions,
+            };
+        }
+    }
+
+    const featureWiseKind = kind === "attention" ? "sum" : kind;
+    if (featureWiseKind !== "gcn-normalized") {
         return {
-            kind,
-            label: aggregationDisplayLabel(kind),
-            aggregatedFeature: aggregateFeatureWise(neighbors, featureLength, kind),
+            kind: featureWiseKind,
+            label: aggregationDisplayLabel(featureWiseKind),
+            aggregatedFeature: aggregateFeatureWise(neighbors, featureLength, featureWiseKind),
             contributions: neighbors.map(({ nodeIndex: neighborIndex }) => ({
                 nodeIndex: neighborIndex,
-                label: contributionLabel(kind, neighbors.length),
+                label: contributionLabel(featureWiseKind, neighbors.length),
             })),
         };
     }
