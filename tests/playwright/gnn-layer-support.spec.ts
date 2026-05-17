@@ -23,6 +23,14 @@ for (const { model, aggregation, expectsAttention } of cases) {
     await expect(page.locator("#feature-layer-frame-1-node-1")).toBeVisible();
     await expect(page.locator("#fc-feature-layer-frame-node-1")).toBeVisible();
 
+    const content = page.locator(".gnn-model-content");
+    const initialTransform = await content.evaluate((element) => getComputedStyle(element).transform);
+    await page.locator(".gnn-model-viewport").hover();
+    await page.mouse.wheel(120, 0);
+    await expect.poll(
+      () => content.evaluate((element) => getComputedStyle(element).transform)
+    ).not.toBe(initialTransform);
+
     await page.locator("#feature-layer-1-node-1-dim-0").click();
 
     await expect(page.getByText(`agg: ${aggregation}`)).toBeVisible();
