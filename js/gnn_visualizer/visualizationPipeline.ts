@@ -538,7 +538,7 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
     const g = d3.select(container).select("svg");
     const inner = g.append("g").attr("class", "layer-inner-works-group").attr("id", `layer-inner-works-group-layer-${layerID}-node-${nodeID}`);
 
-    const currentNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
+    const currentNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures) - 2;
     const currentNodeY = computeFeatureLayerY(nodeID, 50, 20);
 
     let dirCoefficient = 1;
@@ -555,34 +555,38 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
     const aggregatedFeature = aggregationResult.aggregatedFeature;
     console.log("aggregatedFeature", aggregatedFeature);
     const firstIntersect: [number, number] = [currentNodeX + distanceBetweenFeatures, currentNodeY];
+    const sourceNodeX = currentNodeX;
     // visualize aggregated links
-    const ctrlPointForCurrentNode: [number, number] = [currentNodeX + (distanceBetweenFeatures / 2), currentNodeY];
+    const controlX = sourceNodeX + (firstIntersect[0] - sourceNodeX) / 2;
+    const ctrlPointForCurrentNode: [number, number] = [controlX, currentNodeY];
     for(let k = 0; k < aggregationResult.contributions.length; k++){
         const contribution = aggregationResult.contributions[k];
-        const targetNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
-        const targetNodeY = computeFeatureLayerY(contribution.nodeIndex, 50, 20);
-        const ctrlPointForTargetNode: [number, number] = [currentNodeX + (distanceBetweenFeatures / 2), targetNodeY];
+        const sourceNodeY = computeFeatureLayerY(contribution.nodeIndex, 50, 20);
+        const ctrlPointForSourceNode: [number, number] = [controlX, sourceNodeY];
         inner.append("path")
-            .attr("d", curve([[targetNodeX, targetNodeY], ctrlPointForTargetNode, ctrlPointForCurrentNode, firstIntersect]))
+            .attr("d", curve([[sourceNodeX, sourceNodeY], ctrlPointForSourceNode, ctrlPointForCurrentNode, firstIntersect]))
             .attr("stroke", "black")
             .attr("opacity", 1)
             .attr("fill", "none")
             .attr("class", "link-path-aggregated layer-inner-works")
             .attr("id", `link-path-aggregated-${layerID}-${nodeID}-to-${k}`)
             .lower();
-        inner.append("text")
-            .attr("x", targetNodeX + 3)
-            .attr("y", targetNodeY - 6)
+        const multiplierText = inner.append("text")
+            .attr("x", sourceNodeX + 3)
+            .attr("y", sourceNodeY - 6)
             .text(contribution.label)
             .attr(
                 "class",
                 `degree-multiplier-text layer-inner-works${aggregationResult.kind === "attention" ? " attention-coefficient-text" : ""}`
             )
             .attr("id", `degree-multiplier-text-${layerID}-${nodeID}-to-${k}`)
-            .style("font-size", "6px")
-            .style("fill", aggregationResult.kind === "attention" ? "#6e09cd" : null)
-            .style("font-weight", aggregationResult.kind === "attention" ? 700 : null)
-            .lower();
+            .style("font-size", "6px");
+        if (aggregationResult.kind === "attention") {
+            multiplierText
+                .style("fill", "#6e09cd")
+                .style("font-weight", 700);
+        }
+        multiplierText.lower();
     }
     // visualize aggregated feature
     const aggregatedFeatureGroup = inner.append("g").attr("class", "aggregated-feature-layer layer-inner-works").attr("id", `aggregated-feature-layer-layer-${layerID}-node-${nodeID}`);

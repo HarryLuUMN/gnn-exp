@@ -47,6 +47,41 @@ for (const { model, aggregation, expectsAttention } of cases) {
       await expect(page.locator(".attention-coefficient-text").first()).toBeVisible();
       const coefficients = await page.locator(".attention-coefficient-text").allTextContents();
       expect(coefficients.some((value) => /^\d+\.\d{2}$/.test(value.trim()))).toBe(true);
+
+      const sourceNodes = fixture.modelInfo.conv1.attention.edges
+        .filter((edge: { target: number }) => edge.target === 1)
+        .map((edge: { source: number }) => edge.source);
+      const pathAnchors = await page.evaluate((sources) => {
+        const parsePathStart = (path: Element | null) => {
+          const d = path?.getAttribute("d") ?? "";
+          const match = d.match(/^M\s*(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
+          return match ? { x: Number(match[1]), y: Number(match[2]) } : null;
+        };
+
+        return sources.map((source, index) => {
+          const frame = document.querySelector(`#feature-layer-frame-0-node-${source}`);
+          const path = document.querySelector(`#link-path-aggregated-1-1-to-${index}`);
+          const label = document.querySelector(`#degree-multiplier-text-1-1-to-${index}`);
+          const frameX = Number(frame?.getAttribute("x"));
+          const frameY = Number(frame?.getAttribute("y"));
+          const frameWidth = Number(frame?.getAttribute("width"));
+          const frameHeight = Number(frame?.getAttribute("height"));
+          return {
+            source,
+            pathStart: parsePathStart(path),
+            expectedX: frameX + frameWidth,
+            expectedY: frameY + frameHeight / 2,
+            labelX: Number(label?.getAttribute("x")),
+          };
+        });
+      }, sourceNodes);
+
+      for (const anchor of pathAnchors) {
+        expect(anchor.pathStart, `missing aggregation path for source node ${anchor.source}`).not.toBeNull();
+        expect(anchor.pathStart?.x).toBeCloseTo(anchor.expectedX, 3);
+        expect(anchor.pathStart?.y).toBeCloseTo(anchor.expectedY, 3);
+        expect(anchor.labelX).toBeCloseTo(anchor.expectedX + 3, 3);
+      }
     }
     await expect(page.locator(".bias-frame")).toBeVisible();
     expect(failures).toEqual([]);
