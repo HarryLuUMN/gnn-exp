@@ -3,6 +3,8 @@ node_modules
 dist
 .DS_Store
 pypi
+test-results
+tests/playwright/.cache
 
 # Python
 __pycache__

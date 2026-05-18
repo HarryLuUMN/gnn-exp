@@ -2,15 +2,24 @@ import * as d3 from "d3";
 import { injectSVG } from "./utils/pipeUtils";
 import { computeFeatureLayerX, computeFeatureLayerY } from "./utils/geometryUtils";
 import { distanceToFeature } from "../utils/const";
-import { matrixTranspose, randomVector, vecMatMul, addVector, divideVector } from "./utils/mathUtils";
+import { matrixTranspose, vecMatMul, addVector } from "./utils/mathUtils";
 import { curve, featureColor } from "./utils/const";
 import { aggregateNeighborFeatures } from "./utils/aggregationUtils";
 import {
+    normalizeLayerBias,
+    normalizeLayerWeightMatrix,
+} from "./utils/layerRenderingUtils";
+import {
     extractSortedGNNLayerFeatures,
     getEdgeOutputFeature,
+    getGraphAggregationInfo,
+    getGraphOutputFeature,
     processSubgraphSequenceDataPipe,
     SubgraphResult,
 } from "./utils/dataProcessingUtils";
+
+const weightMatrixCellStroke = "#d8dedb";
+const weightMatrixCellStrokeWidth = 0.35;
 
 export function visualizationPipeline(container: HTMLDivElement, cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any, subgraphSample: any, mode: string, nodeLabels: string[] = [], messagePassingDepth: number = 4) {
     // define parameters
@@ -397,13 +406,16 @@ export function visualizeFCForEdgeTaskSubpipe(container: HTMLDivElement, layerX:
 
 export function visualizeFCForGraphTaskSubpipe(container: HTMLDivElement, layerX: any, intmData: any){
     const sortedLayers = extractSortedGNNLayerFeatures(intmData);
-    const lastLayerNum = sortedLayers[sortedLayers.length - 1].length;
-    const fcLayerFeatures: any[][] = intmData[`conv4`];
-    console.log("fc data", fcLayerFeatures, lastLayerNum);
+    const fcLayerFeatures = sortedLayers[sortedLayers.length - 1] ?? [];
+    const graphAggregation = getGraphAggregationInfo(intmData, fcLayerFeatures);
+    if (!graphAggregation) {
+        return;
+    }
+    console.log("graph aggregation data", graphAggregation, fcLayerFeatures.length);
     const prevLayerX = layerX - 100;
     const layerY = 50;
     const svg = d3.select(container).select("svg");
-    const midLayerY = layerY + (fcLayerFeatures.length * 20) / 2;
+    const midLayerY = layerY + (Math.max(1, fcLayerFeatures.length) * 20) / 2;
     for (let i=0; i < fcLayerFeatures.length; i++){
         const curLayerY = layerY + i * 20 + 12;
         svg.append("path")
@@ -414,11 +426,8 @@ export function visualizeFCForGraphTaskSubpipe(container: HTMLDivElement, layerX
                 [layerX, midLayerY],
             ])).attr("stroke", "black").attr("opacity", 0.1).attr("fill", "none").attr("class", "agg-link-path-fc").attr("id", `agg-link-path-fc-${i}`).lower();
     }
-    let vec = Array(fcLayerFeatures[0].length).fill(0);
-    for (let i=0; i < fcLayerFeatures.length; i++)
-        vec = addVector(vec, fcLayerFeatures[i]);
-    vec = divideVector(vec, fcLayerFeatures.length);
-    console.log("averaged graph feature vector:", vec);
+    const vec = graphAggregation.feature;
+    console.log("graph aggregation feature vector:", vec);
     const g = svg.append("g").attr("class", "agg-feature-layer").attr("id", `agg-feature-layer-node-graph`);
     for(let j=0; j < vec.length; j++){
         g.append("rect")
@@ -445,9 +454,20 @@ export function visualizeFCForGraphTaskSubpipe(container: HTMLDivElement, layerX
         .style("stroke-width", 1)
         .style("stroke", "black")
         .style("opacity", 0.5);
+    g.append("text")
+        .attr("x", layerX)
+        .attr("y", midLayerY + 34)
+        .text(graphAggregation.label)
+        .attr("class", "graph-aggregation-label")
+        .attr("id", "graph-aggregation-label")
+        .style("font-size", "14px")
+        .style("font-weight", 700)
+        .style("fill", "#7f7f7f");
 
-    const resultVec = randomVector(4);
-    visualizeSingleFCSubpipe(layerX + 100, midLayerY - 12, resultVec, 0, svg);
+    const resultVec = getGraphOutputFeature(intmData);
+    if (resultVec) {
+        visualizeSingleFCSubpipe(layerX + 100, midLayerY - 12, resultVec, 0, svg);
+    }
 }
 
 export function visualizeFCForNodeTaskSubpipe(container: HTMLDivElement, layerX: number, intmData: any){
@@ -518,7 +538,7 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
     const g = d3.select(container).select("svg");
     const inner = g.append("g").attr("class", "layer-inner-works-group").attr("id", `layer-inner-works-group-layer-${layerID}-node-${nodeID}`);
 
-    const currentNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
+    const currentNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures) - 2;
     const currentNodeY = computeFeatureLayerY(nodeID, 50, 20);
 
     let dirCoefficient = 1;
@@ -535,29 +555,38 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
     const aggregatedFeature = aggregationResult.aggregatedFeature;
     console.log("aggregatedFeature", aggregatedFeature);
     const firstIntersect: [number, number] = [currentNodeX + distanceBetweenFeatures, currentNodeY];
+    const sourceNodeX = currentNodeX;
     // visualize aggregated links
-    const ctrlPointForCurrentNode: [number, number] = [currentNodeX + (distanceBetweenFeatures / 2), currentNodeY];
+    const controlX = sourceNodeX + (firstIntersect[0] - sourceNodeX) / 2;
+    const ctrlPointForCurrentNode: [number, number] = [controlX, currentNodeY];
     for(let k = 0; k < aggregationResult.contributions.length; k++){
         const contribution = aggregationResult.contributions[k];
-        const targetNodeX = computeFeatureLayerX(startX, layerID, cellWidth, gapXBetweenLayers, sortedGNNFeatures);
-        const targetNodeY = computeFeatureLayerY(contribution.nodeIndex, 50, 20);
-        const ctrlPointForTargetNode: [number, number] = [currentNodeX + (distanceBetweenFeatures / 2), targetNodeY];
+        const sourceNodeY = computeFeatureLayerY(contribution.nodeIndex, 50, 20);
+        const ctrlPointForSourceNode: [number, number] = [controlX, sourceNodeY];
         inner.append("path")
-            .attr("d", curve([[targetNodeX, targetNodeY], ctrlPointForTargetNode, ctrlPointForCurrentNode, firstIntersect]))
+            .attr("d", curve([[sourceNodeX, sourceNodeY], ctrlPointForSourceNode, ctrlPointForCurrentNode, firstIntersect]))
             .attr("stroke", "black")
             .attr("opacity", 1)
             .attr("fill", "none")
             .attr("class", "link-path-aggregated layer-inner-works")
             .attr("id", `link-path-aggregated-${layerID}-${nodeID}-to-${k}`)
             .lower();
-        inner.append("text")
-            .attr("x", targetNodeX + 3)
-            .attr("y", targetNodeY - 6)
+        const multiplierText = inner.append("text")
+            .attr("x", sourceNodeX + 3)
+            .attr("y", sourceNodeY - 6)
             .text(contribution.label)
-            .attr("class", "degree-multiplier-text layer-inner-works")
+            .attr(
+                "class",
+                `degree-multiplier-text layer-inner-works${aggregationResult.kind === "attention" ? " attention-coefficient-text" : ""}`
+            )
             .attr("id", `degree-multiplier-text-${layerID}-${nodeID}-to-${k}`)
-            .style("font-size", "6px")
-            .lower();
+            .style("font-size", "6px");
+        if (aggregationResult.kind === "attention") {
+            multiplierText
+                .style("fill", "#6e09cd")
+                .style("font-weight", 700);
+        }
+        multiplierText.lower();
     }
     // visualize aggregated feature
     const aggregatedFeatureGroup = inner.append("g").attr("class", "aggregated-feature-layer layer-inner-works").attr("id", `aggregated-feature-layer-layer-${layerID}-node-${nodeID}`);
@@ -618,7 +647,10 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
         .attr("fill", "none")
         .attr("class", "weight-matrix-to-intersect-path layer-inner-works")
         .lower();
-    const weightMatrix:number[][] = matrixTranspose(layerInfo["weight"]);
+    const weightMatrix = normalizeLayerWeightMatrix(layerInfo, aggregatedFeature.length);
+    if (!weightMatrix) {
+        return;
+    }
     console.log("weightMatrix:", weightMatrix);
     const matrixStartX = currentNodeX + distanceBetweenFeatures*1.5 + aggregatedFeature.length * cellWidth - distanceBetweenFeatures*0.5 - cellWidth * weightMatrix[0].length / 2;
     const matrixStartY = currentNodeY + (dirCoefficient) * distanceBetweenFeatures * 1;
@@ -646,12 +678,14 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
                 .attr("fill", featureColor(weightMatrix[m][n]))
                 .attr("class", "weight-matrix-cell layer-inner-works")
                 .attr("id", `weight-matrix-cell-${layerID}-${nodeID}-dim-${m}-${n}`)
+                .style("stroke", weightMatrixCellStroke)
+                .style("stroke-width", weightMatrixCellStrokeWidth)
                 .style("opacity", 1);
         }
     }
     // visualize bias and actiivation function
     const multipliedFeature = vecMatMul(aggregatedFeature, weightMatrix);
-    const bias = modelInfo[`conv${layerID}`]["bias"];;
+    const bias = normalizeLayerBias(layerInfo, multipliedFeature.length);
     inner.append("rect")
         .attr("x", currentNodeX + distanceBetweenFeatures*2 + aggregatedFeature.length * cellWidth)
         .attr("y", currentNodeY - 12/2)
@@ -806,6 +840,8 @@ export function visualizeInnerFCLayerSubpipe(container: HTMLDivElement, cellWidt
                 .attr("fill", featureColor(weightMatrix[m][n]))
                 .attr("class", "weight-matrix-cell layer-inner-works")
                 .attr("id", `fc-weight-matrix-cell-node-${nodeID}-dim-${m}-${n}`)
+                .style("stroke", weightMatrixCellStroke)
+                .style("stroke-width", weightMatrixCellStrokeWidth)
                 .style("opacity", 1);
         }
     }

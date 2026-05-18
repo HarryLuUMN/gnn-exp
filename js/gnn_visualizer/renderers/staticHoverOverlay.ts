@@ -7,7 +7,14 @@ import type {
 } from "./staticScene";
 import { curve, featureColor } from "../utils/const";
 import { aggregateNeighborFeatures } from "../utils/aggregationUtils";
-import { extractSortedGNNLayerFeatures } from "../utils/dataProcessingUtils";
+import {
+  extractSortedGNNLayerFeatures,
+  getGraphAggregationInfo,
+} from "../utils/dataProcessingUtils";
+import {
+  normalizeLayerBias,
+  normalizeLayerWeightMatrix,
+} from "../utils/layerRenderingUtils";
 import {
   addVector,
   matrixTranspose,
@@ -40,6 +47,8 @@ const LINK_HIGHLIGHT = "rgba(32, 61, 53, 0.72)";
 const HIT_TOLERANCE = 7;
 const FEATURE_HEIGHT = 12;
 const DISTANCE_TO_FEATURE = 50;
+const WEIGHT_MATRIX_CELL_STROKE = "#d8dedb";
+const WEIGHT_MATRIX_CELL_STROKE_WIDTH = 0.35;
 
 function contains(bounds: StaticBounds, point: ScenePoint) {
   return (
@@ -245,6 +254,19 @@ function appendStaticAnnotations(svg: SVGSVGElement, scene: StaticVisualizationS
   annotations.setAttribute("pointer-events", "none");
   appendMatrixLabels(annotations, scene.matrixLayout);
   appendFeatureLegend(annotations, scene);
+  for (const target of scene.hoverTargets) {
+    if (target.kind !== "agg-node") {
+      continue;
+    }
+
+    appendText(
+      annotations,
+      target.bounds.x,
+      target.bounds.y + target.bounds.height + 28,
+      target.label,
+      { fontSize: 14, fill: "#7f7f7f" }
+    );
+  }
   svg.append(annotations);
 }
 
@@ -594,8 +616,8 @@ function drawWeightMatrix(
         },
         {
           fill: featureColor(matrix[row][col]),
-          stroke: "rgba(80, 80, 80, 0.35)",
-          strokeWidth: 0.4,
+          stroke: WEIGHT_MATRIX_CELL_STROKE,
+          strokeWidth: WEIGHT_MATRIX_CELL_STROKE_WIDTH,
         }
       );
     }
@@ -632,8 +654,8 @@ function drawTopDownWeightMatrix(
         },
         {
           fill: featureColor(matrix[row][col]),
-          stroke: "rgba(80, 80, 80, 0.35)",
-          strokeWidth: 0.4,
+          stroke: WEIGHT_MATRIX_CELL_STROKE,
+          strokeWidth: WEIGHT_MATRIX_CELL_STROKE_WIDTH,
         }
       );
     }
@@ -675,7 +697,7 @@ function drawFeatureExpansion(
   }
 
   const layerInfo = modelInfo?.[`conv${target.layerIndex}`];
-  if (!layerInfo?.weight) {
+  if (!layerInfo) {
     return;
   }
 
@@ -726,7 +748,10 @@ function drawFeatureExpansion(
       ],
       { stroke: HIGHLIGHT, strokeWidth: 1.5 }
     );
-    appendText(group, sourceX + 3, sourceY - 6, label);
+    appendText(group, sourceX + 3, sourceY - 6, label, {
+      fill: aggregationResult.kind === "attention" ? "#6e09cd" : undefined,
+      fontSize: aggregationResult.kind === "attention" ? 7 : undefined,
+    });
     appendRect(group, previous.bounds, { opacity: 0.85 });
   }
 
@@ -738,7 +763,10 @@ function drawFeatureExpansion(
   });
   appendFeatureVector(group, aggregatedX, aggregatedY, aggregatedFeature, cellWidth);
 
-  const weightMatrix = matrixTranspose(layerInfo.weight as number[][]);
+  const weightMatrix = normalizeLayerWeightMatrix(layerInfo, aggregatedFeature.length);
+  if (!weightMatrix) {
+    return;
+  }
   const aggregatedRight = aggregatedX + aggregatedFeature.length * cellWidth;
   const multipliedX = aggregatedRight + DISTANCE_TO_FEATURE;
   const matrixX =
@@ -785,9 +813,7 @@ function drawFeatureExpansion(
   } catch {
     multipliedFeature = Array(weightMatrix[0]?.length ?? 0).fill(0);
   }
-  const bias = Array.isArray(layerInfo.bias)
-    ? (layerInfo.bias as number[])
-    : Array(multipliedFeature.length).fill(0);
+  const bias = normalizeLayerBias(layerInfo, multipliedFeature.length);
 
   appendFeatureVector(
     group,
@@ -836,24 +862,12 @@ function drawFeatureExpansion(
   );
 }
 
-function averageFeature(features: number[][]) {
-  if (features.length === 0 || features[0].length === 0) {
-    return [];
-  }
-
-  let averaged = Array(features[0].length).fill(0);
-  for (const feature of features) {
-    averaged = addVector(averaged, feature);
-  }
-
-  return averaged.map((value) => value / features.length);
-}
-
 function drawFcExpansion(
   group: SVGGElement,
   target: Extract<StaticHoverTarget, { kind: "fc-node" }>,
   sortedGNNFeatures: number[][][],
   modelInfo: any,
+  intmData: any,
   cellWidth: number,
   mode: string,
   expansion: StaticExpansionState
@@ -864,9 +878,10 @@ function drawFcExpansion(
   }
 
   const lastLayer = sortedGNNFeatures[sortedGNNFeatures.length - 1] ?? [];
+  const graphAggregation = getGraphAggregationInfo(intmData, lastLayer);
   const inputFeature =
     mode === "graph"
-      ? averageFeature(lastLayer)
+      ? graphAggregation?.feature ?? []
       : lastLayer[target.nodeIndex] ?? [];
   if (inputFeature.length === 0) {
     return;
@@ -1007,6 +1022,7 @@ function drawExpansion(
   adjacencyMatrix: number[][],
   sortedGNNFeatures: number[][][],
   modelInfo: any,
+  intmData: any,
   cellWidth: number,
   mode: string,
   expansion: StaticExpansionState
@@ -1022,6 +1038,7 @@ function drawExpansion(
       target,
       sortedGNNFeatures,
       modelInfo,
+      intmData,
       cellWidth,
       mode,
       expansion
@@ -1150,6 +1167,7 @@ export function attachStaticHoverOverlay({
       adjacencyMatrix,
       sortedGNNFeatures,
       modelInfo,
+      intmData,
       cellWidth,
       mode,
       expandedFeature ?? null
@@ -1212,6 +1230,7 @@ export function attachStaticHoverOverlay({
         adjacencyMatrix,
         sortedGNNFeatures,
         modelInfo,
+        intmData,
         cellWidth,
         mode,
         nextExpansion
@@ -1239,6 +1258,7 @@ export function attachStaticHoverOverlay({
         adjacencyMatrix,
         sortedGNNFeatures,
         modelInfo,
+        intmData,
         cellWidth,
         mode,
         nextExpansion

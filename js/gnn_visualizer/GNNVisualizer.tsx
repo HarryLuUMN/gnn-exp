@@ -11,6 +11,7 @@ import { modelPipeline } from "./modelPipeline";
 const MIN_MODEL_ZOOM = 0.25;
 const MAX_MODEL_ZOOM = 4;
 const MODEL_ZOOM_STEP = 0.25;
+const SWIPE_PAN_SPEED = 1;
 
 interface GNNVisualizerProps {
     intmData: any;
@@ -214,6 +215,34 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
         },
         []
     );
+
+    const onWheel = React.useCallback((event: WheelEvent) => {
+        const horizontalDelta = event.shiftKey ? event.deltaY : event.deltaX;
+        if (Math.abs(horizontalDelta) < 1) {
+            return;
+        }
+        if (!event.shiftKey && Math.abs(horizontalDelta) < Math.abs(event.deltaY)) {
+            return;
+        }
+
+        event.preventDefault();
+        setModelPan((current) => ({
+            ...current,
+            x: current.x - horizontalDelta * SWIPE_PAN_SPEED,
+        }));
+    }, []);
+
+    useEffect(() => {
+        const viewport = viewportRef.current;
+        if (!viewport) {
+            return;
+        }
+
+        viewport.addEventListener("wheel", onWheel, { passive: false });
+        return () => {
+            viewport.removeEventListener("wheel", onWheel);
+        };
+    }, [onWheel]);
     
     useEffect(() => {
         const container = containerRef.current;

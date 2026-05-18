@@ -2,10 +2,11 @@ import { featureColor } from "../utils/const";
 import {
   extractSortedGNNLayerFeatures,
   getEdgeOutputFeature,
+  getGraphAggregationInfo,
+  getGraphOutputFeature,
   processSubgraphSequenceDataPipe,
   type SubgraphResult,
 } from "../utils/dataProcessingUtils";
-import { addVector, divideVector, randomVector } from "../utils/mathUtils";
 
 export type Rgba = [number, number, number, number];
 
@@ -83,6 +84,7 @@ export type StaticHoverTarget =
   | {
       kind: "agg-node";
       bounds: StaticBounds;
+      label: string;
     }
   | {
       kind: "layer-link";
@@ -728,16 +730,19 @@ function addGraphTaskFC(
   xOffset: number,
   selectedFcIndex: number | null
 ) {
-  const fcLayerFeatures: number[][] | undefined = intmData?.conv4;
-  if (!Array.isArray(fcLayerFeatures) || fcLayerFeatures.length === 0) {
+  const sortedGNNFeatures = extractSortedGNNLayerFeatures(intmData);
+  const sourceFeatures = sortedGNNFeatures[sortedGNNFeatures.length - 1] ?? [];
+  const graphAggregation = getGraphAggregationInfo(intmData, sourceFeatures);
+  if (!graphAggregation) {
     return;
   }
 
   const previousLayerX = layerX - LAYER_GAP;
   const aggX = layerX;
   const fcX = layerX + LAYER_GAP + xOffset;
-  const midLayerY = MATRIX_START_Y + (fcLayerFeatures.length * NODE_ROW_HEIGHT) / 2;
-  for (let nodeIndex = 0; nodeIndex < fcLayerFeatures.length; nodeIndex += 1) {
+  const midLayerY =
+    MATRIX_START_Y + (Math.max(1, sourceFeatures.length) * NODE_ROW_HEIGHT) / 2;
+  for (let nodeIndex = 0; nodeIndex < sourceFeatures.length; nodeIndex += 1) {
     const currentY = MATRIX_START_Y + nodeIndex * NODE_ROW_HEIGHT + 12;
     const points = sampleCubic(
       [previousLayerX, currentY],
@@ -755,32 +760,39 @@ function addGraphTaskFC(
     }
   }
 
-  let averaged = Array(fcLayerFeatures[0].length).fill(0);
-  for (const feature of fcLayerFeatures) {
-    averaged = addVector(averaged, feature);
-  }
-  averaged = divideVector(averaged, fcLayerFeatures.length);
-
-  addFeatureVector(builder, aggX, midLayerY - 6, averaged, cellWidth, 12, 1, opacity);
+  const pooledFeature = graphAggregation.feature;
+  addFeatureVector(builder, aggX, midLayerY - 6, pooledFeature, cellWidth, 12, 1, opacity);
   addHoverTarget(builder, {
     kind: "agg-node",
+    label: graphAggregation.label,
     bounds: {
       x: aggX,
       y: midLayerY - 6,
-      width: averaged.length * cellWidth,
+      width: pooledFeature.length * cellWidth,
       height: 12,
     },
   });
-  addSingleFC(
+  includeBounds(
     builder,
-    fcX,
-    midLayerY - 12,
-    randomVector(4),
-    0,
-    cellWidth,
-    selectedFcIndex === 0 ? 1 : opacity,
-    showLinks
+    aggX,
+    midLayerY + 16,
+    aggX + graphAggregation.label.length * 8,
+    midLayerY + 38
   );
+
+  const outputFeature = getGraphOutputFeature(intmData);
+  if (outputFeature) {
+    addSingleFC(
+      builder,
+      fcX,
+      midLayerY - 12,
+      outputFeature,
+      0,
+      cellWidth,
+      selectedFcIndex === 0 ? 1 : opacity,
+      showLinks
+    );
+  }
 }
 
 function addFCByMode(
