@@ -87,6 +87,38 @@ for (const { model, aggregation, expectsAttention } of cases) {
       await expect(page.locator(".sampling-icon")).toHaveCount(1);
       await expect(page.locator(".sampled-out-link")).toHaveCount(1);
       await expect(page.locator(".sampled-out-link").first()).toHaveAttribute("stroke-dasharray", "3,2");
+      const samplingIconLayout = await page.evaluate(() => {
+        const toBox = (element: Element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+            right: rect.right,
+            bottom: rect.bottom,
+          };
+        };
+        const intersects = (
+          a: ReturnType<typeof toBox>,
+          b: ReturnType<typeof toBox>
+        ) =>
+          a.x < b.right &&
+          a.right > b.x &&
+          a.y < b.bottom &&
+          a.bottom > b.y;
+        const icon = document.querySelector(".sampling-icon");
+        const iconBox = icon ? toBox(icon) : null;
+        const overlappingFrames = iconBox
+          ? Array.from(document.querySelectorAll(".feature-layer-frame"))
+            .map((frame) => ({ id: frame.id, box: toBox(frame) }))
+            .filter(({ box }) => intersects(iconBox, box))
+            .map(({ id }) => id)
+          : [];
+        return { iconBox, overlappingFrames };
+      });
+      expect(samplingIconLayout.iconBox).not.toBeNull();
+      expect(samplingIconLayout.overlappingFrames).toEqual([]);
     } else {
       await expect(page.locator(".sampling-icon")).toHaveCount(0);
       await expect(page.locator(".sampled-out-link")).toHaveCount(0);

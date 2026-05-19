@@ -16,7 +16,7 @@ function fallbackIconForPath(path: string) {
     return null;
 }
 
-function appendSVGText(g: any, x: number, y: number, svgText: string, svgClass: string) {
+function appendSVGText(g: any, x: number, y: number, svgText: string, svgClass: string, iconScale: number) {
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
     const parserError = svgDoc.querySelector("parsererror");
@@ -29,10 +29,10 @@ function appendSVGText(g: any, x: number, y: number, svgText: string, svgClass: 
         throw new Error("Failed to parse SVG element");
     }
 
-    const offset = (ICON_VIEWBOX_SIZE * ICON_SCALE) / 2;
+    const offset = (ICON_VIEWBOX_SIZE * iconScale) / 2;
     const group = d3.select(g.node()).append("g")
         .attr("class", svgClass)
-        .attr("transform", `translate(${x - offset}, ${y - offset}) scale(${ICON_SCALE})`);
+        .attr("transform", `translate(${x - offset}, ${y - offset}) scale(${iconScale})`);
 
     const groupNode = group.node();
     if (!groupNode) {
@@ -48,7 +48,7 @@ function appendSVGText(g: any, x: number, y: number, svgText: string, svgClass: 
     return svgNode;
 }
 
-export function injectSVG(g:any, x: number, y: number, SVGPath:string, svgClass: string){
+export function injectSVG(g:any, x: number, y: number, SVGPath:string, svgClass: string, iconScale: number = ICON_SCALE){
     if (!g || !g.node()) {
         console.error("Invalid d3 selection passed to injectSVG");
         return;
@@ -56,7 +56,7 @@ export function injectSVG(g:any, x: number, y: number, SVGPath:string, svgClass:
 
     const inlineIcon = fallbackIconForPath(SVGPath);
     if (inlineIcon) {
-        return Promise.resolve(appendSVGText(g, x, y, inlineIcon, svgClass));
+        return Promise.resolve(appendSVGText(g, x, y, inlineIcon, svgClass, iconScale));
     }
     
     // Try multiple path resolution strategies
@@ -85,7 +85,7 @@ export function injectSVG(g:any, x: number, y: number, SVGPath:string, svgClass:
                 if (svgText.includes("<html") || svgText.includes("parsererror") || svgText.includes("This page contains the following errors")) {
                     throw new Error("Received HTML error page instead of SVG");
                 }
-                return appendSVGText(g, x, y, svgText, svgClass);
+                return appendSVGText(g, x, y, svgText, svgClass, iconScale);
             });
     }
     
@@ -108,7 +108,6 @@ export function injectSVG(g:any, x: number, y: number, SVGPath:string, svgClass:
         console.error("Error loading SVG after all attempts:", SVGPath, error);
     });
 }
-
 
 
 

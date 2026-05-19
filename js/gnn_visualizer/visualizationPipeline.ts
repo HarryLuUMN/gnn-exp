@@ -20,6 +20,8 @@ import {
 
 const weightMatrixCellStroke = "#d8dedb";
 const weightMatrixCellStrokeWidth = 0.35;
+const sampledOutIconScale = 1.2;
+const sampledOutIconGap = 2;
 
 function isGraphSAGELayer(layerInfo: any) {
     const type = String(layerInfo?.type ?? "").toLowerCase();
@@ -623,12 +625,19 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
         }
         multiplierText.lower();
         if (isSampledOut) {
+            const sourceFeatureWidth =
+                (sortedGNNFeatures[layerID - 1]?.[contribution.nodeIndex]?.length ??
+                    sortedGNNFeatures[layerID - 1]?.[0]?.length ??
+                    0) * cellWidth;
+            const sourceNodeLeftX = sourceNodeX - sourceFeatureWidth;
+            const iconHalfWidth = (10 * sampledOutIconScale) / 2;
             const icon = injectSVG(
                 inner,
-                sourceNodeX - 8,
+                sourceNodeLeftX - sampledOutIconGap - iconHalfWidth,
                 sourceNodeY,
                 "./assets/sampling.svg",
-                "sampling-icon sampled-out-node-icon layer-inner-works"
+                "sampling-icon sampled-out-node-icon layer-inner-works",
+                sampledOutIconScale
             );
             if (icon instanceof Promise) {
                 icon.then((node) => d3.select(node).append("title").text("Sampled out"));
