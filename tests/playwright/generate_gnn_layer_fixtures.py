@@ -55,7 +55,7 @@ def initialize_model(model):
             initialize_linear(module, offset=0.05 + index * 0.01)
 
 
-def fixture_for(conv):
+def fixture_for(conv, sampled_out_nodes=None):
     torch.manual_seed(0)
     data = Data()
     model = Model(conv)
@@ -69,6 +69,8 @@ def fixture_for(conv):
         queries=[[1, 3]],
         mode="node",
     )
+    if sampled_out_nodes:
+        visualizer.modelInfo["conv1"]["sampled_out_nodes"] = sampled_out_nodes
 
     return {
         "graphData": visualizer.graphData,
@@ -86,7 +88,7 @@ def main():
 
     fixtures = {
         "gat": fixture_for(GATConv(3, 2, heads=2, concat=True)),
-        "graphsage": fixture_for(SAGEConv(3, 2)),
+        "graphsage": fixture_for(SAGEConv(3, 2), sampled_out_nodes=[2]),
         "gin": fixture_for(GINConv(torch.nn.Sequential(torch.nn.Linear(3, 2), torch.nn.Tanh()))),
     }
 

@@ -83,6 +83,14 @@ for (const { model, aggregation, expectsAttention } of cases) {
         expect(anchor.labelX).toBeCloseTo(anchor.expectedX + 3, 3);
       }
     }
+    if (model === "graphsage") {
+      await expect(page.locator(".sampling-icon")).toHaveCount(1);
+      await expect(page.locator(".sampled-out-link")).toHaveCount(1);
+      await expect(page.locator(".sampled-out-link").first()).toHaveAttribute("stroke-dasharray", "3,2");
+    } else {
+      await expect(page.locator(".sampling-icon")).toHaveCount(0);
+      await expect(page.locator(".sampled-out-link")).toHaveCount(0);
+    }
     await expect(page.locator(".bias-frame")).toBeVisible();
     expect(failures).toEqual([]);
   });
