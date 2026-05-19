@@ -57,6 +57,8 @@ def initialize_model(model):
 
 def fixture_for(conv, sampled_out_nodes=None):
     torch.manual_seed(0)
+    if sampled_out_nodes:
+        conv.sampled_out_nodes = sampled_out_nodes
     data = Data()
     model = Model(conv)
     initialize_model(model)
@@ -69,9 +71,6 @@ def fixture_for(conv, sampled_out_nodes=None):
         queries=[[1, 3]],
         mode="node",
     )
-    if sampled_out_nodes:
-        visualizer.modelInfo["conv1"]["sampled_out_nodes"] = sampled_out_nodes
-
     return {
         "graphData": visualizer.graphData,
         "intmData": visualizer.intmData,
