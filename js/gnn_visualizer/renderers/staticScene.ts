@@ -85,6 +85,7 @@ export type StaticHoverTarget =
       kind: "agg-node";
       bounds: StaticBounds;
       label: string;
+      opacity?: number;
     }
   | {
       kind: "layer-link";
@@ -765,6 +766,7 @@ function addGraphTaskFC(
   addHoverTarget(builder, {
     kind: "agg-node",
     label: graphAggregation.label,
+    opacity,
     bounds: {
       x: aggX,
       y: midLayerY - 6,

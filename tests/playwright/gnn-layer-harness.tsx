@@ -7,7 +7,7 @@ import type {
   ResolvedRenderer,
 } from "../../js/renderers/capabilities";
 
-type LayerKind = "gcn_logits" | "gat" | "graphsage" | "gin";
+type LayerKind = "gcn_logits" | "gat" | "graph_gat" | "graphsage" | "gin";
 
 type HarnessData = {
   graphData: Record<string, unknown>;
@@ -26,7 +26,7 @@ declare global {
 
 function selectedLayerKind(): LayerKind {
   const value = new URLSearchParams(window.location.search).get("model");
-  return value === "gcn_logits" || value === "gat" || value === "gin" || value === "graphsage"
+  return value === "gcn_logits" || value === "gat" || value === "graph_gat" || value === "gin" || value === "graphsage"
     ? value
     : "graphsage";
 }

@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 import torch
-from torch_geometric.nn import GATConv, GCNConv, GINConv, SAGEConv
+from torch_geometric.nn import GATConv, GCNConv, GINConv, SAGEConv, global_mean_pool
 
 from gnn_exp import GNNVisualizer
 
@@ -41,6 +41,21 @@ class Model(torch.nn.Module):
         h = self.act1(self.conv1(x, edge_index))
         logits = self.classifier(h)
         return self.softmax(logits) if self.with_softmax else logits
+
+
+class GraphModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = GATConv(3, 2, heads=2, concat=True)
+        self.act1 = torch.nn.Tanh()
+        self.classifier = torch.nn.Linear(4, 2)
+
+    def forward(self, x, edge_index, batch=None):
+        h = self.act1(self.conv1(x, edge_index))
+        if batch is None:
+            batch = torch.zeros(h.size(0), dtype=torch.long, device=h.device)
+        graph_embedding = global_mean_pool(h, batch)
+        return self.classifier(graph_embedding)
 
 
 def initialize_linear(linear, offset):
@@ -84,6 +99,30 @@ def fixture_for(conv, sampled_out_nodes=None, with_softmax=True):
     }
 
 
+def graph_fixture():
+    torch.manual_seed(0)
+    data = Data()
+    model = GraphModel()
+    initialize_model(model)
+
+    visualizer = GNNVisualizer()
+    visualizer.add_model(
+        data=data,
+        model=model,
+        subgraphSample=False,
+        queries=[[1, 3]],
+        mode="graph",
+    )
+    return {
+        "graphData": visualizer.graphData,
+        "intmData": visualizer.intmData,
+        "modelInfo": visualizer.modelInfo,
+        "queries": visualizer.queries,
+        "subgraphSample": visualizer.subgraphSample,
+        "mode": visualizer.mode,
+    }
+
+
 def main():
     output_dir = Path(__file__).parent / ".cache" / "fixtures"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -91,6 +130,7 @@ def main():
     fixtures = {
         "gcn_logits": fixture_for(GCNConv(3, 2), with_softmax=False),
         "gat": fixture_for(GATConv(3, 2, heads=2, concat=True)),
+        "graph_gat": graph_fixture(),
         "graphsage": fixture_for(SAGEConv(3, 2), sampled_out_nodes=[2]),
         "gin": fixture_for(GINConv(torch.nn.Sequential(torch.nn.Linear(3, 2), torch.nn.Tanh()))),
     }

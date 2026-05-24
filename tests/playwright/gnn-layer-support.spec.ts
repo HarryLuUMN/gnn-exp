@@ -128,3 +128,45 @@ for (const { model, aggregation, expectsAttention } of cases) {
     expect(failures).toEqual([]);
   });
 }
+
+test("graph pooling readout fades and shifts during layer expansion", async ({ page }) => {
+  const failures: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      failures.push(message.text());
+    }
+  });
+
+  await page.goto(`/tests/playwright/fixtures/gnn-layer-harness.html?model=graph_gat`);
+  await page.waitForFunction(() => window.__GNN_LAYER_READY === true);
+
+  await expect(page.locator("#matrix-svg")).toBeVisible();
+  await expect(page.locator("#agg-feature-layer-node-graph")).toBeVisible();
+  await expect(page.locator("#graph-aggregation-label")).toBeVisible();
+
+  const before = await page.locator("#agg-feature-layer-node-graph").evaluate((element) => ({
+    opacity: getComputedStyle(element).opacity,
+    transform: element.getAttribute("transform"),
+  }));
+
+  await page.locator("#feature-layer-1-node-1-dim-0").click();
+
+  await expect(page.locator(".weight-matrix-frame")).toBeVisible();
+  await expect.poll(
+    () => page.locator("#agg-feature-layer-node-graph").evaluate((element) => element.getAttribute("transform"))
+  ).not.toBe(before.transform);
+
+  const after = await page.locator("#agg-feature-layer-node-graph").evaluate((element) => ({
+    opacity: getComputedStyle(element).opacity,
+    transform: element.getAttribute("transform"),
+  }));
+  const aggLinks = page.locator(".agg-link-path-fc");
+  expect(await aggLinks.count()).toBeGreaterThan(0);
+  const aggLinkOpacity = await aggLinks.first().evaluate((element) => getComputedStyle(element).opacity);
+
+  expect(after.opacity).toBe("0.1");
+  expect(after.transform).toMatch(/^translate\(/);
+  expect(aggLinkOpacity).toBe("0");
+  expect(failures).toEqual([]);
+});

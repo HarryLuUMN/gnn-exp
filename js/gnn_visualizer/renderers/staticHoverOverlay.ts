@@ -170,6 +170,7 @@ function appendText(
     fill?: string;
     textAnchor?: string;
     transform?: string;
+    opacity?: number;
   } = {}
 ) {
   const node = createSvgElement("text");
@@ -178,6 +179,9 @@ function appendText(
   node.setAttribute("font-size", String(options.fontSize ?? 6));
   node.setAttribute("fill", options.fill ?? HIGHLIGHT);
   node.setAttribute("text-anchor", options.textAnchor ?? "start");
+  if (options.opacity != null) {
+    node.setAttribute("opacity", String(options.opacity));
+  }
   if (options.transform) {
     node.setAttribute("transform", options.transform);
   }
@@ -264,7 +268,7 @@ function appendStaticAnnotations(svg: SVGSVGElement, scene: StaticVisualizationS
       target.bounds.x,
       target.bounds.y + target.bounds.height + 28,
       target.label,
-      { fontSize: 14, fill: "#7f7f7f" }
+      { fontSize: 14, fill: "#7f7f7f", opacity: target.opacity ?? 1 }
     );
   }
   svg.append(annotations);
