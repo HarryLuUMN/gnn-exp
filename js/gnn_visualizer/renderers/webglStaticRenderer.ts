@@ -18,6 +18,8 @@ type StaticProgram = {
   viewport: WebGLUniformLocation;
 };
 
+const MAX_GPU_BACKING_STORE_DIMENSION = 4096;
+
 function createShader(
   gl: WebGL2RenderingContext,
   type: number,
@@ -122,10 +124,25 @@ function createStaticProgram(
   };
 }
 
-function setCanvasSize(canvas: HTMLCanvasElement, scene: StaticVisualizationScene) {
-  const pixelRatio = window.devicePixelRatio || 1;
+function resolvePixelRatio(
+  displayWidth: number,
+  displayHeight: number,
+  maxDimension: number
+) {
+  const targetPixelRatio = window.devicePixelRatio || 1;
+  const largestDisplayDimension = Math.max(displayWidth, displayHeight, 1);
+  const maxPixelRatio = maxDimension / largestDisplayDimension;
+  return Math.min(targetPixelRatio, maxPixelRatio);
+}
+
+function setCanvasSize(
+  canvas: HTMLCanvasElement,
+  scene: StaticVisualizationScene,
+  maxDimension: number
+) {
   const displayWidth = Math.max(1, Math.ceil(scene.width));
   const displayHeight = Math.max(1, Math.ceil(scene.height));
+  const pixelRatio = resolvePixelRatio(displayWidth, displayHeight, maxDimension);
 
   canvas.style.width = `${displayWidth}px`;
   canvas.style.height = `${displayHeight}px`;
@@ -174,7 +191,15 @@ export function renderWebglStaticVisualization(
   }
 
   const geometry = buildStaticVisualizationGeometry(scene);
-  setCanvasSize(canvas, scene);
+  const maxDimension = Math.max(
+    1,
+    Math.min(
+      Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)) || MAX_GPU_BACKING_STORE_DIMENSION,
+      Number(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)) || MAX_GPU_BACKING_STORE_DIMENSION,
+      MAX_GPU_BACKING_STORE_DIMENSION
+    )
+  );
+  setCanvasSize(canvas, scene, maxDimension);
   gl.viewport(0, 0, canvas.width, canvas.height);
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);

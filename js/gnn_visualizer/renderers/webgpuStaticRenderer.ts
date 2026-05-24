@@ -48,6 +48,8 @@ type WebGpuRuntime = {
   };
 };
 
+const MAX_GPU_BACKING_STORE_DIMENSION = 4096;
+
 function getWebGpuRuntime(): WebGpuRuntime | { error: string } {
   const bufferUsage = (globalThis as {
     GPUBufferUsage?: WebGpuRuntime["bufferUsage"];
@@ -63,10 +65,25 @@ function getWebGpuRuntime(): WebGpuRuntime | { error: string } {
   return { bufferUsage, shaderStage };
 }
 
-function setCanvasSize(canvas: HTMLCanvasElement, scene: StaticVisualizationScene) {
-  const pixelRatio = window.devicePixelRatio || 1;
+function resolvePixelRatio(
+  displayWidth: number,
+  displayHeight: number,
+  maxDimension: number
+) {
+  const targetPixelRatio = window.devicePixelRatio || 1;
+  const largestDisplayDimension = Math.max(displayWidth, displayHeight, 1);
+  const maxPixelRatio = maxDimension / largestDisplayDimension;
+  return Math.min(targetPixelRatio, maxPixelRatio);
+}
+
+function setCanvasSize(
+  canvas: HTMLCanvasElement,
+  scene: StaticVisualizationScene,
+  maxDimension: number
+) {
   const displayWidth = Math.max(1, Math.ceil(scene.width));
   const displayHeight = Math.max(1, Math.ceil(scene.height));
+  const pixelRatio = resolvePixelRatio(displayWidth, displayHeight, maxDimension);
 
   canvas.style.width = `${displayWidth}px`;
   canvas.style.height = `${displayHeight}px`;
@@ -81,7 +98,10 @@ export async function renderWebgpuStaticVisualization(
   const gpu = (
     navigator as Navigator & {
       gpu?: {
-        requestAdapter: () => Promise<{ requestDevice: () => Promise<any> } | null>;
+        requestAdapter: () => Promise<{
+          limits?: { maxTextureDimension2D?: number };
+          requestDevice: () => Promise<any>;
+        } | null>;
         getPreferredCanvasFormat: () => string;
       };
     }
@@ -109,7 +129,14 @@ export async function renderWebgpuStaticVisualization(
   }
 
   const format = gpu.getPreferredCanvasFormat();
-  setCanvasSize(canvas, scene);
+  const maxDimension = Math.max(
+    1,
+    Math.min(
+      Number(adapter.limits?.maxTextureDimension2D) || MAX_GPU_BACKING_STORE_DIMENSION,
+      MAX_GPU_BACKING_STORE_DIMENSION
+    )
+  );
+  setCanvasSize(canvas, scene, maxDimension);
   context.configure({
     device,
     format,

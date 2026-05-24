@@ -219,6 +219,55 @@ test("large graph auto renderer stays visible and fit-adjustable", async ({ page
     const box = await canvas.boundingBox();
     expect(box?.width).toBeGreaterThan(700);
     expect(box?.height).toBeGreaterThan(500);
+    const canvasState = await canvas.evaluate((element) => {
+      const source = element as HTMLCanvasElement;
+      const probe = document.createElement("canvas");
+      const width = 240;
+      const height = 220;
+      probe.width = width;
+      probe.height = height;
+      const context = probe.getContext("2d", { willReadFrequently: true });
+      if (!context) {
+        throw new Error("Unable to create pixel probe canvas.");
+      }
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(
+        source,
+        0,
+        0,
+        source.width,
+        source.height,
+        0,
+        0,
+        width,
+        height
+      );
+      const pixels = context.getImageData(0, 0, width, height).data;
+      let visiblePixels = 0;
+      let strongPixels = 0;
+      for (let index = 0; index < pixels.length; index += 4) {
+        const red = pixels[index];
+        const green = pixels[index + 1];
+        const blue = pixels[index + 2];
+        const alpha = pixels[index + 3];
+        if (alpha > 0 && (red < 245 || green < 245 || blue < 245)) {
+          visiblePixels += 1;
+        }
+        if (alpha > 0 && (red < 180 || green < 210 || blue < 200)) {
+          strongPixels += 1;
+        }
+      }
+      return {
+        backingHeight: source.height,
+        backingWidth: source.width,
+        strongRatio: strongPixels / (width * height),
+        visibleRatio: visiblePixels / (width * height),
+      };
+    });
+    expect(Math.max(canvasState.backingWidth, canvasState.backingHeight)).toBeLessThanOrEqual(4096);
+    expect(canvasState.visibleRatio).toBeGreaterThan(0.65);
+    expect(canvasState.strongRatio).toBeGreaterThan(0.005);
     await expect(page.locator(".gnn-model-toolbar__status")).toContainText(/Renderer:\s*(WEBGL|WEBGPU)/);
   } else {
     await expect(page.locator("#matrix-svg")).toBeVisible();
