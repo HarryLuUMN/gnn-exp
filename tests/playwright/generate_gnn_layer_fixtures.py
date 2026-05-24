@@ -58,6 +58,49 @@ class GraphModel(torch.nn.Module):
         return self.classifier(graph_embedding)
 
 
+class LargeScienceGraphData:
+    def __init__(self, node_count=420, feature_dim=8):
+        index = torch.arange(node_count, dtype=torch.float32)
+        phase = index / node_count
+        self.x = torch.stack(
+            [
+                phase,
+                torch.sin(phase * torch.pi),
+                torch.cos(phase * torch.pi),
+                (index % 7) / 6,
+                (index % 11) / 10,
+                (index % 17) / 16,
+                torch.sqrt(index + 1) / torch.sqrt(torch.tensor(float(node_count))),
+                torch.ones_like(index),
+            ][:feature_dim],
+            dim=1,
+        )
+        sources = torch.arange(node_count).repeat_interleave(4)
+        offsets = torch.tensor([1, 2, 5, 11]).repeat(node_count)
+        targets = (sources + offsets) % node_count
+        edge_index = torch.stack([sources, targets], dim=0)
+        self.edge_index = torch.unique(torch.cat([edge_index, edge_index.flip(0)], dim=1), dim=1)
+        self.y = torch.tensor([1])
+
+
+class LargeGraphModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = SAGEConv(8, 16)
+        self.act1 = torch.nn.Tanh()
+        self.conv2 = SAGEConv(16, 16)
+        self.act2 = torch.nn.Tanh()
+        self.classifier = torch.nn.Linear(16, 3)
+
+    def forward(self, x, edge_index, batch=None):
+        h = self.act1(self.conv1(x.float(), edge_index))
+        h = self.act2(self.conv2(h, edge_index))
+        if batch is None:
+            batch = torch.zeros(h.size(0), dtype=torch.long, device=h.device)
+        graph_embedding = global_mean_pool(h, batch)
+        return self.classifier(graph_embedding)
+
+
 def initialize_linear(linear, offset):
     with torch.no_grad():
         values = torch.arange(linear.weight.numel(), dtype=torch.float32)
@@ -123,6 +166,30 @@ def graph_fixture():
     }
 
 
+def large_science_graph_fixture():
+    torch.manual_seed(0)
+    data = LargeScienceGraphData()
+    model = LargeGraphModel()
+    initialize_model(model)
+
+    visualizer = GNNVisualizer()
+    visualizer.add_model(
+        data=data,
+        model=model,
+        subgraphSample=False,
+        queries=[[0, 1]],
+        mode="graph",
+    )
+    return {
+        "graphData": visualizer.graphData,
+        "intmData": visualizer.intmData,
+        "modelInfo": visualizer.modelInfo,
+        "queries": visualizer.queries,
+        "subgraphSample": visualizer.subgraphSample,
+        "mode": visualizer.mode,
+    }
+
+
 def main():
     output_dir = Path(__file__).parent / ".cache" / "fixtures"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -131,6 +198,7 @@ def main():
         "gcn_logits": fixture_for(GCNConv(3, 2), with_softmax=False),
         "gat": fixture_for(GATConv(3, 2, heads=2, concat=True)),
         "graph_gat": graph_fixture(),
+        "large_science_graph": large_science_graph_fixture(),
         "graphsage": fixture_for(SAGEConv(3, 2), sampled_out_nodes=[2]),
         "gin": fixture_for(GINConv(torch.nn.Sequential(torch.nn.Linear(3, 2), torch.nn.Tanh()))),
     }

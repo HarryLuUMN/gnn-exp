@@ -7,7 +7,7 @@ import type {
   ResolvedRenderer,
 } from "../../js/renderers/capabilities";
 
-type LayerKind = "gcn_logits" | "gat" | "graph_gat" | "graphsage" | "gin";
+type LayerKind = "gcn_logits" | "gat" | "graph_gat" | "graphsage" | "gin" | "large_science_graph";
 type HarnessRenderer = "auto" | "svg" | "webgl" | "webgpu";
 
 type HarnessData = {
@@ -27,7 +27,12 @@ declare global {
 
 function selectedLayerKind(): LayerKind {
   const value = new URLSearchParams(window.location.search).get("model");
-  return value === "gcn_logits" || value === "gat" || value === "graph_gat" || value === "gin" || value === "graphsage"
+  return value === "gcn_logits" ||
+    value === "gat" ||
+    value === "graph_gat" ||
+    value === "gin" ||
+    value === "graphsage" ||
+    value === "large_science_graph"
     ? value
     : "graphsage";
 }

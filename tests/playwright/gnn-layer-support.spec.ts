@@ -191,6 +191,50 @@ test("viewport height can be adjusted and fitted", async ({ page }) => {
   ).not.toBe("none");
 });
 
+test("large graph auto renderer stays visible and fit-adjustable", async ({ page }) => {
+  const failures: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      failures.push(message.text());
+    }
+  });
+
+  await page.goto(`/tests/playwright/fixtures/gnn-layer-harness.html?model=large_science_graph&renderer=auto`);
+  await page.waitForFunction(() => window.__GNN_LAYER_READY === true);
+
+  const supportsWebgl = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    return canvas.getContext("webgl2") !== null;
+  });
+
+  const viewport = page.locator(".gnn-model-viewport");
+  const content = page.locator(".gnn-model-content");
+  await expect(page.getByLabel("Model viewport height")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Fit" })).toBeVisible();
+
+  if (supportsWebgl) {
+    const canvas = page.locator(".gnn-static-gpu-canvas");
+    await expect(canvas).toBeVisible();
+    const box = await canvas.boundingBox();
+    expect(box?.width).toBeGreaterThan(700);
+    expect(box?.height).toBeGreaterThan(500);
+    await expect(page.locator(".gnn-model-toolbar__status")).toContainText(/Renderer:\s*(WEBGL|WEBGPU)/);
+  } else {
+    await expect(page.locator("#matrix-svg")).toBeVisible();
+  }
+
+  await expect.poll(
+    () => viewport.evaluate((element) => getComputedStyle(element).height)
+  ).toBe("820px");
+
+  await page.getByRole("button", { name: "Fit" }).click();
+  await expect.poll(
+    () => content.evaluate((element) => getComputedStyle(element).transform)
+  ).not.toBe("none");
+  expect(failures).toEqual([]);
+});
+
 test("graph pooling readout fades and shifts during layer expansion", async ({ page }) => {
   const failures: string[] = [];
   page.on("pageerror", (error) => failures.push(error.message));
