@@ -129,6 +129,68 @@ for (const { model, aggregation, expectsAttention } of cases) {
   });
 }
 
+test("auto renderer uses an accelerated canvas when available", async ({ page }) => {
+  const failures: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      failures.push(message.text());
+    }
+  });
+
+  await page.goto(`/tests/playwright/fixtures/gnn-layer-harness.html?model=gat&renderer=auto`);
+  await page.waitForFunction(() => window.__GNN_LAYER_READY === true);
+
+  const supportsWebgl = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    return canvas.getContext("webgl2") !== null;
+  });
+
+  const statusText = await page.locator(".gnn-model-toolbar__status").textContent();
+  if (supportsWebgl) {
+    await expect(page.locator(".gnn-static-gpu-canvas")).toBeVisible();
+    expect(statusText).toMatch(/Renderer:\s*(WEBGL|WEBGPU)/);
+  } else {
+    await expect(page.locator("#matrix-svg")).toBeVisible();
+    expect(statusText).toContain("Renderer: SVG");
+  }
+  expect(failures).toEqual([]);
+});
+
+test("viewport height can be adjusted and fitted", async ({ page }) => {
+  await page.goto(`/tests/playwright/fixtures/gnn-layer-harness.html?model=gat`);
+  await page.waitForFunction(() => window.__GNN_LAYER_READY === true);
+
+  const viewport = page.locator(".gnn-model-viewport");
+  const slider = page.getByLabel("Model viewport height");
+  await expect(slider).toBeVisible();
+  await expect(page.getByRole("button", { name: "Fit" })).toBeVisible();
+
+  await expect.poll(
+    () => viewport.evaluate((element) => getComputedStyle(element).height)
+  ).toBe("820px");
+
+  await slider.evaluate((element, value) => {
+    const input = element as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value"
+    )?.set;
+    setter?.call(input, String(value));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, 1060);
+
+  await expect.poll(
+    () => viewport.evaluate((element) => getComputedStyle(element).height)
+  ).toBe("1060px");
+
+  await page.getByRole("button", { name: "Fit" }).click();
+  await expect.poll(
+    () => page.locator(".gnn-model-content").evaluate((element) => getComputedStyle(element).transform)
+  ).not.toBe("none");
+});
+
 test("graph pooling readout fades and shifts during layer expansion", async ({ page }) => {
   const failures: string[] = [];
   page.on("pageerror", (error) => failures.push(error.message));

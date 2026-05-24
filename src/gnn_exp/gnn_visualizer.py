@@ -26,6 +26,8 @@ class GNNVisualizer(anywidget.AnyWidget):
         values=["svg", "webgl", "webgpu"],
         default_value="webgl",
     ).tag(sync=True)
+    viewportHeight = traitlets.Int(820).tag(sync=True)
+    autoFit = traitlets.Bool(True).tag(sync=True)
 
     queries = traitlets.List(default_value=[]).tag(sync=True)
 

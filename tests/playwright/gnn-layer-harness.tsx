@@ -8,6 +8,7 @@ import type {
 } from "../../js/renderers/capabilities";
 
 type LayerKind = "gcn_logits" | "gat" | "graph_gat" | "graphsage" | "gin";
+type HarnessRenderer = "auto" | "svg" | "webgl" | "webgpu";
 
 type HarnessData = {
   graphData: Record<string, unknown>;
@@ -31,6 +32,13 @@ function selectedLayerKind(): LayerKind {
     : "graphsage";
 }
 
+function selectedRenderer(): HarnessRenderer {
+  const value = new URLSearchParams(window.location.search).get("renderer");
+  return value === "auto" || value === "svg" || value === "webgl" || value === "webgpu"
+    ? value
+    : "svg";
+}
+
 const rootElement = document.getElementById("root");
 
 if (!rootElement) {
@@ -42,7 +50,8 @@ function Harness() {
   const [data, setData] = React.useState<HarnessData | null>(null);
   const [effectiveRenderer, setEffectiveRenderer] =
     React.useState<ResolvedRenderer>("svg");
-  const renderer: RendererMode = "svg";
+  const [viewportHeight, setViewportHeight] = React.useState(820);
+  const renderer: RendererMode = selectedRenderer();
 
   React.useEffect(() => {
     window.__GNN_LAYER_READY = false;
@@ -79,6 +88,9 @@ function Harness() {
       renderer={renderer}
       effectiveRenderer={effectiveRenderer}
       setEffectiveRenderer={setEffectiveRenderer}
+      viewportHeight={viewportHeight}
+      setViewportHeight={setViewportHeight}
+      autoFit
     />
   );
 }

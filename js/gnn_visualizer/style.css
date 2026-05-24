@@ -80,6 +80,20 @@
   font-size: 13px;
 }
 
+.gnn-model-toolbar__range {
+  align-items: center;
+  color: #425b53;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 8px;
+}
+
+.gnn-model-height-slider {
+  accent-color: #2b705c;
+  inline-size: 160px;
+}
+
 .gnn-model-button {
   background: rgba(255, 255, 255, 0.86);
   border: 1px solid rgba(74, 107, 97, 0.24);
@@ -109,8 +123,8 @@
   border-radius: 16px;
   box-sizing: border-box;
   cursor: grab;
-  height: min(78vh, 920px);
-  min-height: 560px;
+  height: 820px;
+  min-height: 420px;
   overflow: hidden;
   position: relative;
   touch-action: none;
