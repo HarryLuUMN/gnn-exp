@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 import torch
-from torch_geometric.nn import GATConv, GINConv, SAGEConv
+from torch_geometric.nn import GATConv, GCNConv, GINConv, SAGEConv
 
 from gnn_exp import GNNVisualizer
 
@@ -27,17 +27,20 @@ class Data:
 
 
 class Model(torch.nn.Module):
-    def __init__(self, conv):
+    def __init__(self, conv, with_softmax=True):
         super().__init__()
         self.conv1 = conv
         hidden_dim = 4 if type(conv).__name__ == "GATConv" else 2
         self.act1 = torch.nn.Tanh()
         self.classifier = torch.nn.Linear(hidden_dim, 2)
-        self.softmax = torch.nn.Softmax(dim=1)
+        self.with_softmax = with_softmax
+        if with_softmax:
+            self.softmax = torch.nn.Softmax(dim=1)
 
     def forward(self, x, edge_index):
         h = self.act1(self.conv1(x, edge_index))
-        return self.softmax(self.classifier(h))
+        logits = self.classifier(h)
+        return self.softmax(logits) if self.with_softmax else logits
 
 
 def initialize_linear(linear, offset):
@@ -55,12 +58,12 @@ def initialize_model(model):
             initialize_linear(module, offset=0.05 + index * 0.01)
 
 
-def fixture_for(conv, sampled_out_nodes=None):
+def fixture_for(conv, sampled_out_nodes=None, with_softmax=True):
     torch.manual_seed(0)
     if sampled_out_nodes:
         conv.sampled_out_nodes = sampled_out_nodes
     data = Data()
-    model = Model(conv)
+    model = Model(conv, with_softmax=with_softmax)
     initialize_model(model)
 
     visualizer = GNNVisualizer()
@@ -86,6 +89,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     fixtures = {
+        "gcn_logits": fixture_for(GCNConv(3, 2), with_softmax=False),
         "gat": fixture_for(GATConv(3, 2, heads=2, concat=True)),
         "graphsage": fixture_for(SAGEConv(3, 2), sampled_out_nodes=[2]),
         "gin": fixture_for(GINConv(torch.nn.Sequential(torch.nn.Linear(3, 2), torch.nn.Tanh()))),

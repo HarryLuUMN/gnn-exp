@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const cases = [
+  { model: "gcn_logits", aggregation: "GCN norm", expectsAttention: false },
   { model: "gat", aggregation: "attention", expectsAttention: true },
   { model: "graphsage", aggregation: "mean", expectsAttention: false },
   { model: "gin", aggregation: "sum", expectsAttention: false },

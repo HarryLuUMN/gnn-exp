@@ -502,12 +502,55 @@ export function visualizeFCForGraphTaskSubpipe(container: HTMLDivElement, layerX
     }
 }
 
+function isFiniteNumber(value: unknown): value is number {
+    return typeof value === "number" && Number.isFinite(value);
+}
+
+function normalizeNodeOutputRows(value: unknown): number[][] | null {
+    if (!Array.isArray(value) || value.length === 0) {
+        return null;
+    }
+
+    if (value.every(isFiniteNumber)) {
+        return [value];
+    }
+
+    const rows = value.map((row) =>
+        Array.isArray(row) && row.every(isFiniteNumber) ? [...row] : null
+    );
+    if (rows.some((row) => row === null)) {
+        return null;
+    }
+
+    return rows as number[][];
+}
+
+function getNodeOutputRows(intmData: any): number[][] {
+    const candidates = [
+        intmData?.softmax,
+        intmData?.probabilities,
+        intmData?.probs,
+        intmData?.logits,
+        intmData?.classifier,
+        intmData?.modelOutput,
+    ];
+
+    for (const candidate of candidates) {
+        const rows = normalizeNodeOutputRows(candidate);
+        if (rows) {
+            return rows;
+        }
+    }
+
+    return [];
+}
+
 export function visualizeFCForNodeTaskSubpipe(container: HTMLDivElement, layerX: number, intmData: any){
     console.log("inside visualizeFCFeaturesPipe", intmData);
     // get the last layer number from intmData
     const sortedLayers = extractSortedGNNLayerFeatures(intmData);
     const lastLayerNum = sortedLayers[sortedLayers.length - 1].length;
-    const fcLayerFeatures: any[][] = intmData[`softmax`]; // TODO: make it more general 
+    const fcLayerFeatures = getNodeOutputRows(intmData);
     console.log("fc data", fcLayerFeatures, lastLayerNum);
     const layerY = 50;
     const svg = d3.select(container).select("svg");
