@@ -302,6 +302,55 @@ test("large graph auto renderer stays visible and fit-adjustable", async ({ page
   expect(failures).toEqual([]);
 });
 
+test("GraphEditor uses the shared graph layout and styling", async ({ page }) => {
+  const failures: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      failures.push(message.text());
+    }
+  });
+
+  await page.goto("/tests/playwright/fixtures/graph-editor-harness.html");
+  await page.waitForFunction(() => window.__GRAPH_EDITOR_READY === true);
+
+  await expect(page.locator(".graph_editor__canvas svg")).toBeVisible();
+  await expect(page.locator(".graph_editor__canvas circle")).toHaveCount(8);
+  await expect(page.locator(".graph_editor__canvas line")).toHaveCount(12);
+
+  const layoutState = await page.evaluate(() => {
+    const positions = window.__GRAPH_EDITOR_POSITIONS ?? [];
+    const expected = window.__GRAPH_EDITOR_EXPECTED ?? [];
+    const positionById = new Map(positions.map((node) => [node.id, node]));
+    const deltas = expected.map((node) => {
+      const actual = positionById.get(node.id);
+      if (!actual) {
+        return Number.POSITIVE_INFINITY;
+      }
+
+      return Math.hypot(actual.x - node.x, actual.y - node.y);
+    });
+    const circles = Array.from(
+      document.querySelectorAll<SVGCircleElement>(".graph_editor__canvas circle")
+    );
+
+    return {
+      expectedCount: expected.length,
+      positionCount: positions.length,
+      maxDelta: Math.max(...deltas),
+      fills: circles.map((circle) => circle.getAttribute("fill")),
+      strokes: circles.map((circle) => circle.getAttribute("stroke")),
+    };
+  });
+
+  expect(layoutState.expectedCount).toBe(8);
+  expect(layoutState.positionCount).toBe(8);
+  expect(layoutState.maxDelta).toBeLessThan(1);
+  expect(layoutState.fills.some((fill) => fill !== "white" && fill !== "#ffffff")).toBe(true);
+  expect(layoutState.strokes.some((stroke) => stroke !== "#aaa")).toBe(true);
+  expect(failures).toEqual([]);
+});
+
 test("graph pooling readout fades and shifts during layer expansion", async ({ page }) => {
   const failures: string[] = [];
   page.on("pageerror", (error) => failures.push(error.message));

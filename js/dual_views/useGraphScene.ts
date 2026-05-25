@@ -171,7 +171,7 @@ function fitGraphToViewport(
   });
 }
 
-function layoutGraph(
+export function layoutGraph(
   nodes: NodeDatum[],
   links: LinkDatum[],
   width: number,
