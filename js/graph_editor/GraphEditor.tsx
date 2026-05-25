@@ -111,6 +111,7 @@ export default function GraphEditor({
     const datasetRef = useRef<any>({});
     const [mode, setMode] = useState("edge");
     const modeRef = useRef("edge");
+    const [editorStats, setEditorStats] = useState({ nodes: 0, links: 0 });
 
     // Sync state
     const selectedNodeRef = useRef<string | null>(null);
@@ -149,6 +150,13 @@ export default function GraphEditor({
         nodes: nodesRef.current,
         links: linksRef.current,
     });
+
+    const updateEditorStats = () => {
+        setEditorStats({
+            nodes: nodesRef.current.length,
+            links: linksRef.current.length,
+        });
+    };
 
     const getEndpointId = (endpoint: any) => {
         if (typeof endpoint === "string") return endpoint;
@@ -260,6 +268,7 @@ export default function GraphEditor({
 
                 nodesRef.current = nodes;
                 linksRef.current = links;
+                updateEditorStats();
 
                 const simulation = d3
                     .forceSimulation<any>(nodes)
@@ -463,6 +472,7 @@ export default function GraphEditor({
                                         ) as d3.ForceLink<any, any>;
                                     linkForce?.links(linksRef.current);
                                     simulationRef.current?.alpha(0.5).restart();
+                                    updateEditorStats();
                                     clearEditorSelection();
                                     handleTransmitToMainVisualizer();
                                 }
@@ -552,6 +562,7 @@ export default function GraphEditor({
                     nodesRef.current.push(newNode);
                     simulation.nodes(nodesRef.current);
                     simulation.alpha(0.5).restart();
+                    updateEditorStats();
                     if (onNodePositionsChange) {
                         onNodePositionsChange(nodesRef.current.map(node => ({ id: node.id, x: node.x, y: node.y })));
                     }
@@ -600,6 +611,7 @@ export default function GraphEditor({
                         linkForce?.links(linksRef.current);
                         simulationRef.current?.nodes(nodesRef.current);
                         simulationRef.current?.alpha(0.5).restart();
+                        updateEditorStats();
                         if (onNodePositionsChange) {
                             onNodePositionsChange(nodesRef.current.map(node => ({ id: node.id, x: node.x, y: node.y })));
                         }
@@ -668,60 +680,64 @@ export default function GraphEditor({
     };
 
     return (
-            <div className="graph_editor__root">
-                <div style={{ padding: "4px" }}>
-                    <button
-                        onClick={() => handleModeSwitch("node")}
-                        style={{
-                            padding: "10px 20px",
-                            borderRadius: "30px",
-                            border: "2px solid #aaa",
-                            fontWeight: "bold",
-                            backgroundColor: mode === "node" ? "yellow" : "white",
-                            cursor: "pointer"
-                            , color: "#aaa"
-                            }}
-                    >
-                        Node Edit
-                    </button>
-                    <button
-                        onClick={() => handleModeSwitch("edge")}
-                        style={{
-                            padding: "10px 20px",
-                            borderRadius: "30px",
-                            border: "2px solid #aaa",
-                            fontWeight: "bold",
-                            backgroundColor: mode === "edge" ? "yellow" : "white",
-                            cursor: "pointer", color: "#aaa"
-                            }}
-                    >
-                        Edge Edit
-                    </button>
-                    <div style={{ padding: "8px 4px" }}>
-                        <label style={{ fontWeight: "bold", marginRight: "8px", color: "#555" }}>
-                            Feature Editor:
-                        </label>
+        <div className="graph_editor__root">
+            <div className="graph-editor-toolbar">
+                <div className="graph-editor-toolbar__status">
+                    <span>
+                        Mode: <strong>{mode === "node" ? "NODE" : "EDGE"}</strong>
+                    </span>
+                    <span>
+                        Nodes: <strong>{editorStats.nodes}</strong>
+                    </span>
+                    <span>
+                        Edges: <strong>{editorStats.links}</strong>
+                    </span>
+                </div>
+                <div className="graph-editor-toolbar__controls">
+                    <div className="graph-editor-mode" role="group" aria-label="Graph editor mode">
+                        <button
+                            onClick={() => handleModeSwitch("node")}
+                            aria-pressed={mode === "node"}
+                            className={`graph-editor-mode__button ${
+                                mode === "node" ? "graph-editor-mode__button--active" : ""
+                            }`}
+                            type="button"
+                        >
+                            Node
+                        </button>
+                        <button
+                            onClick={() => handleModeSwitch("edge")}
+                            aria-pressed={mode === "edge"}
+                            className={`graph-editor-mode__button ${
+                                mode === "edge" ? "graph-editor-mode__button--active" : ""
+                            }`}
+                            type="button"
+                        >
+                            Edge
+                        </button>
+                    </div>
+                    <label className="graph-editor-feature">
+                        <span className="graph-editor-feature__label">
+                            Feature vector
+                            {featureDim > 0 ? (
+                                <span className="graph-editor-feature__dim">{featureDim}D</span>
+                            ) : null}
+                        </span>
                         <input
+                            className="graph-editor-feature__input"
                             type="text"
                             value={feature}
                             onChange={(e) => setFeature(e.target.value)}
-                            placeholder="e.g. 0.1, -0.3, 0.5, 1.2, 0.0"
-                            style={{
-                                width: "60%",
-                                padding: "6px 8px",
-                                borderRadius: "4px",
-                                border: "1px solid #ccc",
-                                fontFamily: "monospace",
-                                fontSize: "12px",
-                            }}
+                            placeholder="0.1, -0.3, 0.5"
                         />
-                    </div>
+                    </label>
                 </div>
-
-                <div
-                    className="graph_editor__canvas"
-                    ref={svgContainer}
-                ></div>
             </div>
+
+            <div
+                className="graph_editor__canvas"
+                ref={svgContainer}
+            ></div>
+        </div>
     );
 }

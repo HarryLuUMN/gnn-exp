@@ -4,11 +4,160 @@
 }
 
 .graph_editor__root {
+  color: #263d35;
+  display: flex;
+  flex-direction: column;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  gap: 12px;
   min-height: 760px;
   width: 100%;
 }
 
-.graph_editor__canvas {
-  min-height: 640px;
+.graph-editor-toolbar {
+  align-items: center;
+  background: linear-gradient(135deg, #f7fbf9 0%, #eef5f1 100%);
+  border: 1px solid rgba(72, 104, 94, 0.18);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(34, 61, 53, 0.08);
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: space-between;
+  padding: 12px 14px;
   width: 100%;
+}
+
+.graph-editor-toolbar__status,
+.graph-editor-toolbar__controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.graph-editor-toolbar__status {
+  color: #425b53;
+  font-size: 14px;
+}
+
+.graph-editor-toolbar__controls {
+  justify-content: flex-end;
+}
+
+.graph-editor-mode {
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(74, 107, 97, 0.2);
+  border-radius: 999px;
+  display: inline-flex;
+  padding: 3px;
+}
+
+.graph-editor-mode__button {
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: #425b53;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 64px;
+  padding: 7px 12px;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.graph-editor-mode__button:hover {
+  color: #12332a;
+}
+
+.graph-editor-mode__button--active {
+  background: #2b705c;
+  box-shadow: 0 6px 18px rgba(43, 112, 92, 0.22);
+  color: #ffffff;
+}
+
+.graph-editor-feature {
+  align-items: center;
+  color: #425b53;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.graph-editor-feature__label {
+  align-items: center;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 6px;
+}
+
+.graph-editor-feature__dim {
+  background: rgba(43, 112, 92, 0.1);
+  border: 1px solid rgba(43, 112, 92, 0.16);
+  border-radius: 999px;
+  color: #2b705c;
+  font-size: 11px;
+  padding: 2px 7px;
+}
+
+.graph-editor-feature__input {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(74, 107, 97, 0.24);
+  border-radius: 10px;
+  box-sizing: border-box;
+  color: #263d35;
+  font: 600 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  inline-size: min(460px, 52vw);
+  min-inline-size: 240px;
+  padding: 8px 10px;
+}
+
+.graph-editor-feature__input:focus {
+  border-color: rgba(43, 112, 92, 0.56);
+  box-shadow: 0 0 0 3px rgba(43, 112, 92, 0.12);
+  outline: none;
+}
+
+.graph_editor__canvas {
+  background:
+    radial-gradient(circle at 24px 24px, rgba(59, 106, 91, 0.06) 0 2px, transparent 2px),
+    #ffffff;
+  border: 1px solid rgba(72, 104, 94, 0.16);
+  border-radius: 16px;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  min-height: 640px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.graph_editor__canvas svg {
+  display: block;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+@media (max-width: 720px) {
+  .graph-editor-toolbar,
+  .graph-editor-toolbar__controls,
+  .graph-editor-feature {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .graph-editor-mode {
+    width: 100%;
+  }
+
+  .graph-editor-mode__button {
+    flex: 1;
+  }
+
+  .graph-editor-feature__input {
+    inline-size: 100%;
+    min-inline-size: 0;
+  }
 }
