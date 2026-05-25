@@ -10,7 +10,7 @@ import { modelPipeline } from "./modelPipeline";
 
 const MIN_MODEL_ZOOM = 0.05;
 const MAX_MODEL_ZOOM = 8;
-const MODEL_ZOOM_STEP = 0.25;
+const MODEL_ZOOM_SLIDER_STEP = 0.05;
 const SWIPE_PAN_SPEED = 1;
 const DEFAULT_VIEWPORT_HEIGHT = 820;
 const MIN_VIEWPORT_HEIGHT = 420;
@@ -199,14 +199,6 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
         []
     );
 
-    const zoomOut = React.useCallback(() => {
-        setModelZoom((value) => Math.max(MIN_MODEL_ZOOM, value - MODEL_ZOOM_STEP));
-    }, []);
-
-    const zoomIn = React.useCallback(() => {
-        setModelZoom((value) => Math.min(MAX_MODEL_ZOOM, value + MODEL_ZOOM_STEP));
-    }, []);
-
     const resetView = React.useCallback(() => {
         setModelZoom(1);
         setModelPan({ x: 0, y: 0 });
@@ -268,6 +260,17 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
             updateViewportHeight(Number(event.currentTarget.value));
         },
         [updateViewportHeight]
+    );
+
+    const onModelZoomChange = React.useCallback(
+        (event: React.ChangeEvent<HTMLInputElement>) => {
+            setModelZoom(clamp(
+                Number(event.currentTarget.value),
+                MIN_MODEL_ZOOM,
+                MAX_MODEL_ZOOM
+            ));
+        },
+        []
     );
 
     const onPointerDown = React.useCallback(
@@ -513,20 +516,25 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
                             value={resolvedViewportHeight}
                         />
                     </label>
+                    <label className="gnn-model-toolbar__range">
+                        <span>Zoom</span>
+                        <input
+                            aria-label="Model zoom"
+                            className="gnn-model-zoom-slider"
+                            max={MAX_MODEL_ZOOM}
+                            min={MIN_MODEL_ZOOM}
+                            onChange={onModelZoomChange}
+                            step={MODEL_ZOOM_SLIDER_STEP}
+                            type="range"
+                            value={modelZoom}
+                        />
+                    </label>
                     <button
                         className="gnn-model-button"
                         type="button"
                         onClick={fitContentToViewport}
                     >
                         Fit
-                    </button>
-                    <button
-                        className="gnn-model-button"
-                        type="button"
-                        onClick={zoomOut}
-                        disabled={modelZoom <= MIN_MODEL_ZOOM}
-                    >
-                        Zoom Out
                     </button>
                     <button
                         className="gnn-model-button"
@@ -539,14 +547,6 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
                         }
                     >
                         Reset
-                    </button>
-                    <button
-                        className="gnn-model-button"
-                        type="button"
-                        onClick={zoomIn}
-                        disabled={modelZoom >= MAX_MODEL_ZOOM}
-                    >
-                        Zoom In
                     </button>
                 </div>
             </div>

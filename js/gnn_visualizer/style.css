@@ -89,9 +89,14 @@
   gap: 8px;
 }
 
-.gnn-model-height-slider {
+.gnn-model-height-slider,
+.gnn-model-zoom-slider {
   accent-color: #2b705c;
   inline-size: 160px;
+}
+
+.gnn-model-zoom-slider {
+  inline-size: 180px;
 }
 
 .gnn-model-button {

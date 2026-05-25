@@ -1,4 +1,17 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
+
+async function setRangeValue(slider: Locator, value: number) {
+  await slider.evaluate((element, nextValue) => {
+    const input = element as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value"
+    )?.set;
+    setter?.call(input, String(nextValue));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
+}
 
 const cases = [
   { model: "gcn_logits", aggregation: "GCN norm", expectsAttention: false },
@@ -162,32 +175,36 @@ test("viewport height can be adjusted and fitted", async ({ page }) => {
   await page.waitForFunction(() => window.__GNN_LAYER_READY === true);
 
   const viewport = page.locator(".gnn-model-viewport");
-  const slider = page.getByLabel("Model viewport height");
-  await expect(slider).toBeVisible();
+  const heightSlider = page.getByLabel("Model viewport height");
+  const zoomSlider = page.getByLabel("Model zoom");
+  const content = page.locator(".gnn-model-content");
+  await expect(heightSlider).toBeVisible();
+  await expect(zoomSlider).toBeVisible();
   await expect(page.getByRole("button", { name: "Fit" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reset" })).toBeVisible();
 
   await expect.poll(
     () => viewport.evaluate((element) => getComputedStyle(element).height)
   ).toBe("820px");
 
-  await slider.evaluate((element, value) => {
-    const input = element as HTMLInputElement;
-    const setter = Object.getOwnPropertyDescriptor(
-      window.HTMLInputElement.prototype,
-      "value"
-    )?.set;
-    setter?.call(input, String(value));
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  }, 1060);
+  await setRangeValue(heightSlider, 1060);
 
   await expect.poll(
     () => viewport.evaluate((element) => getComputedStyle(element).height)
   ).toBe("1060px");
 
+  const initialTransform = await content.evaluate(
+    (element) => getComputedStyle(element).transform
+  );
+  await setRangeValue(zoomSlider, 1.5);
+  await expect.poll(
+    () => content.evaluate((element) => getComputedStyle(element).transform)
+  ).not.toBe(initialTransform);
+  await expect(page.locator(".gnn-model-toolbar__status")).toContainText("Zoom: 150%");
+
   await page.getByRole("button", { name: "Fit" }).click();
   await expect.poll(
-    () => page.locator(".gnn-model-content").evaluate((element) => getComputedStyle(element).transform)
+    () => content.evaluate((element) => getComputedStyle(element).transform)
   ).not.toBe("none");
 });
 
@@ -211,6 +228,7 @@ test("large graph auto renderer stays visible and fit-adjustable", async ({ page
   const viewport = page.locator(".gnn-model-viewport");
   const content = page.locator(".gnn-model-content");
   await expect(page.getByLabel("Model viewport height")).toBeVisible();
+  await expect(page.getByLabel("Model zoom")).toBeVisible();
   await expect(page.getByRole("button", { name: "Fit" })).toBeVisible();
 
   if (supportsWebgl) {
