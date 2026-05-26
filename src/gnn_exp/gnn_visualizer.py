@@ -26,6 +26,8 @@ class GNNVisualizer(anywidget.AnyWidget):
         values=["svg", "webgl", "webgpu"],
         default_value="webgl",
     ).tag(sync=True)
+    viewportHeight = traitlets.Int(820).tag(sync=True)
+    autoFit = traitlets.Bool(True).tag(sync=True)
 
     queries = traitlets.List(default_value=[]).tag(sync=True)
 
@@ -555,6 +557,18 @@ class GNNVisualizer(anywidget.AnyWidget):
         return GNNVisualizer._normalize_aggregation_name(aggregation) or "gcn-normalized"
 
     @staticmethod
+    def _sampled_out_nodes(module):
+        for attr in ("sampled_out_nodes", "sampledOutNodes", "sample_out_nodes", "sampleOutNodes"):
+            value = getattr(module, attr, None)
+            if value is None:
+                continue
+            if isinstance(value, torch.Tensor):
+                value = value.detach().cpu().flatten().tolist()
+            if isinstance(value, (list, tuple, set)):
+                return [int(node) for node in value]
+        return None
+
+    @staticmethod
     def _extract_message_passing_layer_info(module):
         module_type = type(module).__name__
         if module_type == "GCNConv":
@@ -577,6 +591,9 @@ class GNNVisualizer(anywidget.AnyWidget):
             root_weight = GNNVisualizer._linear_weight(root_linear)
             if info is not None and root_weight is not None:
                 info["root_weight"] = GNNVisualizer.tensor_to_json(root_weight)
+            sampled_out_nodes = GNNVisualizer._sampled_out_nodes(module)
+            if info is not None and sampled_out_nodes:
+                info["sampled_out_nodes"] = sampled_out_nodes
             return info
 
         if module_type == "GATConv":

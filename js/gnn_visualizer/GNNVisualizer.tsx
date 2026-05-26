@@ -8,10 +8,15 @@ import {
 } from "../renderers/capabilities";
 import { modelPipeline } from "./modelPipeline";
 
-const MIN_MODEL_ZOOM = 0.25;
-const MAX_MODEL_ZOOM = 4;
-const MODEL_ZOOM_STEP = 0.25;
+const MIN_MODEL_ZOOM = 0.05;
+const MAX_MODEL_ZOOM = 8;
+const MODEL_ZOOM_SLIDER_STEP = 0.05;
 const SWIPE_PAN_SPEED = 1;
+const DEFAULT_VIEWPORT_HEIGHT = 820;
+const MIN_VIEWPORT_HEIGHT = 420;
+const MAX_VIEWPORT_HEIGHT = 1400;
+const VIEWPORT_HEIGHT_STEP = 20;
+const FIT_PADDING = 48;
 
 interface GNNVisualizerProps {
     intmData: any;
@@ -25,6 +30,9 @@ interface GNNVisualizerProps {
     renderer: RendererMode;
     effectiveRenderer: ResolvedRenderer;
     setEffectiveRenderer: (renderer: ResolvedRenderer) => void;
+    viewportHeight?: number;
+    setViewportHeight?: (height: number) => void;
+    autoFit?: boolean;
 }
 
 type PanState = {
@@ -52,6 +60,54 @@ function isSvgVisualizationTarget(target: EventTarget | null) {
     return target instanceof Element && !!target.closest("svg");
 }
 
+function clamp(value: number, min: number, max: number) {
+    return Math.min(max, Math.max(min, value));
+}
+
+function clampViewportHeight(value: number | undefined) {
+    return clamp(
+        Number.isFinite(value) ? Number(value) : DEFAULT_VIEWPORT_HEIGHT,
+        MIN_VIEWPORT_HEIGHT,
+        MAX_VIEWPORT_HEIGHT
+    );
+}
+
+function numericAttribute(element: Element, name: string) {
+    const raw = element.getAttribute(name);
+    if (!raw) {
+        return 0;
+    }
+
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : 0;
+}
+
+function measureContentSize(container: HTMLDivElement) {
+    const child = container.firstElementChild;
+    let width = container.scrollWidth;
+    let height = container.scrollHeight;
+
+    if (child instanceof SVGSVGElement) {
+        width = Math.max(
+            width,
+            child.width.baseVal.value,
+            numericAttribute(child, "width"),
+            child.viewBox.baseVal.width
+        );
+        height = Math.max(
+            height,
+            child.height.baseVal.value,
+            numericAttribute(child, "height"),
+            child.viewBox.baseVal.height
+        );
+    } else if (child instanceof HTMLElement) {
+        width = Math.max(width, child.offsetWidth, child.scrollWidth);
+        height = Math.max(height, child.offsetHeight, child.scrollHeight);
+    }
+
+    return { width, height };
+}
+
 const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     intmData,
     modelInfo, 
@@ -64,14 +120,22 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     renderer,
     effectiveRenderer,
     setEffectiveRenderer,
+    viewportHeight,
+    setViewportHeight,
+    autoFit = true,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const viewportRef = useRef<HTMLDivElement>(null);
     const dragRef = useRef<DragState | null>(null);
     const pipelineRunRef = useRef(0);
     const suppressClickRef = useRef(false);
+    const fitFrameRef = useRef<number | null>(null);
+    const fitTimeoutRef = useRef<number | null>(null);
     const [modelZoom, setModelZoom] = useState(1);
     const [modelPan, setModelPan] = useState<PanState>({ x: 0, y: 0 });
+    const [localViewportHeight, setLocalViewportHeight] = useState(
+        DEFAULT_VIEWPORT_HEIGHT
+    );
     const [isPanning, setIsPanning] = useState(false);
     const [fallbackFailures, setFallbackFailures] = useState<
         Partial<Record<ResolvedRenderer, string>>
@@ -80,6 +144,22 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
     const resolution = React.useMemo(
         () => resolveRenderer(renderer, capabilities, fallbackFailures),
         [capabilities, fallbackFailures, renderer]
+    );
+    const resolvedViewportHeight = clampViewportHeight(
+        viewportHeight ?? localViewportHeight
+    );
+
+    const updateViewportHeight = React.useCallback(
+        (height: number) => {
+            const nextHeight = clampViewportHeight(height);
+            if (setViewportHeight) {
+                setViewportHeight(nextHeight);
+                return;
+            }
+
+            setLocalViewportHeight(nextHeight);
+        },
+        [setViewportHeight]
     );
 
     useEffect(() => {
@@ -119,18 +199,79 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
         []
     );
 
-    const zoomOut = React.useCallback(() => {
-        setModelZoom((value) => Math.max(MIN_MODEL_ZOOM, value - MODEL_ZOOM_STEP));
-    }, []);
-
-    const zoomIn = React.useCallback(() => {
-        setModelZoom((value) => Math.min(MAX_MODEL_ZOOM, value + MODEL_ZOOM_STEP));
-    }, []);
-
     const resetView = React.useCallback(() => {
         setModelZoom(1);
         setModelPan({ x: 0, y: 0 });
     }, []);
+
+    const fitContentToViewport = React.useCallback(() => {
+        const viewport = viewportRef.current;
+        const container = containerRef.current;
+        if (!viewport || !container) {
+            return;
+        }
+
+        const contentSize = measureContentSize(container);
+        if (contentSize.width <= 0 || contentSize.height <= 0) {
+            return;
+        }
+
+        const availableWidth = Math.max(1, viewport.clientWidth - FIT_PADDING);
+        const availableHeight = Math.max(1, viewport.clientHeight - FIT_PADDING);
+        const nextZoom = clamp(
+            Math.min(1, availableWidth / contentSize.width, availableHeight / contentSize.height),
+            MIN_MODEL_ZOOM,
+            MAX_MODEL_ZOOM
+        );
+
+        setModelZoom(nextZoom);
+        setModelPan({
+            x: Math.max(0, (viewport.clientWidth - contentSize.width * nextZoom) / 2),
+            y: Math.max(0, (viewport.clientHeight - contentSize.height * nextZoom) / 2),
+        });
+    }, []);
+
+    const clearScheduledFit = React.useCallback(() => {
+        if (fitFrameRef.current != null) {
+            window.cancelAnimationFrame(fitFrameRef.current);
+            fitFrameRef.current = null;
+        }
+
+        if (fitTimeoutRef.current != null) {
+            window.clearTimeout(fitTimeoutRef.current);
+            fitTimeoutRef.current = null;
+        }
+    }, []);
+
+    const scheduleFitToContent = React.useCallback(() => {
+        clearScheduledFit();
+        fitFrameRef.current = window.requestAnimationFrame(() => {
+            fitFrameRef.current = null;
+            fitContentToViewport();
+        });
+        fitTimeoutRef.current = window.setTimeout(() => {
+            fitTimeoutRef.current = null;
+            fitContentToViewport();
+        }, 650);
+    }, [clearScheduledFit, fitContentToViewport]);
+
+    const onViewportHeightChange = React.useCallback(
+        (event: React.ChangeEvent<HTMLInputElement>) => {
+            updateViewportHeight(Number(event.currentTarget.value));
+        },
+        [updateViewportHeight]
+    );
+
+    const onModelZoomChange = React.useCallback(
+        (event: React.ChangeEvent<HTMLInputElement>) => {
+            setModelZoom(clamp(
+                Number(event.currentTarget.value),
+                MIN_MODEL_ZOOM,
+                MAX_MODEL_ZOOM
+            ));
+        },
+        []
+    );
 
     const onPointerDown = React.useCallback(
         (event: React.PointerEvent<HTMLDivElement>) => {
@@ -243,6 +384,18 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
             viewport.removeEventListener("wheel", onWheel);
         };
     }, [onWheel]);
+
+    useEffect(() => {
+        return () => {
+            clearScheduledFit();
+        };
+    }, [clearScheduledFit]);
+
+    useEffect(() => {
+        if (autoFit) {
+            scheduleFitToContent();
+        }
+    }, [autoFit, resolvedViewportHeight, scheduleFitToContent]);
     
     useEffect(() => {
         const container = containerRef.current;
@@ -283,6 +436,9 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
             }
 
             cleanup = pipelineCleanup;
+            if (autoFit) {
+                scheduleFitToContent();
+            }
             if (pipelineCleanup || resolution.effectiveRenderer === "svg") {
                 onLoadComplete();
             }
@@ -320,6 +476,8 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
         renderToken,
         renderer,
         resolution,
+        autoFit,
+        scheduleFitToContent,
         subgraphSample,
     ]);
     
@@ -337,6 +495,7 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
                         </span>
                     ) : null}
                     <span>Zoom: {Math.round(modelZoom * 100)}%</span>
+                    <span>Viewport: {resolvedViewportHeight}px</span>
                     {resolution.reason ? (
                         <span className="gnn-model-toolbar__reason">
                             {resolution.reason}
@@ -344,16 +503,38 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
                     ) : null}
                 </div>
                 <div className="gnn-model-toolbar__controls">
-                    <span className="gnn-model-toolbar__hint">
-                        Drag the canvas to pan.
-                    </span>
+                    <label className="gnn-model-toolbar__range">
+                        <span>Height</span>
+                        <input
+                            aria-label="Model viewport height"
+                            className="gnn-model-height-slider"
+                            max={MAX_VIEWPORT_HEIGHT}
+                            min={MIN_VIEWPORT_HEIGHT}
+                            onChange={onViewportHeightChange}
+                            step={VIEWPORT_HEIGHT_STEP}
+                            type="range"
+                            value={resolvedViewportHeight}
+                        />
+                    </label>
+                    <label className="gnn-model-toolbar__range">
+                        <span>Zoom</span>
+                        <input
+                            aria-label="Model zoom"
+                            className="gnn-model-zoom-slider"
+                            max={MAX_MODEL_ZOOM}
+                            min={MIN_MODEL_ZOOM}
+                            onChange={onModelZoomChange}
+                            step={MODEL_ZOOM_SLIDER_STEP}
+                            type="range"
+                            value={modelZoom}
+                        />
+                    </label>
                     <button
                         className="gnn-model-button"
                         type="button"
-                        onClick={zoomOut}
-                        disabled={modelZoom <= MIN_MODEL_ZOOM}
+                        onClick={fitContentToViewport}
                     >
-                        Zoom Out
+                        Fit
                     </button>
                     <button
                         className="gnn-model-button"
@@ -367,14 +548,6 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
                     >
                         Reset
                     </button>
-                    <button
-                        className="gnn-model-button"
-                        type="button"
-                        onClick={zoomIn}
-                        disabled={modelZoom >= MAX_MODEL_ZOOM}
-                    >
-                        Zoom In
-                    </button>
                 </div>
             </div>
             <div
@@ -382,6 +555,7 @@ const GNNVisualizer: React.FC<GNNVisualizerProps> = ({
                 className={`gnn-model-viewport${
                     isPanning ? " gnn-model-viewport--panning" : ""
                 }`}
+                style={{ height: `${resolvedViewportHeight}px` }}
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
                 onPointerUp={finishPan}

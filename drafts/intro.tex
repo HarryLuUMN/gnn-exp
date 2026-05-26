@@ -1,0 +1,9 @@
+\section{Introduction}
+
+Graph neural networks (GNNs) are widely used for relational data, but their behavior remains difficult to inspect in everyday practice. Researchers and students often move among tensor dumps, static graph plots, and separate architecture summaries, making it hard to connect local neighborhoods, message passing, intermediate features, and final predictions.
+
+We present \textit{GNN Explorer}, an interactive visualization and explanation system for inspecting GNNs directly inside computational notebooks. Given graph data and a PyTorch Geometric model, the system captures model metadata and intermediate activations, then renders linked views of graph structure, adjacency patterns, layer outputs, aggregation behavior, and predictions. Users can inspect node-link and matrix views, sample local $k$-hop subgraphs, highlight query nodes or edges, and expand GNN layers to examine the computations behind a prediction.
+
+GNN Explorer is implemented as a lightweight Python package backed by notebook widgets and web-based interactive views. It includes \textit{GraphVisualizer} for dual graph exploration, \textit{GraphEditor} for interactive graph modification and export, and \textit{GNNVisualizer} for layer-wise model inspection. The current implementation supports node classification, edge prediction, and graph classification workflows, as well as common GNN layers including GCN, GAT, GraphSAGE, GIN, linear layers, and standard activation functions.
+
+This demo shows how GNN Explorer turns model inspection into an integrated visual workflow. By keeping graph data, model internals, editable inputs, and explanation views in the same notebook context, the system supports debugging, teaching, qualitative model comparison, and communication of GNN behavior to broader audiences.

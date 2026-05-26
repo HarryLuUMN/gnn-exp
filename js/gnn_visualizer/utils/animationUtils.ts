@@ -9,9 +9,16 @@ export function transitFeatureLayers(container: HTMLDivElement, layerID: number,
             const id = Number(match[1]);
             return id >= layerID;
         }).transition().duration(500).ease(d3.easeCubicOut).attr("transform", `translate(${distanceX}, 0)`);
-    transitFCLayer(container, distanceX);
+    transitFCLayer(container, distanceX, true);
 }
 
-export function transitFCLayer(container: HTMLDivElement, distanceX: number) {
+export function transitFCLayer(
+    container: HTMLDivElement,
+    distanceX: number,
+    includeAggregation: boolean = false
+) {
     d3.select(container).selectAll(".fc-feature-layer").transition().duration(500).ease(d3.easeCubicOut).attr("transform", `translate(${distanceX}, 0)`);
+    if (includeAggregation) {
+        d3.select(container).selectAll(".agg-feature-layer").transition().duration(500).ease(d3.easeCubicOut).attr("transform", `translate(${distanceX}, 0)`);
+    }
 }

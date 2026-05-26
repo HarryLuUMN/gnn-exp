@@ -85,6 +85,7 @@ export type StaticHoverTarget =
       kind: "agg-node";
       bounds: StaticBounds;
       label: string;
+      opacity?: number;
     }
   | {
       kind: "layer-link";
@@ -116,10 +117,10 @@ const MATRIX_CELL_SIZE = 20;
 const NODE_ROW_HEIGHT = 20;
 const LAYER_GAP = 100;
 const SCENE_PADDING = 24;
-const MATRIX_ON: Rgba = [105 / 255, 179 / 255, 162 / 255, 0.8];
-const MATRIX_OFF: Rgba = [238 / 255, 238 / 255, 238 / 255, 0.8];
+const MATRIX_ON: Rgba = [44 / 255, 140 / 255, 120 / 255, 0.95];
+const MATRIX_OFF: Rgba = [232 / 255, 236 / 255, 234 / 255, 1];
 const WHITE: Rgba = [1, 1, 1, 1];
-const BLACK_FAINT: Rgba = [0, 0, 0, 0.1];
+const BLACK_FAINT: Rgba = [0, 0, 0, 0.18];
 const BLACK_HALF: Rgba = [0, 0, 0, 0.5];
 const GRAY_HALF: Rgba = [0.5, 0.5, 0.5, 0.5];
 
@@ -765,6 +766,7 @@ function addGraphTaskFC(
   addHoverTarget(builder, {
     kind: "agg-node",
     label: graphAggregation.label,
+    opacity,
     bounds: {
       x: aggX,
       y: midLayerY - 6,

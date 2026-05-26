@@ -2,7 +2,7 @@
   "scripts": {
     "build": "esbuild js/*/index.tsx --bundle --format=esm --minify --sourcemap --outdir=src/gnn_exp/static --outbase=js",
     "build:playwright-fixtures": "PYTHONPATH=src python3 tests/playwright/generate_gnn_layer_fixtures.py",
-    "build:playwright-harness": "esbuild tests/playwright/gnn-layer-harness.tsx --bundle --format=esm --sourcemap --outdir=tests/playwright/.cache",
+    "build:playwright-harness": "esbuild tests/playwright/gnn-layer-harness.tsx tests/playwright/graph-editor-harness.tsx --bundle --format=esm --sourcemap --outdir=tests/playwright/.cache",
     "dev": "npm run build -- --watch",
     "typecheck": "tsc --noEmit",
     "test:playwright": "npm run build && npm run build:playwright-fixtures && npm run build:playwright-harness && playwright test"

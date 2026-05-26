@@ -18,6 +18,9 @@ const render = createRender(() => {
     const [renderer] = useModelState<RendererMode>("renderer");
     const [effectiveRenderer, setEffectiveRenderer] =
         useModelState<ResolvedRenderer>("effectiveRenderer");
+    const [viewportHeight, setViewportHeight] =
+        useModelState<number>("viewportHeight");
+    const [autoFit] = useModelState<boolean>("autoFit");
 
 	console.log("GNNVisualizer received graphData =", graphData);
 	console.log("GNNVisualizer received queries =", queries, "type:", typeof queries, "isArray:", Array.isArray(queries));
@@ -37,6 +40,9 @@ const render = createRender(() => {
                 renderer={renderer}
                 effectiveRenderer={effectiveRenderer}
                 setEffectiveRenderer={setEffectiveRenderer}
+                viewportHeight={viewportHeight}
+                setViewportHeight={setViewportHeight}
+                autoFit={autoFit}
             />
         </div>
     );

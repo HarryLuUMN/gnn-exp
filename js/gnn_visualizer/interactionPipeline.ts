@@ -171,8 +171,8 @@ export function interactLayerExpansionPipe(container: HTMLDivElement, cellWidth:
             state.isExpandLayer = !state.isExpandLayer;
             state.currentLayerID = layerID;
             console.log("isExpandLayer click:", state.isExpandLayer, matchedID);
-            g.selectAll(".link-path, .link-path-fc").style("opacity", 0);
-            g.selectAll(".feature-layer, .fc-feature-layer")
+            g.selectAll(".link-path, .link-path-fc, .agg-link-path-fc").style("opacity", 0);
+            g.selectAll(".feature-layer, .fc-feature-layer, .agg-feature-layer")
                 .style("opacity", 0.1)
                 .attr("pointer-events", "none");
             d3.select(this).style("opacity", 1);
@@ -192,8 +192,8 @@ export function interactLayerExpansionPipe(container: HTMLDivElement, cellWidth:
     g.on("click", function() {
         if(state.isExpandLayer) state.isExpandLayer = false;
         console.log("isExpandLayer updated:", state.isExpandLayer);
-        g.selectAll(".link-path, .link-path-fc").style("opacity", 0.1);
-        g.selectAll(".feature-layer, .fc-feature-layer")
+        g.selectAll(".link-path, .link-path-fc, .agg-link-path-fc").style("opacity", 0.1);
+        g.selectAll(".feature-layer, .fc-feature-layer, .agg-feature-layer")
             .style("opacity", 1)
             .attr("pointer-events", "auto");
         g.selectAll(".layer-inner-works-group").remove();
@@ -214,8 +214,8 @@ export function interactFCExpansionPipe(container: HTMLDivElement, cellWidth: nu
             state.isExpandLayer = true;
             state.currentLayerID = maxLayerNum + 1;
             const id = extractFCNodeIndex((this as HTMLElement).id);
-            g.selectAll(".link-path, .link-path-fc").style("opacity", 0);
-            g.selectAll(".feature-layer, .fc-feature-layer")
+            g.selectAll(".link-path, .link-path-fc, .agg-link-path-fc").style("opacity", 0);
+            g.selectAll(".feature-layer, .fc-feature-layer, .agg-feature-layer")
                 .style("opacity", 0.1)
                 .attr("pointer-events", "none");
             d3.select(this).style("opacity", 1);

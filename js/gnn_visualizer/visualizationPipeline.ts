@@ -20,6 +20,38 @@ import {
 
 const weightMatrixCellStroke = "#d8dedb";
 const weightMatrixCellStrokeWidth = 0.35;
+const sampledOutIconScale = 1.2;
+const sampledOutIconGap = 2;
+
+function isGraphSAGELayer(layerInfo: any) {
+    const type = String(layerInfo?.type ?? "").toLowerCase();
+    return type === "sageconv" || type === "graphsageconv";
+}
+
+function sampledOutNodeSet(layerInfo: any) {
+    const candidates = [
+        layerInfo?.sampled_out_nodes,
+        layerInfo?.sampledOutNodes,
+        layerInfo?.sample_out_nodes,
+        layerInfo?.sampleOutNodes,
+        layerInfo?.sampling?.sampled_out_nodes,
+        layerInfo?.sampling?.sampledOutNodes,
+    ];
+
+    for (const candidate of candidates) {
+        if (!Array.isArray(candidate)) {
+            continue;
+        }
+
+        return new Set(
+            candidate
+                .map((value) => Number(value))
+                .filter((value) => Number.isInteger(value))
+        );
+    }
+
+    return new Set<number>();
+}
 
 export function visualizationPipeline(container: HTMLDivElement, cellWidth: number, cellHeight: number, adjacencyMatrix: number[][], intmData: any, linkList: any[], queries: number[][] = [], subgraphData: any, subgraphSample: any, mode: string, nodeLabels: string[] = [], messagePassingDepth: number = 4) {
     // define parameters
@@ -470,12 +502,55 @@ export function visualizeFCForGraphTaskSubpipe(container: HTMLDivElement, layerX
     }
 }
 
+function isFiniteNumber(value: unknown): value is number {
+    return typeof value === "number" && Number.isFinite(value);
+}
+
+function normalizeNodeOutputRows(value: unknown): number[][] | null {
+    if (!Array.isArray(value) || value.length === 0) {
+        return null;
+    }
+
+    if (value.every(isFiniteNumber)) {
+        return [value];
+    }
+
+    const rows = value.map((row) =>
+        Array.isArray(row) && row.every(isFiniteNumber) ? [...row] : null
+    );
+    if (rows.some((row) => row === null)) {
+        return null;
+    }
+
+    return rows as number[][];
+}
+
+function getNodeOutputRows(intmData: any): number[][] {
+    const candidates = [
+        intmData?.softmax,
+        intmData?.probabilities,
+        intmData?.probs,
+        intmData?.logits,
+        intmData?.classifier,
+        intmData?.modelOutput,
+    ];
+
+    for (const candidate of candidates) {
+        const rows = normalizeNodeOutputRows(candidate);
+        if (rows) {
+            return rows;
+        }
+    }
+
+    return [];
+}
+
 export function visualizeFCForNodeTaskSubpipe(container: HTMLDivElement, layerX: number, intmData: any){
     console.log("inside visualizeFCFeaturesPipe", intmData);
     // get the last layer number from intmData
     const sortedLayers = extractSortedGNNLayerFeatures(intmData);
     const lastLayerNum = sortedLayers[sortedLayers.length - 1].length;
-    const fcLayerFeatures: any[][] = intmData[`softmax`]; // TODO: make it more general 
+    const fcLayerFeatures = getNodeOutputRows(intmData);
     console.log("fc data", fcLayerFeatures, lastLayerNum);
     const layerY = 50;
     const svg = d3.select(container).select("svg");
@@ -545,6 +620,7 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
     if (direction === "up") dirCoefficient = -1;
 
     const layerInfo = modelInfo?.[`conv${layerID}`];
+    const sampledOutNodes = isGraphSAGELayer(layerInfo) ? sampledOutNodeSet(layerInfo) : new Set<number>();
     const aggregationResult = aggregateNeighborFeatures(
         adjacencyMatrix,
         sortedGNNFeatures,
@@ -561,16 +637,20 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
     const ctrlPointForCurrentNode: [number, number] = [controlX, currentNodeY];
     for(let k = 0; k < aggregationResult.contributions.length; k++){
         const contribution = aggregationResult.contributions[k];
+        const isSampledOut = sampledOutNodes.has(contribution.nodeIndex);
         const sourceNodeY = computeFeatureLayerY(contribution.nodeIndex, 50, 20);
         const ctrlPointForSourceNode: [number, number] = [controlX, sourceNodeY];
-        inner.append("path")
+        const aggregationPath = inner.append("path")
             .attr("d", curve([[sourceNodeX, sourceNodeY], ctrlPointForSourceNode, ctrlPointForCurrentNode, firstIntersect]))
-            .attr("stroke", "black")
+            .attr("stroke", isSampledOut ? "gray" : "black")
             .attr("opacity", 1)
             .attr("fill", "none")
-            .attr("class", "link-path-aggregated layer-inner-works")
+            .attr("class", `link-path-aggregated layer-inner-works${isSampledOut ? " sampled-out-link" : ""}`)
             .attr("id", `link-path-aggregated-${layerID}-${nodeID}-to-${k}`)
             .lower();
+        if (isSampledOut) {
+            aggregationPath.attr("stroke-dasharray", "3,2");
+        }
         const multiplierText = inner.append("text")
             .attr("x", sourceNodeX + 3)
             .attr("y", sourceNodeY - 6)
@@ -587,6 +667,25 @@ export function visualizeInnerGNNLayerSubpipe(container: HTMLDivElement, cellWid
                 .style("font-weight", 700);
         }
         multiplierText.lower();
+        if (isSampledOut) {
+            const sourceFeatureWidth =
+                (sortedGNNFeatures[layerID - 1]?.[contribution.nodeIndex]?.length ??
+                    sortedGNNFeatures[layerID - 1]?.[0]?.length ??
+                    0) * cellWidth;
+            const sourceNodeLeftX = sourceNodeX - sourceFeatureWidth;
+            const iconHalfWidth = (10 * sampledOutIconScale) / 2;
+            const icon = injectSVG(
+                inner,
+                sourceNodeLeftX - sampledOutIconGap - iconHalfWidth,
+                sourceNodeY,
+                "./assets/sampling.svg",
+                "sampling-icon sampled-out-node-icon layer-inner-works",
+                sampledOutIconScale
+            );
+            if (icon instanceof Promise) {
+                icon.then((node) => d3.select(node).append("title").text("Sampled out"));
+            }
+        }
     }
     // visualize aggregated feature
     const aggregatedFeatureGroup = inner.append("g").attr("class", "aggregated-feature-layer layer-inner-works").attr("id", `aggregated-feature-layer-layer-${layerID}-node-${nodeID}`);

@@ -7,7 +7,8 @@ import type {
   ResolvedRenderer,
 } from "../../js/renderers/capabilities";
 
-type LayerKind = "gat" | "graphsage" | "gin";
+type LayerKind = "gcn_logits" | "gat" | "graph_gat" | "graphsage" | "gin" | "large_science_graph";
+type HarnessRenderer = "auto" | "svg" | "webgl" | "webgpu";
 
 type HarnessData = {
   graphData: Record<string, unknown>;
@@ -26,9 +27,21 @@ declare global {
 
 function selectedLayerKind(): LayerKind {
   const value = new URLSearchParams(window.location.search).get("model");
-  return value === "gat" || value === "gin" || value === "graphsage"
+  return value === "gcn_logits" ||
+    value === "gat" ||
+    value === "graph_gat" ||
+    value === "gin" ||
+    value === "graphsage" ||
+    value === "large_science_graph"
     ? value
     : "graphsage";
+}
+
+function selectedRenderer(): HarnessRenderer {
+  const value = new URLSearchParams(window.location.search).get("renderer");
+  return value === "auto" || value === "svg" || value === "webgl" || value === "webgpu"
+    ? value
+    : "svg";
 }
 
 const rootElement = document.getElementById("root");
@@ -42,7 +55,8 @@ function Harness() {
   const [data, setData] = React.useState<HarnessData | null>(null);
   const [effectiveRenderer, setEffectiveRenderer] =
     React.useState<ResolvedRenderer>("svg");
-  const renderer: RendererMode = "svg";
+  const [viewportHeight, setViewportHeight] = React.useState(820);
+  const renderer: RendererMode = selectedRenderer();
 
   React.useEffect(() => {
     window.__GNN_LAYER_READY = false;
@@ -79,6 +93,9 @@ function Harness() {
       renderer={renderer}
       effectiveRenderer={effectiveRenderer}
       setEffectiveRenderer={setEffectiveRenderer}
+      viewportHeight={viewportHeight}
+      setViewportHeight={setViewportHeight}
+      autoFit
     />
   );
 }

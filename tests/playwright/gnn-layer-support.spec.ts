@@ -1,6 +1,20 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
+
+async function setRangeValue(slider: Locator, value: number) {
+  await slider.evaluate((element, nextValue) => {
+    const input = element as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value"
+    )?.set;
+    setter?.call(input, String(nextValue));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
+}
 
 const cases = [
+  { model: "gcn_logits", aggregation: "GCN norm", expectsAttention: false },
   { model: "gat", aggregation: "attention", expectsAttention: true },
   { model: "graphsage", aggregation: "mean", expectsAttention: false },
   { model: "gin", aggregation: "sum", expectsAttention: false },
@@ -83,7 +97,298 @@ for (const { model, aggregation, expectsAttention } of cases) {
         expect(anchor.labelX).toBeCloseTo(anchor.expectedX + 3, 3);
       }
     }
+    if (model === "graphsage") {
+      await expect(page.locator(".sampling-icon")).toHaveCount(1);
+      await expect(page.locator(".sampled-out-link")).toHaveCount(1);
+      await expect(page.locator(".sampled-out-link").first()).toHaveAttribute("stroke-dasharray", "3,2");
+      const samplingIconLayout = await page.evaluate(() => {
+        const toBox = (element: Element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+            right: rect.right,
+            bottom: rect.bottom,
+          };
+        };
+        const intersects = (
+          a: ReturnType<typeof toBox>,
+          b: ReturnType<typeof toBox>
+        ) =>
+          a.x < b.right &&
+          a.right > b.x &&
+          a.y < b.bottom &&
+          a.bottom > b.y;
+        const icon = document.querySelector(".sampling-icon");
+        const iconBox = icon ? toBox(icon) : null;
+        const overlappingFrames = iconBox
+          ? Array.from(document.querySelectorAll(".feature-layer-frame"))
+            .map((frame) => ({ id: frame.id, box: toBox(frame) }))
+            .filter(({ box }) => intersects(iconBox, box))
+            .map(({ id }) => id)
+          : [];
+        return { iconBox, overlappingFrames };
+      });
+      expect(samplingIconLayout.iconBox).not.toBeNull();
+      expect(samplingIconLayout.overlappingFrames).toEqual([]);
+    } else {
+      await expect(page.locator(".sampling-icon")).toHaveCount(0);
+      await expect(page.locator(".sampled-out-link")).toHaveCount(0);
+    }
     await expect(page.locator(".bias-frame")).toBeVisible();
     expect(failures).toEqual([]);
   });
 }
+
+test("auto renderer uses an accelerated canvas when available", async ({ page }) => {
+  const failures: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      failures.push(message.text());
+    }
+  });
+
+  await page.goto(`/tests/playwright/fixtures/gnn-layer-harness.html?model=gat&renderer=auto`);
+  await page.waitForFunction(() => window.__GNN_LAYER_READY === true);
+
+  const supportsWebgl = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    return canvas.getContext("webgl2") !== null;
+  });
+
+  const statusText = await page.locator(".gnn-model-toolbar__status").textContent();
+  if (supportsWebgl) {
+    await expect(page.locator(".gnn-static-gpu-canvas")).toBeVisible();
+    expect(statusText).toMatch(/Renderer:\s*(WEBGL|WEBGPU)/);
+  } else {
+    await expect(page.locator("#matrix-svg")).toBeVisible();
+    expect(statusText).toContain("Renderer: SVG");
+  }
+  expect(failures).toEqual([]);
+});
+
+test("viewport height can be adjusted and fitted", async ({ page }) => {
+  await page.goto(`/tests/playwright/fixtures/gnn-layer-harness.html?model=gat`);
+  await page.waitForFunction(() => window.__GNN_LAYER_READY === true);
+
+  const viewport = page.locator(".gnn-model-viewport");
+  const heightSlider = page.getByLabel("Model viewport height");
+  const zoomSlider = page.getByLabel("Model zoom");
+  const content = page.locator(".gnn-model-content");
+  await expect(heightSlider).toBeVisible();
+  await expect(zoomSlider).toBeVisible();
+  await expect(page.getByRole("button", { name: "Fit" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reset" })).toBeVisible();
+
+  await expect.poll(
+    () => viewport.evaluate((element) => getComputedStyle(element).height)
+  ).toBe("820px");
+
+  await setRangeValue(heightSlider, 1060);
+
+  await expect.poll(
+    () => viewport.evaluate((element) => getComputedStyle(element).height)
+  ).toBe("1060px");
+
+  const initialTransform = await content.evaluate(
+    (element) => getComputedStyle(element).transform
+  );
+  await setRangeValue(zoomSlider, 1.5);
+  await expect.poll(
+    () => content.evaluate((element) => getComputedStyle(element).transform)
+  ).not.toBe(initialTransform);
+  await expect(page.locator(".gnn-model-toolbar__status")).toContainText("Zoom: 150%");
+
+  await page.getByRole("button", { name: "Fit" }).click();
+  await expect.poll(
+    () => content.evaluate((element) => getComputedStyle(element).transform)
+  ).not.toBe("none");
+});
+
+test("large graph auto renderer stays visible and fit-adjustable", async ({ page }) => {
+  const failures: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      failures.push(message.text());
+    }
+  });
+
+  await page.goto(`/tests/playwright/fixtures/gnn-layer-harness.html?model=large_science_graph&renderer=auto`);
+  await page.waitForFunction(() => window.__GNN_LAYER_READY === true);
+
+  const supportsWebgl = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    return canvas.getContext("webgl2") !== null;
+  });
+
+  const viewport = page.locator(".gnn-model-viewport");
+  const content = page.locator(".gnn-model-content");
+  await expect(page.getByLabel("Model viewport height")).toBeVisible();
+  await expect(page.getByLabel("Model zoom")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Fit" })).toBeVisible();
+
+  if (supportsWebgl) {
+    const canvas = page.locator(".gnn-static-gpu-canvas");
+    await expect(canvas).toBeVisible();
+    const box = await canvas.boundingBox();
+    expect(box?.width).toBeGreaterThan(700);
+    expect(box?.height).toBeGreaterThan(500);
+    const canvasState = await canvas.evaluate((element) => {
+      const source = element as HTMLCanvasElement;
+      const probe = document.createElement("canvas");
+      const width = 240;
+      const height = 220;
+      probe.width = width;
+      probe.height = height;
+      const context = probe.getContext("2d", { willReadFrequently: true });
+      if (!context) {
+        throw new Error("Unable to create pixel probe canvas.");
+      }
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(
+        source,
+        0,
+        0,
+        source.width,
+        source.height,
+        0,
+        0,
+        width,
+        height
+      );
+      const pixels = context.getImageData(0, 0, width, height).data;
+      let visiblePixels = 0;
+      let strongPixels = 0;
+      for (let index = 0; index < pixels.length; index += 4) {
+        const red = pixels[index];
+        const green = pixels[index + 1];
+        const blue = pixels[index + 2];
+        const alpha = pixels[index + 3];
+        if (alpha > 0 && (red < 245 || green < 245 || blue < 245)) {
+          visiblePixels += 1;
+        }
+        if (alpha > 0 && (red < 180 || green < 210 || blue < 200)) {
+          strongPixels += 1;
+        }
+      }
+      return {
+        backingHeight: source.height,
+        backingWidth: source.width,
+        strongRatio: strongPixels / (width * height),
+        visibleRatio: visiblePixels / (width * height),
+      };
+    });
+    expect(Math.max(canvasState.backingWidth, canvasState.backingHeight)).toBeLessThanOrEqual(4096);
+    expect(canvasState.visibleRatio).toBeGreaterThan(0.65);
+    expect(canvasState.strongRatio).toBeGreaterThan(0.005);
+    await expect(page.locator(".gnn-model-toolbar__status")).toContainText(/Renderer:\s*(WEBGL|WEBGPU)/);
+  } else {
+    await expect(page.locator("#matrix-svg")).toBeVisible();
+  }
+
+  await expect.poll(
+    () => viewport.evaluate((element) => getComputedStyle(element).height)
+  ).toBe("820px");
+
+  await page.getByRole("button", { name: "Fit" }).click();
+  await expect.poll(
+    () => content.evaluate((element) => getComputedStyle(element).transform)
+  ).not.toBe("none");
+  expect(failures).toEqual([]);
+});
+
+test("GraphEditor uses the shared graph layout and styling", async ({ page }) => {
+  const failures: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      failures.push(message.text());
+    }
+  });
+
+  await page.goto("/tests/playwright/fixtures/graph-editor-harness.html");
+  await page.waitForFunction(() => window.__GRAPH_EDITOR_READY === true);
+
+  await expect(page.locator(".graph_editor__canvas svg")).toBeVisible();
+  await expect(page.locator(".graph_editor__canvas circle")).toHaveCount(8);
+  await expect(page.locator(".graph_editor__canvas line")).toHaveCount(12);
+
+  const layoutState = await page.evaluate(() => {
+    const positions = window.__GRAPH_EDITOR_POSITIONS ?? [];
+    const expected = window.__GRAPH_EDITOR_EXPECTED ?? [];
+    const positionById = new Map(positions.map((node) => [node.id, node]));
+    const deltas = expected.map((node) => {
+      const actual = positionById.get(node.id);
+      if (!actual) {
+        return Number.POSITIVE_INFINITY;
+      }
+
+      return Math.hypot(actual.x - node.x, actual.y - node.y);
+    });
+    const circles = Array.from(
+      document.querySelectorAll<SVGCircleElement>(".graph_editor__canvas circle")
+    );
+
+    return {
+      expectedCount: expected.length,
+      positionCount: positions.length,
+      maxDelta: Math.max(...deltas),
+      fills: circles.map((circle) => circle.getAttribute("fill")),
+      strokes: circles.map((circle) => circle.getAttribute("stroke")),
+    };
+  });
+
+  expect(layoutState.expectedCount).toBe(8);
+  expect(layoutState.positionCount).toBe(8);
+  expect(layoutState.maxDelta).toBeLessThan(1);
+  expect(layoutState.fills.some((fill) => fill !== "white" && fill !== "#ffffff")).toBe(true);
+  expect(layoutState.strokes.some((stroke) => stroke !== "#aaa")).toBe(true);
+  expect(failures).toEqual([]);
+});
+
+test("graph pooling readout fades and shifts during layer expansion", async ({ page }) => {
+  const failures: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      failures.push(message.text());
+    }
+  });
+
+  await page.goto(`/tests/playwright/fixtures/gnn-layer-harness.html?model=graph_gat`);
+  await page.waitForFunction(() => window.__GNN_LAYER_READY === true);
+
+  await expect(page.locator("#matrix-svg")).toBeVisible();
+  await expect(page.locator("#agg-feature-layer-node-graph")).toBeVisible();
+  await expect(page.locator("#graph-aggregation-label")).toBeVisible();
+
+  const before = await page.locator("#agg-feature-layer-node-graph").evaluate((element) => ({
+    opacity: getComputedStyle(element).opacity,
+    transform: element.getAttribute("transform"),
+  }));
+
+  await page.locator("#feature-layer-1-node-1-dim-0").click();
+
+  await expect(page.locator(".weight-matrix-frame")).toBeVisible();
+  await expect.poll(
+    () => page.locator("#agg-feature-layer-node-graph").evaluate((element) => element.getAttribute("transform"))
+  ).not.toBe(before.transform);
+
+  const after = await page.locator("#agg-feature-layer-node-graph").evaluate((element) => ({
+    opacity: getComputedStyle(element).opacity,
+    transform: element.getAttribute("transform"),
+  }));
+  const aggLinks = page.locator(".agg-link-path-fc");
+  expect(await aggLinks.count()).toBeGreaterThan(0);
+  const aggLinkOpacity = await aggLinks.first().evaluate((element) => getComputedStyle(element).opacity);
+
+  expect(after.opacity).toBe("0.1");
+  expect(after.transform).toMatch(/^translate\(/);
+  expect(aggLinkOpacity).toBe("0");
+  expect(failures).toEqual([]);
+});

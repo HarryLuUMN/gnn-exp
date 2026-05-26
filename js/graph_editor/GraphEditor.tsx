@@ -1,5 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
+import type { LinkDatum, NodeDatum } from "../dual_views/dualViewTypes";
+import {
+    getLinkStrokeColor,
+    getNodeFillColor,
+    getNodeStrokeColor,
+} from "../dual_views/renderers/shared";
+import { layoutGraph } from "../dual_views/useGraphScene";
 import {
     loadSimGraphData,
     parseFeatureText,
@@ -7,6 +14,75 @@ import {
     processDataFromVisualizerToEditor,
     randomizeFeatures,
 } from "./graphEditorUtils";
+
+const GRAPH_EDITOR_CANVAS_SIZE = 640;
+const GRAPH_EDITOR_LAYOUT_PADDING = 60;
+
+function numericNodeId(raw: unknown, fallback: number) {
+    const value =
+        typeof raw === "object" && raw !== null && "id" in raw
+            ? (raw as { id?: unknown }).id
+            : raw;
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+    }
+
+    if (typeof value === "string") {
+        const match = value.match(/\d+/);
+        if (match) {
+            return Number(match[0]);
+        }
+    }
+
+    return fallback;
+}
+
+function rawEndpointId(endpoint: unknown) {
+    if (typeof endpoint === "object" && endpoint !== null && "id" in endpoint) {
+        return (endpoint as { id?: unknown }).id;
+    }
+
+    return endpoint;
+}
+
+function editorNodeToGraphDatum(node: any, index: number): NodeDatum {
+    const id = numericNodeId(node.id, index);
+    return {
+        id,
+        element: String(id),
+        community: node.community,
+    };
+}
+
+function editorLinkToGraphDatum(link: any, index: number): LinkDatum {
+    return {
+        source: numericNodeId(rawEndpointId(link.source), index),
+        target: numericNodeId(rawEndpointId(link.target), index),
+        attr: link.attr ?? (link.value == null ? undefined : { value: link.value }),
+    };
+}
+
+function getEditorNodeFill(node: any) {
+    return getNodeFillColor(null, editorNodeToGraphDatum(node, 0));
+}
+
+function getEditorNodeStroke(node: any) {
+    return getNodeStrokeColor(null, editorNodeToGraphDatum(node, 0));
+}
+
+function getEditorLinkStroke(link: any) {
+    return getLinkStrokeColor(null, editorLinkToGraphDatum(link, 0));
+}
+
+function pinEditorNodePosition(node: any) {
+    if (typeof node.x !== "number" || typeof node.y !== "number") {
+        return;
+    }
+
+    node.fx = node.x;
+    node.fy = node.y;
+}
 
 interface GraphEditorProps {
     dataFile: any;
@@ -35,6 +111,7 @@ export default function GraphEditor({
     const datasetRef = useRef<any>({});
     const [mode, setMode] = useState("edge");
     const modeRef = useRef("edge");
+    const [editorStats, setEditorStats] = useState({ nodes: 0, links: 0 });
 
     // Sync state
     const selectedNodeRef = useRef<string | null>(null);
@@ -56,10 +133,10 @@ export default function GraphEditor({
         if (svgContainer.current) {
             d3.select(svgContainer.current)
                 .selectAll("circle")
-                .attr("stroke", "#aaa");
+                .attr("stroke", (d: any) => getEditorNodeStroke(d));
             d3.select(svgContainer.current)
                 .selectAll("line")
-                .attr("stroke", "#aaa");
+                .attr("stroke", (d: any) => getEditorLinkStroke(d));
         }
         selectedNodeRef.current = null;
         secondSelectedNodeRef.current = null;
@@ -73,6 +150,13 @@ export default function GraphEditor({
         nodes: nodesRef.current,
         links: linksRef.current,
     });
+
+    const updateEditorStats = () => {
+        setEditorStats({
+            nodes: nodesRef.current.length,
+            links: linksRef.current.length,
+        });
+    };
 
     const getEndpointId = (endpoint: any) => {
         if (typeof endpoint === "string") return endpoint;
@@ -140,19 +224,51 @@ export default function GraphEditor({
 
         if (!svgContainer.current) return;
 
-        const width = 640;
-        const height = 640;
+        const width = GRAPH_EDITOR_CANVAS_SIZE;
+        const height = GRAPH_EDITOR_CANVAS_SIZE;
         let data = simGraphData;
                 console.log("Loaded graph:", data);
 
                 const initialData = processDataFromVisualizerToEditor(data);
                 datasetRef.current = initialData;
 
-                const links = initialData.links.map((d) => Object.create(d));
-                const nodes = initialData.nodes.map((d) => ({ ...d }));
+                const sharedLayoutNodes = initialData.nodes.map(
+                    (node: any, index: number) => editorNodeToGraphDatum(node, index)
+                );
+                const sharedLayoutLinks = initialData.links.map(
+                    (link: any, index: number) => editorLinkToGraphDatum(link, index)
+                );
+                const laidOutNodes = layoutGraph(
+                    sharedLayoutNodes,
+                    sharedLayoutLinks,
+                    width,
+                    height,
+                    GRAPH_EDITOR_LAYOUT_PADDING
+                );
+                const layoutByNodeId = new Map(
+                    laidOutNodes.map((node) => [node.id, node])
+                );
+
+                const links = initialData.links.map((d: any) => ({ ...d }));
+                const nodes = initialData.nodes.map((d: any, index: number) => {
+                    const graphNode = editorNodeToGraphDatum(d, index);
+                    const laidOutNode = layoutByNodeId.get(graphNode.id);
+                    const x = laidOutNode?.x ?? width / 2;
+                    const y = laidOutNode?.y ?? height / 2;
+
+                    return {
+                        ...d,
+                        community: laidOutNode?.community,
+                        x,
+                        y,
+                        fx: x,
+                        fy: y,
+                    };
+                });
 
                 nodesRef.current = nodes;
                 linksRef.current = links;
+                updateEditorStats();
 
                 const simulation = d3
                     .forceSimulation<any>(nodes)
@@ -180,7 +296,7 @@ export default function GraphEditor({
                             if (selectedLinkRef.current) {
                                 d3.select(selectedLinkRef.current).attr(
                                     "stroke",
-                                    "#999"
+                                    (linkDatum: any) => getEditorLinkStroke(linkDatum)
                                 );
                                 selectedLinkRef.current = null;
                             }
@@ -204,7 +320,6 @@ export default function GraphEditor({
 
                 const linkGroup = svg
                     .append("g")
-                    .attr("stroke", "#aaa")
                     .attr("stroke-opacity", 0.6);
 
                 const nodeGroup = svg
@@ -232,6 +347,11 @@ export default function GraphEditor({
                         .selectAll("line")
                         .data(linksRef.current)
                         .join("line")
+                        .attr("stroke", function (this: d3.BaseType, d: any) {
+                            return selectedLinkRef.current === this
+                                ? "black"
+                                : getEditorLinkStroke(d);
+                        })
                         .attr("x1", (d: any) => d.source.x)
                         .attr("y1", (d: any) => d.source.y)
                         .attr("x2", (d: any) => d.target.x)
@@ -243,7 +363,7 @@ export default function GraphEditor({
                             if (selectedLinkRef.current) {
                                 d3.select(selectedLinkRef.current).attr(
                                     "stroke",
-                                    "#aaa"
+                                    (linkDatum: any) => getEditorLinkStroke(linkDatum)
                                 );
                             }
 
@@ -261,8 +381,13 @@ export default function GraphEditor({
                         .data(nodesRef.current, (d: any) => d.id)
                         .join("circle")
                         .attr("r", 12)
-                        .attr("stroke", "#aaa")
-                        .attr("fill", "white")
+                        .attr("stroke", (d: any) =>
+                            selectedNodeRef.current === d.id ||
+                            secondSelectedNodeRef.current === d.id
+                                ? "black"
+                                : getEditorNodeStroke(d)
+                        )
+                        .attr("fill", (d: any) => getEditorNodeFill(d))
                         .call(drag(simulation) as any)
                         .attr("cx", (d: any) => d.x)
                         .attr("cy", (d: any) => d.y)
@@ -306,7 +431,7 @@ export default function GraphEditor({
                                 !secondSelectedNodeRef.current &&
                                 isFirstSelected
                             ) {
-                                d3.select(this).attr("stroke", "#aaa");
+                                d3.select(this).attr("stroke", getEditorNodeStroke(d));
                                 selectedNodeRef.current = null;
                                 setSelectedNodeId(null);
                                 selectionState.current = false;
@@ -347,6 +472,7 @@ export default function GraphEditor({
                                         ) as d3.ForceLink<any, any>;
                                     linkForce?.links(linksRef.current);
                                     simulationRef.current?.alpha(0.5).restart();
+                                    updateEditorStats();
                                     clearEditorSelection();
                                     handleTransmitToMainVisualizer();
                                 }
@@ -395,10 +521,7 @@ export default function GraphEditor({
                     function dragended(event: any) {
                         isDraggingRef.current = false;
                         simulation.alphaTarget(0);
-                        if (isRunningRef.current) {
-                            event.subject.fx = null;
-                            event.subject.fy = null;
-                        }
+                        pinEditorNodePosition(event.subject);
                         handleTransmitToMainVisualizer();
                     }
 
@@ -439,6 +562,7 @@ export default function GraphEditor({
                     nodesRef.current.push(newNode);
                     simulation.nodes(nodesRef.current);
                     simulation.alpha(0.5).restart();
+                    updateEditorStats();
                     if (onNodePositionsChange) {
                         onNodePositionsChange(nodesRef.current.map(node => ({ id: node.id, x: node.x, y: node.y })));
                     }
@@ -487,6 +611,7 @@ export default function GraphEditor({
                         linkForce?.links(linksRef.current);
                         simulationRef.current?.nodes(nodesRef.current);
                         simulationRef.current?.alpha(0.5).restart();
+                        updateEditorStats();
                         if (onNodePositionsChange) {
                             onNodePositionsChange(nodesRef.current.map(node => ({ id: node.id, x: node.x, y: node.y })));
                         }
@@ -495,6 +620,7 @@ export default function GraphEditor({
                 };
 
                 window.addEventListener("keydown", handleKeyDown);
+                ticked();
 
                 return () => {
                     window.removeEventListener("keydown", handleKeyDown);
@@ -523,6 +649,7 @@ export default function GraphEditor({
                 .id((d: any) => d.id)
                 .distance(100)
         ).force("charge", d3.forceManyBody().strength(-100));
+        nodesRef.current.forEach(pinEditorNodePosition);
         isRunningRef.current = true;
         setIsRunning(true);
         sim.alpha(0.5).restart();
@@ -553,60 +680,64 @@ export default function GraphEditor({
     };
 
     return (
-            <div className="graph_editor__root">
-                <div style={{ padding: "4px" }}>
-                    <button
-                        onClick={() => handleModeSwitch("node")}
-                        style={{
-                            padding: "10px 20px",
-                            borderRadius: "30px",
-                            border: "2px solid #aaa",
-                            fontWeight: "bold",
-                            backgroundColor: mode === "node" ? "yellow" : "white",
-                            cursor: "pointer"
-                            , color: "#aaa"
-                            }}
-                    >
-                        Node Edit
-                    </button>
-                    <button
-                        onClick={() => handleModeSwitch("edge")}
-                        style={{
-                            padding: "10px 20px",
-                            borderRadius: "30px",
-                            border: "2px solid #aaa",
-                            fontWeight: "bold",
-                            backgroundColor: mode === "edge" ? "yellow" : "white",
-                            cursor: "pointer", color: "#aaa"
-                            }}
-                    >
-                        Edge Edit
-                    </button>
-                    <div style={{ padding: "8px 4px" }}>
-                        <label style={{ fontWeight: "bold", marginRight: "8px", color: "#555" }}>
-                            Feature Editor:
-                        </label>
+        <div className="graph_editor__root">
+            <div className="graph-editor-toolbar">
+                <div className="graph-editor-toolbar__status">
+                    <span>
+                        Mode: <strong>{mode === "node" ? "NODE" : "EDGE"}</strong>
+                    </span>
+                    <span>
+                        Nodes: <strong>{editorStats.nodes}</strong>
+                    </span>
+                    <span>
+                        Edges: <strong>{editorStats.links}</strong>
+                    </span>
+                </div>
+                <div className="graph-editor-toolbar__controls">
+                    <div className="graph-editor-mode" role="group" aria-label="Graph editor mode">
+                        <button
+                            onClick={() => handleModeSwitch("node")}
+                            aria-pressed={mode === "node"}
+                            className={`graph-editor-mode__button ${
+                                mode === "node" ? "graph-editor-mode__button--active" : ""
+                            }`}
+                            type="button"
+                        >
+                            Node
+                        </button>
+                        <button
+                            onClick={() => handleModeSwitch("edge")}
+                            aria-pressed={mode === "edge"}
+                            className={`graph-editor-mode__button ${
+                                mode === "edge" ? "graph-editor-mode__button--active" : ""
+                            }`}
+                            type="button"
+                        >
+                            Edge
+                        </button>
+                    </div>
+                    <label className="graph-editor-feature">
+                        <span className="graph-editor-feature__label">
+                            Feature vector
+                            {featureDim > 0 ? (
+                                <span className="graph-editor-feature__dim">{featureDim}D</span>
+                            ) : null}
+                        </span>
                         <input
+                            className="graph-editor-feature__input"
                             type="text"
                             value={feature}
                             onChange={(e) => setFeature(e.target.value)}
-                            placeholder="e.g. 0.1, -0.3, 0.5, 1.2, 0.0"
-                            style={{
-                                width: "60%",
-                                padding: "6px 8px",
-                                borderRadius: "4px",
-                                border: "1px solid #ccc",
-                                fontFamily: "monospace",
-                                fontSize: "12px",
-                            }}
+                            placeholder="0.1, -0.3, 0.5"
                         />
-                    </div>
+                    </label>
                 </div>
-
-                <div
-                    className="graph_editor__canvas"
-                    ref={svgContainer}
-                ></div>
             </div>
+
+            <div
+                className="graph_editor__canvas"
+                ref={svgContainer}
+            ></div>
+        </div>
     );
 }
